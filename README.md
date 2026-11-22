@@ -22,7 +22,8 @@ The site never connects to a wallet. It writes a plain-text prompt with the exac
 | `contracts/` | `AgentIOU.sol` (the whole contract), test mocks, compile script and a 93-check test run on a local chain, and the local-chain helper for the live website test |
 | `web/` | The website: Vite, React, TypeScript, Tailwind, GSAP, viem. No backend, no login, no wallet connect, no stored sessions |
 | `tools/` | Image cutting scripts and the browser checks for the site (`check.py`, `check2.py`, `check_numbers.py`, `check_abi.mjs`, `check_units.mjs`), the live test `check_live.py` (the built site against a local chain, sending each prompt's exact call), and `abi.mjs` (exports the contract's read interface for the site) |
-| `docs/SECURITY.md` | Owner permissions (none), money flows, how the hackathon safety rules are met, known limits |
+| `docs/SECURITY.md` | Owner permissions (none), money flows, what the project never does, known limits |
+| `docs/DEPLOY.md` | The deployment order, compiler settings and the values to type in |
 
 ## Contract
 
