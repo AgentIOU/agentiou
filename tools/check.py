@@ -152,6 +152,14 @@ try:
     # joining is once: before it the header offers the join button, after it the profile takes its place (phone and computer)
     for w in (390,1280):
         j=b.new_page(viewport={"width":w,"height":850}); j.goto(G+"home"); j.wait_for_timeout(1000); hd=j.locator("header")
+        j.evaluate("location.hash='mart'"); j.wait_for_timeout(500); j.locator("main p[role=note]").get_by_role("link",name="FAQs").click(); j.wait_for_timeout(2300)
+        fq=j.locator("#faq"); qs=fq.locator("summary, button"); opened=0
+        top=j.evaluate("document.getElementById('faq').getBoundingClientRect().top")
+        ok(f"{w}px guest: the FAQs link lands on the FAQs from another page",0<=top<200,top)
+        for i in range(qs.count()):
+            n0=len(fq.inner_text()); qs.nth(i).click(); j.wait_for_timeout(200); opened+=len(fq.inner_text())>n0
+        ok(f"{w}px guest: every FAQ answer opens",qs.count()>=7 and opened==qs.count(),(qs.count(),opened))
+        ok(f"{w}px guest: the footer links to the FAQs too",j.locator("footer").get_by_role("link",name="FAQs").count()==1); j.evaluate("location.hash='home'"); j.wait_for_timeout(500)
         ok(f"{w}px guest: the Guest note and the Browse as a guest link are shown","Guest" in j.inner_text("main") and j.get_by_role("link",name="Browse as a guest").count()==1)
         j.get_by_role("link",name="Browse as a guest").click(); j.wait_for_timeout(600); tk=j.get_by_role("button",name="Take on credit")
         ok(f"{w}px guest: the shop can be seen but nothing can be taken",tk.count()>=2 and all(tk.nth(i).is_disabled() for i in range(tk.count())))
