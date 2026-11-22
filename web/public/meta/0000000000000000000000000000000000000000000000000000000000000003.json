@@ -1,0 +1,20 @@
+{
+  "name": "AgentIOU: Good word",
+  "description": "A Promise Mart Founders sticker, taken on credit on AgentIOU. Soulbound: it cannot be sold or sent.",
+  "image": "https://agentiou.pages.dev/img/founder-jump.webp",
+  "external_url": "https://agentiou.pages.dev",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Founders"
+    },
+    {
+      "trait_type": "Collection",
+      "value": "Founders"
+    },
+    {
+      "trait_type": "Transferable",
+      "value": "No"
+    }
+  ]
+}

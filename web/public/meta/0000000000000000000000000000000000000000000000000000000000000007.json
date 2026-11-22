@@ -1,0 +1,20 @@
+{
+  "name": "AgentIOU: Stamped",
+  "description": "A Season 1 Rare stamp, earned by keeping promises on AgentIOU. Soulbound: it cannot be sold or sent.",
+  "image": "https://agentiou.pages.dev/img/coin-stamped.webp",
+  "external_url": "https://agentiou.pages.dev",
+  "attributes": [
+    {
+      "trait_type": "Tier",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Collection",
+      "value": "Season 1"
+    },
+    {
+      "trait_type": "Transferable",
+      "value": "No"
+    }
+  ]
+}
