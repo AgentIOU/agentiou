@@ -186,7 +186,7 @@ export function Proof({ name, mint, owner, token }: { name: string; id?: string;
       <b className="block" style={{ fontSize: '6.4cqw' }}>Mint proof</b>
       <span className="block text-muted" style={{ marginBottom: '3cqw' }}>{name}</span>
       {rows.map(([a, b]) => <span key={a} className="flex justify-between border-b border-rule" style={{ padding: '2.4cqw 0' }}><span className="text-muted">{a}</span><span className="mono" style={{ fontSize: '4.4cqw' }}>{b}</span></span>)}
-      <span className="block text-muted" style={{ marginTop: '4cqw', fontSize: '4.2cqw', lineHeight: 1.35 }}>Soulbound: can't be sold or sent. The block and time are stored in the contract; anyone can match them on BscScan once the contract is live.</span>
+      <span className="block text-muted" style={{ marginTop: '4cqw', fontSize: '4.2cqw', lineHeight: 1.35 }}>Soulbound: can't be sold or sent. The block and time are stored in the contract; anyone can match them on BscScan{DEMO ? ' once the contract is live' : ''}.</span>
     </span>
   )
 }
