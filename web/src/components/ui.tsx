@@ -69,20 +69,26 @@ function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
   const copy = useCopy(); const box = useRef<HTMLDivElement>(null)
   useEffect(() => { play('swish'); box.current?.focus(); const k = (e: KeyboardEvent) => e.key === 'Escape' && close(); document.addEventListener('keydown', k); const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.removeEventListener('keydown', k); document.body.style.overflow = o } }, [close])
   useEffect(() => {
-    if (phase !== 'wait' || DEMO) return
+    if ((phase !== 'wait' && phase !== 'slow') || DEMO) return
     // live: nothing is assumed. The card moves on only when the contract shows the step: my record changed, or the step's own check passed.
-    let stop = false, timer = 0; const t0 = Date.now(), st = t.steps[step]
+    // It never stops looking: people leave for their agent app for minutes, and a phone pauses this page while they are away.
+    let stop = false, timer = 0, busy = false; const t0 = Date.now(), st = t.steps[step]
     const look = async () => {
+      if (busy) return
+      busy = true; clearTimeout(timer)
       let ok = false
       try { ok = st.seen ? await st.seen() : (await store.refresh()) !== base.current } catch { /* the next look tries again */ }
+      busy = false
       if (stop) return
-      if (!ok) { if (Date.now() - t0 > 40_000) setPhase('slow'); else timer = window.setTimeout(look, 2000); return }
+      if (!ok) { if (phase === 'wait' && Date.now() - t0 > 40_000) setPhase('slow'); else timer = window.setTimeout(look, phase === 'slow' ? 3000 : 2000); return }
       if (step < t.steps.length - 1) { setStep(step + 1); setPhase('prompt'); setCopied(false); play('chime'); return }
       if (st.seen) await store.refresh().catch(() => undefined)
       setPhase('done'); play('stamp'); try { navigator.vibrate?.(30) } catch { /* optional */ }
     }
-    timer = window.setTimeout(look, 1200)
-    return () => { stop = true; clearTimeout(timer) }
+    const back = () => { if (document.visibilityState === 'visible') void look() }   // coming back from the agent app: look at once
+    document.addEventListener('visibilitychange', back); window.addEventListener('focus', back)
+    timer = window.setTimeout(look, phase === 'slow' ? 3000 : 1200)
+    return () => { stop = true; clearTimeout(timer); document.removeEventListener('visibilitychange', back); window.removeEventListener('focus', back) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, step, t])
   useEffect(() => {
@@ -113,7 +119,7 @@ function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
           <div className="flex flex-wrap gap-3 mt-5"><button type="button" className="btn btn-primary" onClick={() => setPhase('wait')}>I confirmed in my agent</button><button type="button" className="btn btn-secondary" onClick={close}>Not now</button></div>
         </>}
         {phase === 'wait' && <div className="py-8 flex items-center gap-5"><Mascot pose="wave" expr="thinking" className="w-24 shrink-0" /><div><Dots label="Waiting for your agent" /><p className="text-muted text-[14px] mt-2">{DEMO ? 'The site reads the contract every few seconds: pending, confirmed, then updated. In this demo it confirms by itself.' : 'The site is reading the contract every few seconds. This card moves on by itself, usually within a few seconds of your transaction landing.'}</p>{!DEMO && <button type="button" className="btn-text underline underline-offset-4 text-[14px] text-muted mt-3 min-h-[44px]" onClick={() => setPhase('prompt')}>I have not sent it yet: back to the prompt</button>}</div></div>}
-        {phase === 'slow' && <div className="py-6 flex items-center gap-5"><Mascot pose="search" expr="confused" className="w-24 shrink-0" /><div><p className="font-semibold">We can't see it on-chain yet.</p><p className="text-muted text-[14px] mt-2">If your agent showed a success, it can take a little longer. If it showed an error or you did not confirm there, nothing was sent.</p><div className="flex flex-wrap gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" onClick={() => setPhase('wait')}>Check again</button><button type="button" className="btn btn-secondary btn-sm" onClick={() => setPhase('prompt')}>Back to the prompt</button></div></div></div>}
+        {phase === 'slow' && <div className="py-6 flex items-center gap-5"><Mascot pose="search" expr="confused" className="w-24 shrink-0" /><div><p className="font-semibold">We can't see it on-chain yet. Still looking.</p><p className="text-muted text-[14px] mt-2">This card moves on by itself as soon as the chain shows it. If your agent showed an error or you did not confirm there, nothing was sent.</p><div className="flex flex-wrap gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" onClick={() => setPhase('wait')}>Check again</button><button type="button" className="btn btn-secondary btn-sm" onClick={() => setPhase('prompt')}>Back to the prompt</button></div></div></div>}
         {phase === 'done' && <div className="py-6 flex flex-wrap items-center gap-6"><Mascot pose={(t.pose as Pose) ?? 'jump'} expr="success" className="w-28 shrink-0" /><div className="flex-1 min-w-[200px]"><PaidStamp text={t.done} />{t.after && <div className="mt-4">{t.after}</div>}<div className="mt-5"><button type="button" className="btn btn-secondary" onClick={close}>Done</button></div></div></div>}
         {phase === 'error' && <div className="py-6 flex items-center gap-5"><Mascot pose="rest" expr="worried" className="w-28 shrink-0" /><div><p className="font-semibold text-coral flex gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />{err}</p><p className="text-muted text-[14px] mt-2">Nothing was sent.</p><button type="button" className="btn btn-secondary mt-4" onClick={close}>Close</button></div></div>}
       </div>

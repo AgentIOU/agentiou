@@ -100,13 +100,17 @@ try:
     if mint: mint[0].click(); pg.wait_for_timeout(400); ok("mint with the voucher",act(ANA)); done(); ok("voucher used on-chain",chain(ANA)["pocket"][0]==0)
     # ---- G. the visitor says "confirmed" but never sent it
     go("mart"); pg.get_by_role("button",name="Borrow again").first.click(); pg.wait_for_timeout(400)
+    pr=pg.locator("pre.code").inner_text(); late=(re.search(r"Call contract (0x[0-9a-fA-F]{40})",pr).group(1), re.search(r"^Calldata: (0x[0-9a-fA-F]+)$",pr,re.M).group(1), re.search(r"Value: ([\d.]+) BNB",pr).group(1))
     pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(1500)
     ok("while it waits, the visitor can go straight back to the prompt",pg.get_by_role("button",name=re.compile("back to the prompt")).count()==1)
     t0=time.time(); slow=False
     while time.time()-t0<70 and not slow: pg.wait_for_timeout(500); slow="can't see it on-chain yet" in pg.locator("[role=dialog]").inner_text()
     ok(f"nothing sent: the card does not pretend, it says it cannot see it (after {time.time()-t0+1.5:.0f}s)",slow and time.time()-t0<50)
     ok("nothing changed on-chain",chain(ANA)["owedCents"]==0)
-    pg.get_by_role("button",name="Back to the prompt").click(); pg.wait_for_timeout(300); ok("and it works once the call is really sent",act(ANA)); done()
+    # the visitor was slow in the agent app: the call lands minutes later, and nobody presses anything on the card
+    r=node("send",ANA,*late); t0=time.time(); fin=False
+    while time.time()-t0<20 and not fin: pg.wait_for_timeout(500); fin=pg.locator("[role=dialog]").get_by_role("button",name="Done").count()==1
+    ok(f"sent late: the card keeps looking and finishes by itself (in {time.time()-t0:.0f}s)",r=="success" and fin); done()
     # ---- H. send an IOU to a friend, who accepts
     go("new"); pg.fill("#to",BEN); pg.wait_for_timeout(400); ok("friend card shows the member read from the chain","ben" in main() and "Agent ID holder" in main())
     pg.fill("#to",CAT); pg.wait_for_timeout(300); ok("an address that has not joined is refused","not IOU Verified yet" in main())
