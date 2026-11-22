@@ -1,4 +1,4 @@
-import { DESIGNS, MART, plain, usd, BNB_USD, type Offer } from '../lib/data'
+import { DESIGNS, MART, plain, usd, dayWord, BNB_USD, type Offer } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
 import { Founder, Led, MartLogo, Money } from '../components/art'
@@ -17,7 +17,7 @@ export function OfferCard({ o, i = 0 }: { o: Offer; i?: number }) {
       </div>
       <h3 className="text-[20px] mt-4">{plain(o.title)}</h3>
       <p className="mt-1"><Money>{String(o.price)}</Money> <span className="font-semibold">{o.asset}</span>{o.asset === 'BNB' && <span className="text-muted"> ≈ {usd(o.price * BNB_USD)}</span>}</p>
-      <dl className="mt-3 text-[15px] text-muted grid grid-cols-2 gap-y-1"><dt>You get now</dt><dd className="text-chalk text-right">{o.price} {o.asset}{mine ? '' : ' + sticker'}</dd><dt>Pay back within</dt><dd className="text-chalk text-right">{o.termDays} days</dd><dt>Left</dt><dd className="text-chalk text-right">{left <= 0 ? `All ${o.stock} out on loan` : `${left} of ${o.stock}`}</dd></dl>
+      <dl className="mt-3 text-[15px] text-muted grid grid-cols-2 gap-y-1"><dt>You get now</dt><dd className="text-chalk text-right">{o.price} {o.asset}{mine ? '' : ' + sticker'}</dd><dt>Pay back within</dt><dd className="text-chalk text-right">{dayWord(o.termDays)}</dd><dt>Left</dt><dd className="text-chalk text-right">{left <= 0 ? `All ${o.stock} out on loan` : `${left} of ${o.stock}`}</dd></dl>
       <div className="mt-5">{mine && <p className="mb-2"><span className="pill pill-leaf">Sticker in your profile</span></p>}<button type="button" className="btn btn-primary w-full" disabled={left <= 0 || !!why} onClick={() => take(o)}>{left <= 0 ? 'Refill soon' : mine ? 'Borrow again' : 'Take on credit'}</button>{why && <p className="text-coral text-[14px] mt-2 font-semibold">{why}</p>}</div>
     </article>
   )

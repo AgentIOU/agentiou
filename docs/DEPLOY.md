@@ -55,9 +55,9 @@ On the verified contract's Write Contract tab (or in Remix, "At Address"), from 
 
 | title | asset | price (wei) | termDays | stock | designId |
 |---|---|---|---|---|---|
-| `Day one sticker` | 1 | 10000000000000000 | 2 | 100 | 1 |
-| `Night owl sticker` | 1 | 30000000000000000 | 3 | 100 | 2 |
-| `Good word sticker` | 1 | 50000000000000000 | 5 | 100 | 3 |
+| `Day one sticker` | 1 | 10000000000000000 | 1 | 100 | 1 |
+| `Night owl sticker` | 1 | 30000000000000000 | 2 | 100 | 2 |
+| `Good word sticker` | 1 | 50000000000000000 | 3 | 100 | 3 |
 
 The shop lends its own USDT. Taking an offer moves the price from the shop wallet to the borrower, and repaying moves it back. So the shop wallet must:
 

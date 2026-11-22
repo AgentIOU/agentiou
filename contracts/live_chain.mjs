@@ -18,9 +18,9 @@ if (cmd === 'setup') {
   for (const p of [ana, ben]) { await w(mart, AGENT_ID, art.MockAgentId.abi, 'set', [p, 1n]); await w(mart, USDT, art.MockUsdt.abi, 'mint', [p, parseEther('100')]) }   // cat holds no Agent ID
   const iou = (await c.waitForTransactionReceipt({ hash: await c.deployContract({ abi: A, bytecode: art.AgentIOU.bytecode, args: ['https://example.invalid/meta/{id}.json'], account: mart }) })).contractAddress
   // the three Promise Mart offers, exactly as planned for the real deployment
-  await w(mart, iou, A, 'createOffer', ['Day one sticker', 1, parseEther('0.01'), 2, 100, 1])
-  await w(mart, iou, A, 'createOffer', ['Night owl sticker', 1, parseEther('0.03'), 3, 100, 2])
-  await w(mart, iou, A, 'createOffer', ['Good word sticker', 1, parseEther('0.05'), 5, 100, 3])
+  await w(mart, iou, A, 'createOffer', ['Day one sticker', 1, parseEther('0.01'), 1, 100, 1])
+  await w(mart, iou, A, 'createOffer', ['Night owl sticker', 1, parseEther('0.03'), 2, 100, 2])
+  await w(mart, iou, A, 'createOffer', ['Good word sticker', 1, parseEther('0.05'), 3, 100, 3])
   // the shop's lending money: it holds 9 USDT (100 loans of each offer) and lets the contract pass on up to that much
   await w(mart, USDT, art.MockUsdt.abi, 'mint', [mart, parseEther('9')]); await w(mart, USDT, art.MockUsdt.abi, 'approve', [iou, parseEther('9')])
   const out = { contract: iou, mart, ana, ben, cat }; fs.writeFileSync(state, JSON.stringify(out)); console.log(JSON.stringify(out))

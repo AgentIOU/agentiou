@@ -75,7 +75,7 @@ try:
     pg.reload(); pg.wait_for_timeout(3000); ok("after a reload the visitor is still a member, not a guest",pg.locator("header").get_by_role("link",name="Profile: ana").count()==1 and "Guest" not in main())
     # ---- D. take on credit
     go("mart"); pg.get_by_role("button",name="Take on credit").first.click(); pg.wait_for_timeout(400)
-    pr=pg.locator("pre.code").inner_text(); ok("the loan prompt says what arrives, from whom, and that nothing leaves my wallet","lends me 0.01 USDT from the shop ("+A["mart"] in pr and "within 2 days" in pr and "Nothing leaves my wallet" in pr,pr[:400])
+    pr=pg.locator("pre.code").inner_text(); ok("the loan prompt says what arrives, from whom, and that nothing leaves my wallet","lends me 0.01 USDT from the shop ("+A["mart"] in pr and "within 1 day." in pr and "Nothing leaves my wallet" in pr,pr[:400])
     u0=int(node("usdt",ANA)); m0=int(node("usdt",A["mart"]))
     ok("take the 0.01 USDT loan",act(ANA)); done(); c=same("after taking an offer"); ok("the IOU is on the chain: 1 cent owed",c["owedCents"]==1)
     ok("the shop's 0.01 USDT really arrived in my wallet, and left the shop's",int(node("usdt",ANA))-u0==10**16 and m0-int(node("usdt",A["mart"]))==10**16,(int(node("usdt",ANA))-u0,))
@@ -84,7 +84,7 @@ try:
     go("me"); pg.get_by_role("button",name="Repay").first.click(); pg.wait_for_timeout(400)
     ok("repay step 1: the card moves to step 2 only when the approval is on-chain",act(ANA,"step2"))
     ok("repay step 2: finished when the repayment is on-chain",act(ANA)); done()
-    c=same("after an on-time repay"); ok("on-time repay: XP 130, score 57, nothing owed",(c["xp"],c["score"],c["owedCents"],c["onTime"])==(130,57,0,1),c)
+    c=same("after an on-time repay"); ok("on-time repay of a 1-day loan: XP 120 (50 + 30 + first-repay badge 25 + new person 15; no early bonus, a 1-day loan can never be 24 hours early), score 57, nothing owed",(c["xp"],c["score"],c["owedCents"],c["onTime"])==(120,57,0,1),c)
     ok("the shop has its money back and earned nothing",int(node("usdt",A["mart"]))==m0 and int(node("usdt",ANA))==u0)
     go("mart",1200); ok("the repaid loan is back in stock, and I keep the sticker",main().count("100 of 100")==3 and "Sticker in your profile" in main(),main()[:300])
     # ---- E2. a shop with no lending money left
@@ -92,7 +92,7 @@ try:
     ok("shop out of funds: the site says so and writes no prompt","The shop has no USDT to lend right now" in main() and all(x.is_disabled() for x in pg.get_by_role("button",name="Take on credit").all()))
     node("shop","9"); pg.reload(); pg.wait_for_timeout(3500); go("mart",900); ok("shop funded again: offers open",any(x.is_enabled() for x in pg.get_by_role("button",name="Take on credit").all()))
     # ---- F. check-in, claim, mint
-    go("tasks"); pg.get_by_role("button",name="Check in").click(); pg.wait_for_timeout(400); ok("daily check-in",act(ANA)); done(); c=same("after check-in"); ok("check-in: +5 XP, day 1",(c["xp"],c["checkDays"])==(135,1))
+    go("tasks"); pg.get_by_role("button",name="Check in").click(); pg.wait_for_timeout(400); ok("daily check-in",act(ANA)); done(); c=same("after check-in"); ok("check-in: +5 XP, day 1",(c["xp"],c["checkDays"])==(125,1))
     go("tasks"); ok("check-in is off for the rest of the day",pg.get_by_role("button",name="Come back tomorrow").is_disabled())
     pg.get_by_role("button",name=re.compile("^Claim")).first.click(); pg.wait_for_timeout(400); ok("claim a Common voucher",act(ANA)); done(); ok("voucher is in the pocket on-chain",chain(ANA)["pocket"][0]==1)
     go("tasks"); mint=[x for x in pg.get_by_role("button",name=re.compile("^Mint")).all() if x.is_enabled()]

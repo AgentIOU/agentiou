@@ -84,15 +84,17 @@ export const seedUsers = (): User[] => [
   u(OMAR, 'omar', 71, 2, 2, 1),
   u(addr(0x6f2), 'kojo', 19, 9, 4), u(addr(0x7a8), 'ines', 23, 12, 6), u(addr(0x8b4), 'dev-han', 64, 2, 1),
 ]
+/** "1 day", "2 days": a term or a count of days in words. */
+export const dayWord = (n: number) => (n === 1 ? '1 day' : `${n} days`)
 export const seedOffers = (): Offer[] => [
-  { id: 1, design: 1, title: 'Day one sticker', asset: 'USDT', price: 0.01, termDays: 2, stock: 100, taken: 31 },
-  { id: 2, design: 2, title: 'Night owl sticker', asset: 'USDT', price: 0.03, termDays: 3, stock: 100, taken: 22 },
-  { id: 3, design: 3, title: 'Good word sticker', asset: 'USDT', price: 0.05, termDays: 5, stock: 100, taken: 100 },
+  { id: 1, design: 1, title: 'Day one sticker', asset: 'USDT', price: 0.01, termDays: 1, stock: 100, taken: 31 },
+  { id: 2, design: 2, title: 'Night owl sticker', asset: 'USDT', price: 0.03, termDays: 2, stock: 100, taken: 22 },
+  { id: 3, design: 3, title: 'Good word sticker', asset: 'USDT', price: 0.05, termDays: 3, stock: 100, taken: 100 },
 ]
 const i = (id: number, creditor: string, debtor: string, asset: Asset, amount: number, created: number, due: number, status: Status, memo: string, repaid?: number, offerId?: number): Iou => ({
   id, creditor, debtor, asset, amount, usd: asset === 'BNB' ? amount * BNB_USD : amount, createdAt: T0 + created * DAY, dueAt: T0 + due * DAY, status, memo, repaidAt: repaid != null ? T0 + repaid * DAY : status === 'Repaid' ? T0 + (due - 0.3) * DAY : undefined, offerId })
 export const seedIous = (): Iou[] => [
-  i(1, MART, ME, 'USDT', 0.01, -8, -6, 'Repaid', 'Day one sticker', -6.4, 1),
+  i(1, MART, ME, 'USDT', 0.01, -8, -7, 'Repaid', 'Day one sticker', -7.4, 1),
   i(2, MIRA, ME, 'USDT', 1, -6, -3, 'Repaid', 'Tea'),
   i(3, RAFI, ME, 'BNB', 0.0005, -5, -2, 'Repaid', 'Bus fare', -3.5),
   i(4, MIRA, ME, 'USDT', 2, -3, -1, 'Repaid', 'Lunch', -1.6),
