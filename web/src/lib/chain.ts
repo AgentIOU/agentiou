@@ -11,7 +11,7 @@ const client = createPublicClient({ chain: bsc, transport: fallback(RPCS.map((u)
 const C = CONTRACT as `0x${string}`
 const read = <T,>(functionName: string, args: unknown[] = []) => client.readContract({ address: C, abi: ABI, functionName, args }) as Promise<T>
 
-interface RawUser { joinedAt: number; no: number; onTime: number; late: number; defaults: number; people: number; good: number; owedCents: number; xp: number; badges: number; claimed: readonly number[]; pocket: readonly number[]; checkDay: number; checkDays: number; nickname: string }
+interface RawUser { joinedAt: number; no: number; onTime: number; late: number; defaults: number; people: number; good: number; owedCents: number; xp: number; badges: number; claimed: readonly number[]; pocket: readonly number[]; checkDay: number; checkDays: number; xpDay: number; takesToday: number; nickname: string }
 interface RawIou { creditor: string; debtor: string; asset: number; status: number; createdAt: number; dueAt: number; repaidAt: number; usdCents: number; offerId: number; amount: bigint; memo: string }
 interface RawOffer { shop: string; asset: number; active: boolean; termDays: number; stock: number; taken: number; designId: number; price: bigint; title: string }
 export interface ChainView { level: number; score: number; restricted: boolean; overdue: boolean; owed: number }
@@ -24,14 +24,16 @@ const iou = (id: bigint, x: RawIou): Iou => ({ id: Number(id), creditor: getAddr
 
 export async function loadAll(): Promise<Snapshot> {
   const usdt = (functionName: 'balanceOf' | 'allowance', args: `0x${string}`[]) => client.readContract({ address: USDT as `0x${string}`, abi: EXTRA, functionName, args } as never) as Promise<bigint>
-  const [members, offersRaw, recent, mine, feed, holds, credit, shopBal, shopOk] = await Promise.all([
+  const [members, offersRaw, recent, mine, feed, holds, credit, shopBal, shopOk, head] = await Promise.all([
     read<string[]>('getUsers', [0n, 200n]), read<RawOffer[]>('getOffers', [0n, 60n]), read<[bigint[], RawIou[]]>('getRecentIOUs', [300n]),
     HAS_ME ? read<[bigint[], RawIou[]]>('getUserIOUs', [ME, 0n, 300n]) : Promise.resolve<[bigint[], RawIou[]]>([[], []]),
     client.readContract({ address: BNB_FEED as `0x${string}`, abi: EXTRA, functionName: 'latestRoundData' }).catch(() => null),
     HAS_ME ? client.readContract({ address: AGENT_ID as `0x${string}`, abi: EXTRA, functionName: 'balanceOf', args: [ME as `0x${string}`] }).then((n) => n > 0n).catch(() => null) : Promise.resolve(null),
     HAS_ME ? read<bigint>('credits', [ME]) : Promise.resolve(0n),
     usdt('balanceOf', [MART as `0x${string}`]).catch(() => 0n), usdt('allowance', [MART as `0x${string}`, C]).catch(() => 0n),
+    client.getBlock().catch(() => null),
   ])
+  const chainDay = Math.floor((head ? Number(head.timestamp) * 1000 : Date.now()) / DAY)   // the contract's own calendar day
   const addrs = [...new Set([...members.map((a) => getAddress(a)), ...(HAS_ME ? [ME] : [])])]
   const got = await Promise.all(addrs.map((a) => read<[RawUser, number, number, number, boolean, boolean]>('getUser', [a])))
   // sticker shelves: every design for me, and for the rest while the member list is small enough to ask in one go
@@ -45,7 +47,7 @@ export async function loadAll(): Promise<Snapshot> {
     if (k >= 0) for (let d = 0; d < 12; d++) { const m = mints[k * 12 + d]; if (m[0]) stickers[d + 1] = { edition: m[0], block: Number(m[1]), time: m[2] * 1000 } }
     const badges: User['badges'] = {}; BADGES.forEach((b, n) => { if (u.badges & (1 << n)) badges[b.key] = t })
     users.push({ address: a, nickname: u.nickname, no: u.no, joinedAt: t, onTime: u.onTime, late: u.late, defaults: u.defaults, people: u.people, xp: u.xp, good: u.good,
-      claimed: [u.claimed[0], u.claimed[1], u.claimed[2]], pocket: [u.pocket[0], u.pocket[1], u.pocket[2]], stickers, badges, checkDays: u.checkDays, lastCheck: u.checkDay ? u.checkDay * DAY + DAY / 2 : 0 })
+      claimed: [u.claimed[0], u.claimed[1], u.claimed[2]], pocket: [u.pocket[0], u.pocket[1], u.pocket[2]], stickers, badges, checkDays: u.checkDays, lastCheck: u.checkDay ? u.checkDay * DAY + DAY / 2 : 0, takesToday: u.xpDay === chainDay ? u.takesToday : 0 })
     chain.set(a, { level, score, restricted, overdue, owed: u.owedCents / 100 })
   })
   const byId = new Map<number, Iou>()

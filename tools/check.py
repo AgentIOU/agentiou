@@ -45,7 +45,12 @@ try:
     ok("prompt has exact calldata",re.search(r"Calldata: 0x33f2e7f8[0-9a-f]{64}",pr),pr)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300); ok("Esc closes the tray",pg.locator("[role=dialog]").count()==0)
     pg.get_by_role("button",name="Take on credit").first.click(); pg.wait_for_timeout(300); conf(); ok("take on credit",'Promise made' in dlg(),dlg()[:80]); pg.get_by_role("button",name="Done").click()
-    ok("taken sticker shows as held",pg.get_by_text("In your profile").count()==2)
+    ok("taken sticker shows as held",pg.get_by_text("Sticker in your profile").count()==2)
+    # two shop loans a day per wallet: the second goes through, the third is switched off with the reason, and no extra sticker appears
+    pg.get_by_role("button",name="Borrow again").first.click(); pg.wait_for_timeout(300); conf(); ok("the same offer can be borrowed again",'Promise made' in dlg(),dlg()[:80]); pg.get_by_role("button",name="Done").click(); pg.wait_for_timeout(300)
+    tb=pg.locator("main").get_by_role("button",name=re.compile("^(Take on credit|Borrow again)$"))
+    ok("after two shop loans today the rest are off, with the reason",tb.count()>=2 and all(tb.nth(i).is_disabled() for i in range(tb.count())) and "You have taken 2 shop loans today" in pg.inner_text("main"))
+    ok("borrowing again adds no second sticker",pg.get_by_text("Sticker in your profile").count()==2)
     pg.goto(U+"me"); pg.wait_for_timeout(700)
     ok("new IOU is on the list",pg.get_by_text("Night owl sticker").count()>=1)
     # USDT repay = 2 steps with exact approve

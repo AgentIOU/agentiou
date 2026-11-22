@@ -15,6 +15,8 @@ interface Store {
   owed: (a: string) => number; hasOverdue: (a: string) => boolean; restricted: (a: string) => boolean
   /** Why I cannot borrow this amount right now, or '' if I can. Mirrors the contract's checks, so no prompt is written for a call that would fail. */
   whyNotBorrow: (usd: number) => string; whyNotSend: () => string
+  /** Why I cannot take another shop loan today, or ''. The contract allows two a day per wallet. */
+  whyNotTake: () => string
   tray: TrayReq | null; openTray: (t: TrayReq) => void; closeTray: () => void
   toasts: Toast[]; toast: (text: string, kind?: Toast['kind']) => void; dropToast: (id: number) => void
   act: { join: (nick: string) => void; takeOffer: (id: number) => string | void; repay: (id: number) => string | void; accept: (id: number) => string | void; decline: (id: number) => void; cancel: (id: number) => void
@@ -59,6 +61,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const NOT_YET = !HAS_ME ? 'Add your Agentic Wallet address first' : 'Get IOU Verified first'
   const whyNotBorrow = (usd: number) => !joined ? NOT_YET : isRestricted(ME) ? 'Restricted: repay your overdue IOUs first' : ious.filter((x) => x.debtor === ME && x.status === 'Active').length >= 10 ? 'You already have 10 active IOUs' : usd > room() + 1e-9 ? `Over your $${LEVELS[levelOf(me) - 1].limit} limit` : ''
+  const demoTakes = useRef({ day: -1, n: 0 })
+  const takesToday = DEMO ? (demoTakes.current.day === dayOf(Date.now()) ? demoTakes.current.n : 0) : me.takesToday ?? 0
+  const whyNotTake = () => (takesToday >= 2 ? 'You have taken 2 shop loans today. Come back tomorrow.' : '')
   const whyNotSend = () => !joined ? NOT_YET : isRestricted(ME) ? 'Restricted: repay your overdue IOUs first' : ious.filter((x) => x.creditor === ME && x.status === 'Pending').length >= 20 ? 'You have 20 IOUs waiting for accept. Cancel one first.' : ''
   const demoAct: Store['act'] = {
     join: (nick) => { setJoined(true); patchMe((m) => ({ ...m, nickname: nick || m.nickname })) },
@@ -66,11 +71,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const o = offers.find((x) => x.id === id)!; const usd = o.asset === 'BNB' ? o.price * BNB_USD : o.price
       if (isRestricted(ME)) return RESTRICTED
       if (usd > room() + 1e-9) return `This goes over your Credit Pass limit ($${LEVELS[levelOf(me) - 1].limit}). Repay first or pick a smaller amount.`
-      if (me.stickers[o.design]) return 'You already hold this sticker. Each design is once per wallet.'
+      if (whyNotTake()) return whyNotTake()
       const now = Date.now()
+      demoTakes.current = { day: dayOf(now), n: takesToday + 1 }
       setIous((l) => [...l, { id: ++seq.current, creditor: MART, debtor: ME, asset: o.asset, amount: o.price, usd, createdAt: now, dueAt: now + o.termDays * DAY, status: 'Active', memo: o.title, offerId: id }])
       setOffers((l) => l.map((x) => (x.id === id ? { ...x, taken: x.taken + 1 } : x)))
-      patchMe((m) => ({ ...m, stickers: mintRec(m, o.design) }))
+      patchMe((m) => (m.stickers[o.design] ? m : { ...m, stickers: mintRec(m, o.design) }))   // the sticker comes with the first loan only
     },
     repay: (id) => {
       // the same rules as the contract's _settle, line for line
@@ -146,7 +152,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (e) { setChainState((c) => ({ ...c, down: true })); throw e }
   }, [])
   useEffect(() => { if (DEMO) return; const go = () => { if (!document.hidden) refresh().catch(() => undefined) }; go(); const id = setInterval(go, 20_000); return () => clearInterval(id) }, [refresh])
-  const v = useMemo<Store>(() => ({ users, ious, offers, me, joined, loaded: chainState.loaded, chainDown: chainState.down, holdsAgentId: chainState.holds, credit: chainState.credit, shopFunds: chainState.shop, print: chainState.print, refresh, user, name, owed, hasOverdue, restricted: isRestricted, whyNotBorrow, whyNotSend, tray, openTray: setTray, closeTray: () => setTray(null), toasts, toast, dropToast: (id) => setToasts((t) => t.filter((x) => x.id !== id)), act, last, draftTo, setDraftTo }),
+  const v = useMemo<Store>(() => ({ users, ious, offers, me, joined, loaded: chainState.loaded, chainDown: chainState.down, holdsAgentId: chainState.holds, credit: chainState.credit, shopFunds: chainState.shop, print: chainState.print, refresh, user, name, owed, hasOverdue, restricted: isRestricted, whyNotBorrow, whyNotSend, whyNotTake, tray, openTray: setTray, closeTray: () => setTray(null), toasts, toast, dropToast: (id) => setToasts((t) => t.filter((x) => x.id !== id)), act, last, draftTo, setDraftTo }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [users, ious, offers, joined, chainState, refresh, tray, toasts, last, draftTo])
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>

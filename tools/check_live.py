@@ -79,14 +79,14 @@ try:
     u0=int(node("usdt",ANA)); m0=int(node("usdt",A["mart"]))
     ok("take the 0.01 USDT loan",act(ANA)); done(); c=same("after taking an offer"); ok("the IOU is on the chain: 1 cent owed",c["owedCents"]==1)
     ok("the shop's 0.01 USDT really arrived in my wallet, and left the shop's",int(node("usdt",ANA))-u0==10**16 and m0-int(node("usdt",A["mart"]))==10**16,(int(node("usdt",ANA))-u0,))
-    go("mart"); ok("stock went down on the shop page","99 of 100" in main() and "In your profile" in main())
+    go("mart"); ok("stock went down on the shop page","99 of 100" in main() and "Sticker in your profile" in main())
     # ---- E. repay USDT in two steps
     go("me"); pg.get_by_role("button",name="Repay").first.click(); pg.wait_for_timeout(400)
     ok("repay step 1: the card moves to step 2 only when the approval is on-chain",act(ANA,"step2"))
     ok("repay step 2: finished when the repayment is on-chain",act(ANA)); done()
     c=same("after an on-time repay"); ok("on-time repay: XP 130, score 57, nothing owed",(c["xp"],c["score"],c["owedCents"],c["onTime"])==(130,57,0,1),c)
     ok("the shop has its money back and earned nothing",int(node("usdt",A["mart"]))==m0 and int(node("usdt",ANA))==u0)
-    go("mart",1200); ok("the repaid loan is back in stock, and I keep the sticker",main().count("100 of 100")==3 and "In your profile" in main(),main()[:300])
+    go("mart",1200); ok("the repaid loan is back in stock, and I keep the sticker",main().count("100 of 100")==3 and "Sticker in your profile" in main(),main()[:300])
     # ---- E2. a shop with no lending money left
     node("shop","0"); pg.reload(); pg.wait_for_timeout(3500); go("mart",900)
     ok("shop out of funds: the site says so and writes no prompt","The shop has no USDT to lend right now" in main() and all(x.is_disabled() for x in pg.get_by_role("button",name="Take on credit").all()))
@@ -99,7 +99,7 @@ try:
     ok("a Common stamp can now be minted",len(mint)>=1)
     if mint: mint[0].click(); pg.wait_for_timeout(400); ok("mint with the voucher",act(ANA)); done(); ok("voucher used on-chain",chain(ANA)["pocket"][0]==0)
     # ---- G. the visitor says "confirmed" but never sent it
-    go("mart"); pg.get_by_role("button",name="Take on credit").first.click(); pg.wait_for_timeout(400)
+    go("mart"); pg.get_by_role("button",name="Borrow again").first.click(); pg.wait_for_timeout(400)
     pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(1500)
     ok("while it waits, the visitor can go straight back to the prompt",pg.get_by_role("button",name=re.compile("back to the prompt")).count()==1)
     t0=time.time(); slow=False
@@ -116,7 +116,11 @@ try:
     while time.time()-t0<30 and "Owed to you\n1 active" not in main(): pg.wait_for_timeout(1000)   # no reload: the site's own 20-second refresh has to pick it up
     ok(f"after ben accepts, my page shows it as owed to me by itself (took {time.time()-t0:.0f}s)","Owed to you\n1 active" in main(),main()[200:700])
     # ---- I. overdue and Restricted, read from the chain
-    go("mart"); tb=[x for x in pg.get_by_role("button",name="Take on credit").all() if x.is_enabled()]; tb[-1].click(); pg.wait_for_timeout(400); ok("take the 0.05 USDT loan",act(ANA)); done()
+    go("mart",1200); tb=pg.locator("main").get_by_role("button",name=re.compile("^(Take on credit|Borrow again)$"))
+    ok("two shop loans taken today: the third is off, with the reason",all(x.is_disabled() for x in tb.all()) and "You have taken 2 shop loans today" in main(),main()[:300])
+    ok("borrowing the same offer twice gave one sticker",main().count("Sticker in your profile")==1)
+    node("warp",86400); pg.reload(); pg.wait_for_timeout(3500); go("mart",1200)   # the next day on the chain's own calendar
+    tb=[x for x in pg.get_by_role("button",name="Take on credit").all() if x.is_enabled()]; ok("next day the offers are open again",len(tb)>=1); tb[-1].click(); pg.wait_for_timeout(400); ok("take the 0.05 USDT loan",act(ANA)); done()
     node("call",BEN,"createIOU",json.dumps([ANA,0,"80000000000000n",5,"Bus fare"])); pg.reload(); pg.wait_for_timeout(3500); go("me",900)   # IOU 5: a friend's BNB IOU, so BNB repay is covered too
     pg.get_by_role("button",name="Accept").first.click(); pg.wait_for_timeout(400); ok("accept a friend's BNB IOU",act(ANA)); done()
     node("warp",6*86400); pg.reload(); pg.wait_for_timeout(3500); c=same("three IOUs past due"); ok("the contract says Restricted and the site shows it",c["restricted"] and "Restricted" in main())
@@ -129,12 +133,17 @@ try:
     c=same("two late repays"); ok("one left past due: Restricted is lifted",(c["late"],c["restricted"],c["overdue"])==(2,False,True),c)
     go("me"); pg.get_by_role("button",name="Repay").first.click(); pg.wait_for_timeout(400); ok("last late repay, step 1",act(ANA,"step2")); ok("last late repay, step 2",act(ANA)); done()
     c=same("everything repaid"); ok("no longer overdue, three late marks stay",(c["late"],c["overdue"],c["owedCents"])==(3,False,0),c)
+    go("me",1200); t=main(); lab=pg.locator("[aria-label*='IOU Card']").first.get_attribute("aria-label")
+    ok("My IOUs: nothing owed, full limit free again","You owe\n0 active" in t and "Available $1.00 of $1 limit" in lab,(t[t.find("You owe"):t.find("You owe")+40],lab))
+    ok("History counts every loan with its outcome: 1 on time, 3 late","1 repaid on time, 3 late, 0 declined or cancelled" in t,t[t.find("History"):t.find("History")+140])
+    go("mart",1200); t=main(); ok("shop figures: nothing out on loan, 3 shop loans paid back for $0.07","Out on loan now\n0" in t and re.search(r"Loans paid back\s*3\s*\(\$0\.07\)",t) is not None and t.count("100 of 100")==3,t[t.find("Shop wallet"):t.find("Shop wallet")+160])
+    go("u-"+ANA,1200); t=main(); ok("my public record lists the same four finished IOUs",t.count("Repaid late")+t.count("Repaid\n")>=4 or len(re.findall(r"Repaid",t))>=4,t[t.find("Promise record"):t.find("Promise record")+200])
     ok("every shop loan came back: the shop holds exactly what it started with, and so do I",int(node("usdt",A["mart"]))==9*10**18 and int(node("usdt",ANA))==100*10**18,(node("usdt",A["mart"]),node("usdt",ANA)))
     # ---- I2. a BNB repayment that could not be delivered waits under my address, and I can collect it
     node("call",ANA,"createIOU",json.dumps([BEN,0,"200000000000000n",7,"Tea"]))   # IOU 6
     node("call",BEN,"acceptIOU",json.dumps(["6n"])); node("block",ANA,"on"); r=node("pay",BEN,"repay",json.dumps(["6"]),"0.0002"); node("block",ANA,"off")
     ok("undelivered BNB is kept under my address on-chain",r=="success" and node("credit",ANA)=="200000000000000",(r,node("credit",ANA)))
-    t0=time.time()
+    go("me",900); t0=time.time()
     while time.time()-t0<30 and "is waiting for you" not in main(): pg.wait_for_timeout(1000)
     ok("My IOUs shows the waiting BNB with a Collect button","0.0002 BNB is waiting for you" in main(),main()[:400])
     pg.get_by_role("button",name="Collect it").click(); pg.wait_for_timeout(400); pr=pg.locator("pre.code").inner_text(); ok("collect prompt calls withdraw() and sends nothing","withdraw()" in pr and "Value: 0 BNB" in pr,pr[:300])

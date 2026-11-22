@@ -6,7 +6,7 @@
 
 The deploying address is stored as `MART` (Promise Mart, the demo shop). Its only extra right: its offers may carry one of the three Founders stickers (design 1 to 3). It cannot change rules, limits or prices of other shops, touch balances, or act for any user. Like any shop, it can open, restock and close its own offers.
 
-A shop lends its own money and keeps nothing: the price goes to the borrower when an offer is taken and the same amount comes back on repayment. The shop's risk is unpaid loans, capped by the USDT approval it gives the contract, which it can lower to zero at any time. For an offer that carries a sticker, each wallet can borrow once.
+A shop lends its own money and keeps nothing: the price goes to the borrower when an offer is taken and the same amount comes back on repayment. The shop's risk is unpaid loans, capped by the USDT approval it gives the contract, which it can lower to zero at any time. Each wallet can take two shop loans a day, and none while it is Restricted.
 
 ## Where money goes
 
@@ -44,7 +44,7 @@ The site never asks for an unlimited approval. Every repay prompt names who gets
 ## Limits and known risks
 
 - Nobody guarantees repayment. A missed IOU shows on the borrower's record, but AgentIOU cannot recover the money.
-- Promise Mart lends real USDT. Someone can borrow a few cents and never repay; the shop accepts that loss, and the borrower's record shows the default for good.
+- Promise Mart lends real USDT. Someone can borrow and never repay; the shop accepts that loss, and the borrower's record shows the default for good. One wallet can never owe more than its own credit limit ($1 at the first level), takes at most two shop loans a day, and is cut off once two loans are past due. The shop's total risk is the USDT approval it gave.
 - Credit limits are small on purpose (L1 $1, L2 $5, L3 $10) to limit losses to scams.
 - A member can receive many pending IOU requests; they can decline them, and each sender can have at most 20 waiting.
 - Nicknames are not unique. Check the address, not the name.

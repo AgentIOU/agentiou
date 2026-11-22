@@ -20,7 +20,7 @@ export type Status = 'Pending' | 'Active' | 'Repaid' | 'Declined' | 'Cancelled'
 export type Tier = 'Common' | 'Rare' | 'Legendary'
 export interface Iou { id: number; creditor: string; debtor: string; asset: Asset; amount: number; /** the exact on-chain amount in wei, on the live site */ raw?: string; usd: number; createdAt: number; dueAt: number; repaidAt?: number; status: Status; memo: string; offerId?: number }
 export interface Mint { edition: number; block: number; time: number }
-export interface User { address: string; nickname: string; no: number; joinedAt: number; onTime: number; late: number; defaults: number; people: number; xp: number; claimed: [number, number, number]; pocket: [number, number, number]; stickers: Record<number, Mint>; badges: Record<string, number>; checkDays: number; lastCheck: number; good?: number }
+export interface User { address: string; nickname: string; no: number; joinedAt: number; onTime: number; late: number; defaults: number; people: number; xp: number; claimed: [number, number, number]; pocket: [number, number, number]; stickers: Record<number, Mint>; badges: Record<string, number>; checkDays: number; lastCheck: number; good?: number; /** shop loans taken today (the contract allows two a day) */ takesToday?: number }
 export interface Offer { id: number; design: number; title: string; asset: Asset; price: number; termDays: number; stock: number; taken: number }
 
 export const LEVELS = [

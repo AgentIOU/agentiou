@@ -2,7 +2,7 @@
 
 The order matters: the public site address goes into the contract (sticker descriptions), and the contract address goes into the site.
 
-**After the contract is deployed nothing in it can be changed.** There is no owner and no upgrade. Limits, level rules, XP amounts, the shop wallet, the lending rule (shop offers are USDT loans, one per wallet for a sticker offer) and the sticker address are fixed for good. A mistake means deploying a new contract and starting its records from zero.
+**After the contract is deployed nothing in it can be changed.** There is no owner and no upgrade. Limits, level rules, XP amounts, the shop wallet, the lending rule (shop offers are USDT loans, two a day per wallet) and the sticker address are fixed for good. A mistake means deploying a new contract and starting its records from zero.
 
 ## 1. Put the website online (demo mode)
 

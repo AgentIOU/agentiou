@@ -39,7 +39,7 @@ contract AgentIOU {
         uint32 owedCents; uint32 xp; uint8 badges;
         uint16[3] claimed; uint16[3] pocket;
         uint32 checkDay; uint8 checkDays;
-        uint32 xpDay; uint8 repayXpToday; uint8 backXpToday;
+        uint32 xpDay; uint8 repayXpToday; uint8 backXpToday; uint8 takesToday;   // counters for the current UTC day (xpDay)
         string nickname;
     }
     struct Iou {
@@ -89,7 +89,7 @@ contract AgentIOU {
     error NotCreditor(); error NotDebtor(); error WrongStatus(); error Expired();
     error OverLimit(); error Restricted(); error Overdue(); error TooManyActive(); error TooManyPending();
     error WrongAmount(); error StalePrice(); error TransferFailed();
-    error SoldOut(); error NotShop(); error AlreadyHeld(); error NoVoucher(); error NotEnoughXp(); error AlreadyCheckedIn();
+    error SoldOut(); error NotShop(); error DailyLimit(); error AlreadyHeld(); error NoVoucher(); error NotEnoughXp(); error AlreadyCheckedIn();
     error Soulbound(); error NothingToWithdraw(); error Reentered();
 
     modifier nonReentrant() { if (lock != 1) revert Reentered(); lock = 2; _; lock = 1; }
@@ -135,14 +135,16 @@ contract AgentIOU {
         o.stock += extra; o.active = true;
     }
     /// @notice Take an offer: the shop's USDT comes to you now, with the sticker if the offer has one, and the IOU is due termDays from now.
-    ///         One loan per wallet for an offer that carries a sticker. Repaying puts the place back in stock.
+    ///         A wallet can take two shop loans a day. Repaying puts the place back in stock.
     function takeOffer(uint256 offerId) external returns (uint256 id) {
         Offer storage o = _offer(offerId);
         if (!o.active || o.taken >= o.stock) revert SoldOut();
         if (o.shop == msg.sender) revert SelfIou();
-        if (o.designId != 0 && mints[msg.sender][o.designId].edition != 0) revert AlreadyHeld();
         uint32 cents = _toCents(o.asset, o.price);
         _checkCanBorrow(msg.sender, cents);
+        User storage b = _today(msg.sender);
+        if (b.takesToday >= 2) revert DailyLimit();
+        b.takesToday++;
         o.taken++;
         ious.push(Iou(o.shop, msg.sender, o.asset, Status.Active, uint40(block.timestamp), uint40(block.timestamp + uint256(o.termDays) * 1 days), 0, cents, uint32(offerId), o.price, o.title));
         id = ious.length;
@@ -150,7 +152,7 @@ contract AgentIOU {
         _activate(msg.sender, id, cents);
         emit IouCreated(id, o.shop, msg.sender, o.asset, o.price, uint40(block.timestamp + uint256(o.termDays) * 1 days));
         emit IouAccepted(id);
-        if (o.designId != 0) _mint(msg.sender, o.designId);
+        if (o.designId != 0 && mints[msg.sender][o.designId].edition == 0) _mint(msg.sender, o.designId);   // the sticker comes with the first loan only
         _usdt(o.shop, msg.sender, o.price);   // state first, then the money: from the shop straight to the borrower
     }
 
@@ -371,13 +373,17 @@ contract AgentIOU {
     function _activate(address debtor, uint256 id, uint32 cents) internal {
         users[debtor].owedCents += cents; activeDebts[debtor].push(id); activeCount++;
     }
+    /// @dev The user's record with its per-day counters reset if a new UTC day has begun.
+    function _today(address a) internal returns (User storage u) {
+        u = users[a]; uint32 day = uint32(block.timestamp / 1 days);
+        if (u.xpDay != day) { u.xpDay = day; u.repayXpToday = 0; u.backXpToday = 0; u.takesToday = 0; }
+    }
     function _settle(Iou storage x, uint256 id) internal {
         User storage u = users[x.debtor];
         uint256[] storage d = activeDebts[x.debtor];
         for (uint256 i; i < d.length; i++) if (d[i] == id) { d[i] = d[d.length - 1]; d.pop(); break; }
         u.owedCents -= x.usdCents; activeCount--;
-        uint32 day = uint32(block.timestamp / 1 days);
-        if (u.xpDay != day) { u.xpDay = day; u.repayXpToday = 0; u.backXpToday = 0; }
+        _today(x.debtor);
         uint8 before = _level(u);
         uint32 xp;
         if (block.timestamp <= x.dueAt) {
@@ -386,7 +392,7 @@ contract AgentIOU {
             if (u.badges & 2 == 0) { u.badges |= 2; xp += 25; }                      // First Promise
             User storage c = users[x.creditor];
             if (c.joinedAt != 0) {
-                if (c.xpDay != day) { c.xpDay = day; c.repayXpToday = 0; c.backXpToday = 0; }
+                _today(x.creditor);
                 if (c.backXpToday < 5) { c.backXpToday++; c.xp += 10; }
             }
         } else if (block.timestamp <= uint256(x.dueAt) + GRACE) {
