@@ -27,6 +27,7 @@ try {
   await send(mart, 'set', [600n * 10n ** 8n, 0n], 0n, FEED, art.MockFeed.abi)
   for (const a of [ana, ben, cat, dan]) { await send(mart, 'set', [a, 1n], 0n, AGENT_ID, art.MockAgentId.abi); await send(mart, 'mint', [a, U('1000')], 0n, USDT, usdt) }
   iou = await deploy('AgentIOU', ['https://example.invalid/{id}.json'])
+  await send(mart, 'mint', [mart, U('50')], 0n, USDT, usdt)   // the shop's own lending money; its approval is given further down
   ok('deployer is the shop and nothing else', getAddress(await read('MART')) === getAddress(mart) && !A.some((f) => /owner|pause|upgrade|setFee|setUri|rescue|sweep/i.test(f.name ?? '')))
 
   // ---- joining
@@ -38,13 +39,21 @@ try {
   await reverts('cannot join twice', 'AlreadyJoined', ana, 'join', ['again'])
 
   // ---- offers
-  await send(mart, 'createOffer', ['Day one sticker', 1, U('0.01'), 2, 50, 1]); await send(mart, 'createOffer', ['Night owl sticker', 1, U('0.03'), 3, 50, 2]); await send(mart, 'createOffer', ['Good word sticker', 0, U('0.00008'), 5, 2, 3])
+  await send(mart, 'createOffer', ['Day one sticker', 1, U('0.01'), 2, 50, 1]); await send(mart, 'createOffer', ['Night owl sticker', 1, U('0.03'), 3, 50, 2]); await send(mart, 'createOffer', ['Good word sticker', 1, U('0.05'), 5, 2, 3])
+  await reverts('a shop offer must be in USDT (the contract never holds BNB to lend)', 'BadAsset', mart, 'createOffer', ['BNB loan', 0, U('0.0001'), 5, 2, 0])
   await reverts('only the shop can attach a Founders sticker', 'BadDesign', ana, 'createOffer', ['Fake', 1, U('1'), 2, 5, 1])
   await reverts('Season designs cannot be sold in an offer', 'BadDesign', mart, 'createOffer', ['Nope', 1, U('1'), 2, 5, 4])
   await send(ben, 'createOffer', ['Ben tea', 1, U('0.9'), 2, 5, 0]); ok('a member can open a plain shop; offers read in pages', (await read('getOffers', [0n, 50n])).length === 4 && (await read('getOffers', [3n, 50n])).length === 1 && (await read('getOffers', [9n, 5n])).length === 0)
   await reverts('a shop must be IOU Verified (stops free level farming through throwaway shops)', 'NotJoined', eve, 'createOffer', ['x', 1, 1n, 30, 10, 0])
+  await send(mart, 'createOffer', ['Plain small', 1, U('0.01'), 2, 50, 0]); await send(mart, 'createOffer', ['Plain mid', 1, U('0.03'), 3, 50, 0])   // offers 5 and 6: loans without a sticker
   await reverts('take needs joining first', 'NotJoined', dan, 'takeOffer', [1n])
+  await reverts('a shop that has not approved its lending money cannot lend; nothing is recorded', 'TransferFailed', ana, 'takeOffer', [1n])
+  ok('the refused loan left no trace', (await read('stats'))[1] === 0n && (await read('getOffers', [0n, 9n]))[0].taken === 0 && (await read('balanceOf', [ana, 1n])) === 0n)
+  await send(mart, 'approve', [iou, U('50')], 0n, USDT, usdt); await send(ben, 'approve', [iou, U('5')], 0n, USDT, usdt)
+  const a0 = await read('balanceOf', [ana], USDT, usdt), s0 = await read('balanceOf', [mart], USDT, usdt)
   await send(ana, 'takeOffer', [1n])
+  ok('take: exactly the price moves from the shop to the borrower, the contract holds nothing', (await read('balanceOf', [ana], USDT, usdt)) - a0 === U('0.01') && s0 - (await read('balanceOf', [mart], USDT, usdt)) === U('0.01') && (await read('balanceOf', [iou], USDT, usdt)) === 0n && (await read('allowance', [mart, iou], USDT, usdt)) === U('49.99'))
+  await reverts('one loan per wallet for an offer with a sticker', 'AlreadyHeld', ana, 'takeOffer', [1n])
   let x = await read('getIOU', [1n]); let mi = await read('mintInfo', [ana, 1n])
   ok('take: IOU active for 1 cent, due in 2 days, sticker No 1 minted with block and time', x.status === 1 && x.usdCents === 1 && Number(x.dueAt - x.createdAt) === 2 * 86400 && mi[0] === 1 && mi[1] > 0n && mi[2] > 0 && (await read('balanceOf', [ana, 1n])) === 1n)
   await send(ana, 'takeOffer', [4n]); await reverts('L1 limit is $1', 'OverLimit', ana, 'takeOffer', [4n])
@@ -57,6 +66,7 @@ try {
   const m0 = await read('balanceOf', [mart], USDT, usdt)
   await send(ana, 'approve', [iou, U('0.01')], 0n, USDT, usdt); await send(ana, 'repay', [1n])
   ;[u, level, score] = await read('getUser', [ana])
+  ok('a repaid shop loan goes back in stock', (await read('getOffers', [0n, 9n]))[0].taken === 0)
   ok('USDT repay: exact amount reaches the shop, contract holds nothing, allowance used up', (await read('balanceOf', [mart], USDT, usdt)) - m0 === U('0.01') && (await read('balanceOf', [iou], USDT, usdt)) === 0n && (await read('allowance', [ana, iou], USDT, usdt)) === 0n)
   ok('on-time repay: XP 50+30+10+25+15 = 130, score 57, First Promise badge', u.xp === 130 && score === 57 && (u.badges & 2) === 2 && u.onTime === 1 && u.people === 1, `xp ${u.xp} score ${score}`)
   await reverts('cannot repay twice', 'WrongStatus', ana, 'repay', [1n])
@@ -104,9 +114,9 @@ try {
   await send(ben, 'approve', [iou, U('0.03')], 0n, USDT, usdt); await send(ben, 'repay', [lateId]); ;[u, , score] = await read('getUser', [ben])
   ok('late repay: counted late, no repay XP (50 join + 15 new person + 10 for an IOU paid back to him), score 50-10+2 = 42', u.late === 1 && u.onTime === 0 && score === 42 && u.xp === 75, `late ${u.late} score ${score} xp ${u.xp}`)
   // ---- two IOUs past due: Restricted until repaid
-  await send(ben, 'takeOffer', [1n]); const r1 = BigInt((await read('stats'))[1]); await send(ben, 'takeOffer', [2n]); const r2 = r1 + 1n; await warp(4 * 86400)
+  await send(ben, 'takeOffer', [1n]); const r1 = BigInt((await read('stats'))[1]); await send(ben, 'takeOffer', [6n]); const r2 = r1 + 1n; await warp(4 * 86400)
   let rs; ;[u, level, score, , , rs] = await read('getUser', [ben]); ok('two IOUs past due: Restricted, level 1, score drops 20 more', rs === true && level === 1 && score === 22, `restricted ${rs} score ${score}`)
-  await reverts('restricted: cannot borrow', 'Restricted', ben, 'takeOffer', [1n]); await reverts('restricted: cannot send an IOU', 'Restricted', ben, 'createIOU', [ana, 1, U('0.1'), 7, 'x']); await reverts('restricted: cannot claim', 'Overdue', ben, 'claimVoucher', [0])
+  await reverts('restricted: cannot borrow', 'Restricted', ben, 'takeOffer', [5n]); await reverts('restricted: cannot send an IOU', 'Restricted', ben, 'createIOU', [ana, 1, U('0.1'), 7, 'x']); await reverts('restricted: cannot claim', 'Overdue', ben, 'claimVoucher', [0])
   await send(cat, 'createIOU', [ben, 1, U('0.1'), 7, 'to restricted']); await reverts('restricted: cannot accept an IOU', 'Restricted', ben, 'acceptIOU', [BigInt((await read('stats'))[1])])
   await send(ben, 'approve', [iou, U('0.04')], 0n, USDT, usdt); await send(ben, 'repay', [r1]); ok('repaying one lifts the restriction', (await read('getUser', [ben]))[5] === false)
   await send(ben, 'repay', [r2]); ;[u, , , , x, rs] = await read('getUser', [ben]); ok('repaying all clears overdue; both stay on the record as late', x === false && rs === false && u.late === 3)
@@ -124,6 +134,7 @@ try {
   await send(ana, 'takeOffer', [3n]); await send(dan2(), 'join', ['dan']); await send(dan, 'takeOffer', [3n])
   await reverts('sold out when stock is gone', 'SoldOut', ben, 'takeOffer', [3n]); await reverts('only the shop can restock', 'NotShop', ben, 'restock', [3n, 100])
   await send(mart, 'restock', [3n, 100]); await send(ben, 'takeOffer', [3n]); ok('restock opens the offer again', (await read('getOffers', [0n, 50n]))[2].taken === 3)
+  { const sid = BigInt((await read('stats'))[1]); await send(ben, 'approve', [iou, U('0.05')], 0n, USDT, usdt); await send(ben, 'repay', [sid]); ok('repaying puts one back: 2 out on loan', (await read('getOffers', [0n, 50n]))[2].taken === 2) }
   // ---- price feed
   const now = (await c.getBlock()).timestamp; await send(mart, 'set', [600n * 10n ** 8n, now - 2n * 86400n], 0n, FEED, art.MockFeed.abi)
   await reverts('stale price pauses new BNB IOUs', 'StalePrice', ben, 'createIOU', [ana, 0, U('0.001'), 7, 'x']); await send(ben, 'createIOU', [ana, 1, U('0.5'), 7, 'usdt ok']); ok('USDT keeps working with a stale feed', true)
@@ -138,7 +149,7 @@ try {
   ok('the creditor can collect undelivered BNB; the contract is empty again', (await read('credits', [rej])) === 0n && (await c.getBalance({ address: iou })) === 0n && (await c.getBalance({ address: rej })) === U('0.001'))
   // ---- level farming: only 3 repays a day count toward the level
   await send(mart, 'set', [eve, 1n], 0n, AGENT_ID, art.MockAgentId.abi); await send(mart, 'mint', [eve, U('10')], 0n, USDT, usdt); await send(eve, 'join', ['eve']); await send(eve, 'approve', [iou, U('1')], 0n, USDT, usdt)
-  for (let k = 0; k < 5; k++) { await send(eve, 'takeOffer', [2n]); await send(eve, 'repay', [BigInt((await read('stats'))[1])]) }
+  for (let k = 0; k < 5; k++) { await send(eve, 'takeOffer', [6n]); await send(eve, 'repay', [BigInt((await read('stats'))[1])]) }
   ;[u, level] = await read('getUser', [eve]); ok('5 on-time repays in one day: all on record, only 3 count toward the level', u.onTime === 5 && u.good === 3 && level === 2, `onTime ${u.onTime} good ${u.good}`)
 
   // ---- caps
@@ -150,6 +161,7 @@ try {
   // ---- random run: 600 actions by 4 people; the money rules must hold after every one
   let seed = 12345; const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n }
   const people = [ana, ben, cat, dan]; let bad = '', done = 0
+  let total0 = 0n; for (const a of [ana, ben, cat, dan, mart, eve, rej]) total0 += await read('balanceOf', [a], USDT, usdt)
   for (const p of people) await send(p, 'approve', [iou, 0n], 0n, USDT, usdt)
   for (let i = 0; i < 600 && !bad; i++) {
     const p = people[rnd(4)], q = people[rnd(4)], n = BigInt((await read('stats'))[1]); const id = n ? BigInt(rnd(Number(n))) + 1n : 1n
@@ -158,14 +170,17 @@ try {
       if (k === 0) await send(p, 'createIOU', [q, rnd(2), rnd(2) ? U('0.0' + (rnd(9) + 1)) : U('0.000' + (rnd(9) + 1)), rnd(30) + 1, 'r'])
       else if (k === 1) await send((await read('getIOU', [id])).debtor, 'acceptIOU', [id]); else if (k === 2) await send((await read('getIOU', [id])).debtor, 'declineIOU', [id]); else if (k === 3) await send(rnd(3) ? (await read('getIOU', [id])).creditor : p, 'cancelIOU', [id])
       else if (k === 4 || k === 5) { const it = await read('getIOU', [id]); if (it.asset === 1) await send(it.debtor, 'approve', [iou, it.amount], 0n, USDT, usdt); await send(it.debtor, 'repay', [id], it.asset === 0 ? it.amount : 0n) }
-      else if (k === 6) await send(p, 'takeOffer', [BigInt(rnd(4)) + 1n]); else if (k === 7) await warp(rnd(3 * 86400)); else await send(p, 'checkIn')
+      else if (k === 6) await send(p, 'takeOffer', [BigInt(rnd(6)) + 1n]); else if (k === 7) await warp(rnd(3 * 86400)); else await send(p, 'checkIn')
       done++
     } catch { /* refused actions are expected */ }
     if ((await read('balanceOf', [iou], USDT, usdt)) !== 0n) bad = 'contract holds USDT'
+    if (i % 20 === 19) { const offs = await read('getOffers', [0n, 20n]), [, all] = await read('getRecentIOUs', [2000n])
+      offs.forEach((o, k) => { const out = all.filter((t) => t.offerId === k + 1 && t.status === 1).length; if (o.taken !== out) bad = `offer ${k + 1}: stock says ${o.taken} out on loan, but ${out} loans are unpaid` }) }
+    if (i % 20 === 19) { let t = 0n; for (const a of [...people, mart, eve, rej]) t += await read('balanceOf', [a], USDT, usdt); if (t !== total0) bad = `USDT appeared or vanished: ${t - total0}` }
     let cr = 0n; for (const a of [...people, mart, rej]) cr += await read('credits', [a]); if ((await c.getBalance({ address: iou })) !== cr) bad = 'BNB balance differs from undelivered credits'
     if (i % 20 === 19) for (const a of people) { const [uu] = await read('getUser', [a]); const [, list] = await read('getUserIOUs', [a, 0n, 500n]); const sum = list.filter((t) => t.status === 1 && getAddress(t.debtor) === getAddress(a)).reduce((s, t) => s + t.usdCents, 0); if (sum !== uu.owedCents) bad = `owed ${uu.owedCents} but active sum ${sum}`; if (list.filter((t) => t.status === 1 && getAddress(t.debtor) === getAddress(a)).length > 10) bad = 'more than 10 active debts' }
   }
-  ok(`random run: ${done} accepted actions of 600, contract never held USDT, BNB equals undelivered credits, owed totals match`, !bad && done > 100, bad || `only ${done} actions`)
+  ok(`random run: ${done} accepted actions of 600, contract never held USDT, no USDT appeared or vanished, stock equals unpaid shop loans, BNB equals undelivered credits, owed totals match`, !bad && done > 100, bad || `only ${done} actions`)
   const st = await read('stats'); ok('stats add up', st[0] === 6n && st[1] > 20n)
   { const all = await read('getUsers', [0n, 50n]); const nos = []; for (const m of all) nos.push((await read('getUser', [m]))[0].no)
     ok('member numbers are 1, 2, 3... in joining order, one per wallet, never repeated', nos.length === 6 && nos.every((n, i) => n === i + 1), nos.join(',')) }

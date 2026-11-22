@@ -87,7 +87,7 @@ export const seedUsers = (): User[] => [
 export const seedOffers = (): Offer[] => [
   { id: 1, design: 1, title: 'Day one sticker', asset: 'USDT', price: 0.01, termDays: 2, stock: 100, taken: 31 },
   { id: 2, design: 2, title: 'Night owl sticker', asset: 'USDT', price: 0.03, termDays: 3, stock: 100, taken: 22 },
-  { id: 3, design: 3, title: 'Good word sticker', asset: 'BNB', price: 0.00008, termDays: 5, stock: 100, taken: 100 },
+  { id: 3, design: 3, title: 'Good word sticker', asset: 'USDT', price: 0.05, termDays: 5, stock: 100, taken: 100 },
 ]
 const i = (id: number, creditor: string, debtor: string, asset: Asset, amount: number, created: number, due: number, status: Status, memo: string, repaid?: number, offerId?: number): Iou => ({
   id, creditor, debtor, asset, amount, usd: asset === 'BNB' ? amount * BNB_USD : amount, createdAt: T0 + created * DAY, dueAt: T0 + due * DAY, status, memo, repaidAt: repaid != null ? T0 + repaid * DAY : status === 'Repaid' ? T0 + (due - 0.3) * DAY : undefined, offerId })

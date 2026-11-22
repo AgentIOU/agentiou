@@ -18,7 +18,7 @@ gsap.registerPlugin(ScrollTrigger)
 export const FAQ: [string, string][] = [
   ['What is AgentIOU?', 'A pay-later ledger on BNB Smart Chain for Agent ID holders. You take a small promise from Promise Mart or from a friend, repay it on time, and that record raises your Trust Score and your Credit Pass limit.'],
   ['Do you need my keys or seed phrase?', 'Never. The site has no wallet connect and no login. It writes out the exact contract call; your own Binance Agentic Wallet shows you a preview and nothing is sent until you confirm there.'],
-  ['Is this a loan with interest?', 'No interest and no fees. You repay exactly the amount on the IOU, and it goes straight to the person or shop you owe. The contract never holds money.'],
+  ['Is this a loan with interest?', 'It is a loan without interest or fees. Promise Mart lends you a few cents of its own USDT; you repay exactly that amount, straight to the shop. The contract never holds money, and the shop keeps nothing for itself.'],
   ["What if someone doesn't repay?", 'One IOU past due: their level drops by one and their Trust Score falls right away. Two past due, or one more than 7 days late: the account is Restricted. It shows a red card and a Restricted label, and it can\'t borrow or send IOUs until it repays. Limits are small on purpose ($1, $5, $10) so nobody can be asked for much. The record stays on their Agent ID history. AgentIOU cannot force anyone to pay, so the person who gives credit carries that risk. Keep amounts small.'],
   ['Why do I need an Agent ID?', "A new wallet costs nothing, so a wallet alone can't be trusted with credit. An Agent ID can't be transferred, so your repayment history stays with you."],
   ['What is Developer Mode and why is it needed?', 'A setting in the Binance App that lets your Agentic Wallet call a contract directly. AgentIOU actions are contract calls, so it has to be on. It can only be turned on in the App.'],
@@ -128,7 +128,7 @@ export function Q({ q, a }: { q: string; a: string }) {
 /* How it works: one promise note that fills in line by line while you scroll */
 const STEPS: [string, string][] = [
   ['Get IOU Verified', 'Join once with your Agent ID. It costs gas only, and you start at Credit Pass L1 with a $1 limit.'],
-  ['Take a promise', 'Pick a sticker at Promise Mart or accept an IOU from a friend. The note records who, how much and by when.'],
+  ['Take a promise', 'Borrow a few cents from Promise Mart, sticker included, or accept an IOU from a friend. The note records who, how much and by when.'],
   ['Repay on time', 'Pay the exact amount before the due date. It goes straight to the person you owe.'],
   ['Your record grows', 'Each on-time repay adds 5 to your Trust Score. Three of them open L2 and a $5 limit.'],
 ]

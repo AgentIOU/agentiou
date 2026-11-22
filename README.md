@@ -9,8 +9,8 @@ Built for the Agent ID Hackathon (Nov 18 to Dec 9, 2026). Updates: [@AgentIOU on
 ## How it works
 
 1. **Get IOU Verified.** An Agent ID holder calls `join` from their own Agentic Wallet. The contract checks the Agent ID on-chain.
-2. **Take an IOU.** Take a sticker from Promise Mart on credit, or accept an IOU a friend sends you.
-3. **Repay on time.** Repayment goes straight from the borrower's wallet to the lender. The contract never holds it.
+2. **Take an IOU.** Borrow a few cents from Promise Mart (the USDT arrives in your wallet with a sticker), or accept an IOU a friend sends you.
+3. **Repay on time.** Repayment goes straight from the borrower's wallet to the lender. The contract never holds it. Promise Mart keeps nothing: it gets back exactly what it lent.
 4. **Build a record.** On-time repays raise the Trust Score and the level (limits: L1 $1, L2 $5, L3 $10). One IOU past due lowers the level and the score at once; two past due, or one more than 7 days past due, makes the account Restricted until it repays.
 
 The site never connects to a wallet. It writes a plain-text prompt with the exact contract call; the person pastes it into their own Binance Agentic Wallet, which shows a preview and asks them to confirm.
@@ -19,7 +19,7 @@ The site never connects to a wallet. It writes a plain-text prompt with the exac
 
 | Folder | What it holds |
 |---|---|
-| `contracts/` | `AgentIOU.sol` (the whole contract), test mocks, compile script and a 93-check test run on a local chain, and the local-chain helper for the live website test |
+| `contracts/` | `AgentIOU.sol` (the whole contract), test mocks, compile script and a 100-check test run on a local chain, and the local-chain helper for the live website test |
 | `web/` | The website: Vite, React, TypeScript, Tailwind, GSAP, viem. No backend, no login, no wallet connect, no stored sessions |
 | `tools/` | Image cutting scripts and the browser checks for the site (`check.py`, `check2.py`, `check_numbers.py`, `check_abi.mjs`, `check_units.mjs`), the live test `check_live.py` (the built site against a local chain, sending each prompt's exact call), and `abi.mjs` (exports the contract's read interface for the site) |
 | `docs/SECURITY.md` | Owner permissions (none), money flows, what the project never does, known limits |

@@ -2,7 +2,7 @@
 
 The order matters: the public site address goes into the contract (sticker descriptions), and the contract address goes into the site.
 
-**After the contract is deployed nothing in it can be changed.** There is no owner and no upgrade. Limits, level rules, XP amounts, the shop wallet and the sticker address are fixed for good. A mistake means deploying a new contract and starting its records from zero.
+**After the contract is deployed nothing in it can be changed.** There is no owner and no upgrade. Limits, level rules, XP amounts, the shop wallet, the lending rule (shop offers are USDT loans, one per wallet for a sticker offer) and the sticker address are fixed for good. A mistake means deploying a new contract and starting its records from zero.
 
 ## 1. Put the website online (demo mode)
 
@@ -49,7 +49,7 @@ prints the values used below.
 
 Contract page, Contract tab, Verify and Publish: single file, compiler `v0.8.28+commit.7893614a`, licence MIT, optimization **Yes, 1 run**, EVM version **paris**. Paste the source. If it asks for constructor arguments, use the ABI-encoded line printed by `deploy_args.mjs`.
 
-## 6. Open the three shop offers
+## 6. Open the three shop offers and fund the shop
 
 On the verified contract's Write Contract tab (or in Remix, "At Address"), from the shop wallet, call `createOffer` three times with the values printed by `deploy_args.mjs`:
 
@@ -57,7 +57,14 @@ On the verified contract's Write Contract tab (or in Remix, "At Address"), from 
 |---|---|---|---|---|---|
 | `Day one sticker` | 1 | 10000000000000000 | 2 | 100 | 1 |
 | `Night owl sticker` | 1 | 30000000000000000 | 3 | 100 | 2 |
-| `Good word sticker` | 0 | 80000000000000 | 5 | 100 | 3 |
+| `Good word sticker` | 1 | 50000000000000000 | 5 | 100 | 3 |
+
+The shop lends its own USDT. Taking an offer moves the price from the shop wallet to the borrower, and repaying moves it back. So the shop wallet must:
+
+1. hold USDT (9 USDT covers 100 loans of each offer; a few dollars is enough to start);
+2. approve the AgentIOU contract on the USDT contract (`0x55d398326f99059fF775485246999027B3197955`, Write Contract, `approve`) with the AgentIOU address as spender and the largest amount it is willing to have out on loan at once.
+
+That approval is the shop's whole risk: a loan that is never repaid is the shop's loss, and the total can never pass the approved amount. The shop can lower it to 0 at any time to stop lending.
 
 ## 7. Switch the website to live
 
@@ -72,7 +79,7 @@ Redeploy. The footer then says "Reading BNB Smart Chain" and the shop shows the 
 
 ## 8. First real run
 
-With an Agent ID wallet and an AI agent signed in to it (Developer Mode on): get IOU Verified, take the 0.01 USDT sticker, repay it, check in. Each step should finish on the site by itself a few seconds after the agent reports success.
+With an Agent ID wallet and an AI agent signed in to it (Developer Mode on): get IOU Verified, take the 0.01 USDT offer (0.01 USDT arrives from the shop with the sticker), repay it, check in. Each step should finish on the site by itself a few seconds after the agent reports success.
 
 ## Before any deployment
 

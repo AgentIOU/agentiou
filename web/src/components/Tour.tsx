@@ -12,7 +12,7 @@ import { ME } from '../lib/data'
 /* A short guided tour: five slides, one idea each, with a small moving scene. Opened from "How it works". */
 const SLIDES: { t: string; d: string }[] = [
   { t: 'Get IOU Verified', d: 'Join once with your Agent ID. You start at Credit Pass L1 with a $1 limit and 50 XP.' },
-  { t: 'Take a small promise', d: 'Pick a sticker at Promise Mart, or accept an IOU a friend sends you. Nothing to pay up front.' },
+  { t: 'Take a small promise', d: 'Promise Mart lends you a few cents with a sticker, or you accept an IOU a friend sends you. Nothing to pay up front.' },
   { t: 'Repay on time', d: 'Pay the exact amount before the due date. It goes straight to the person you owe.' },
   { t: 'Your limit grows', d: 'Each on-time repay adds to your Trust Score. Three of them open L2 and a $5 limit.' },
   { t: 'Collect stamps', d: 'Keeping your word gives XP. XP becomes vouchers, and vouchers mint Season 1 stamps for free.' },

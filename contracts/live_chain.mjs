@@ -20,7 +20,9 @@ if (cmd === 'setup') {
   // the three Promise Mart offers, exactly as planned for the real deployment
   await w(mart, iou, A, 'createOffer', ['Day one sticker', 1, parseEther('0.01'), 2, 100, 1])
   await w(mart, iou, A, 'createOffer', ['Night owl sticker', 1, parseEther('0.03'), 3, 100, 2])
-  await w(mart, iou, A, 'createOffer', ['Good word sticker', 0, parseEther('0.00008'), 5, 100, 3])
+  await w(mart, iou, A, 'createOffer', ['Good word sticker', 1, parseEther('0.05'), 5, 100, 3])
+  // the shop's lending money: it holds 9 USDT (100 loans of each offer) and lets the contract pass on up to that much
+  await w(mart, USDT, art.MockUsdt.abi, 'mint', [mart, parseEther('9')]); await w(mart, USDT, art.MockUsdt.abi, 'approve', [iou, parseEther('9')])
   const out = { contract: iou, mart, ana, ben, cat }; fs.writeFileSync(state, JSON.stringify(out)); console.log(JSON.stringify(out))
 } else {
   const { contract } = JSON.parse(fs.readFileSync(state, 'utf8'))
@@ -29,6 +31,8 @@ if (cmd === 'setup') {
   else if (cmd === 'call') { await w(a[0], contract, A, a[1], JSON.parse(a[2] || '[]').map((v) => (typeof v === 'string' && /^\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v))); console.log('success') }
   else if (cmd === 'pay') { await w(a[0], contract, A, a[1], JSON.parse(a[2]).map((v) => BigInt(v)), parseEther(a[3])); console.log('success') }
   else if (cmd === 'block') { await c.setCode({ address: a[0], bytecode: a[1] === 'on' ? art.Rejector.deployed : '0x' }); console.log('success') }   // make an address unable to receive BNB, or able again
+  else if (cmd === 'usdt') { console.log((await c.readContract({ address: USDT, abi: art.MockUsdt.abi, functionName: 'balanceOf', args: [a[0]] })).toString()) }
+  else if (cmd === 'shop') { await w(mart, USDT, art.MockUsdt.abi, 'approve', [contract, parseEther(a[0])]); console.log('success') }   // change how much the shop lets the contract lend
   else if (cmd === 'credit') { console.log((await c.readContract({ address: contract, abi: A, functionName: 'credits', args: [a[0]] })).toString()) }
   else if (cmd === 'warp') { await c.increaseTime({ seconds: Number(a[0]) }); await c.mine({ blocks: 1 }); await w(mart, FEED, art.MockFeed.abi, 'set', [600n * 10n ** 8n, 0n]); console.log('success') }
   else if (cmd === 'user') { const [u, level, score, limitCents, overdue, restricted] = await c.readContract({ address: contract, abi: A, functionName: 'getUser', args: [a[0]] }); console.log(JSON.stringify({ xp: u.xp, onTime: u.onTime, late: u.late, owedCents: u.owedCents, nickname: u.nickname, level, score, limitCents, overdue, restricted, checkDays: u.checkDays, pocket: [...u.pocket] })) }

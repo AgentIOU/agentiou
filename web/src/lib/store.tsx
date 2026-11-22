@@ -10,7 +10,7 @@ export interface TrayReq { title: string; note?: string; steps: TrayStep[]; done
 export interface Toast { id: number; text: string; kind?: 'ok' | 'bad' }
 interface Store {
   users: User[]; ious: Iou[]; offers: Offer[]; me: User; joined: boolean
-  /** live only */ loaded: boolean; chainDown: boolean; holdsAgentId: boolean | null; credit: number; print: string; refresh: () => Promise<string>
+  /** live only */ loaded: boolean; chainDown: boolean; holdsAgentId: boolean | null; credit: number; /** USDT the shop can lend right now; Infinity in the demo */ shopFunds: number; print: string; refresh: () => Promise<string>
   user: (a: string) => User | undefined; name: (a: string) => string
   owed: (a: string) => number; hasOverdue: (a: string) => boolean; restricted: (a: string) => boolean
   /** Why I cannot borrow this amount right now, or '' if I can. Mirrors the contract's checks, so no prompt is written for a call that would fail. */
@@ -31,7 +31,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>(DEMO ? seedUsers : [])
   const [ious, setIous] = useState<Iou[]>(DEMO ? seedIous : [])
   const [offers, setOffers] = useState<Offer[]>(DEMO ? seedOffers : [])
-  const [chainState, setChainState] = useState<{ loaded: boolean; down: boolean; holds: boolean | null; credit: number; print: string }>({ loaded: DEMO, down: false, holds: null, credit: 0, print: '' })
+  const [chainState, setChainState] = useState<{ loaded: boolean; down: boolean; holds: boolean | null; credit: number; shop: number; print: string }>({ loaded: DEMO, down: false, holds: null, credit: 0, shop: DEMO ? Infinity : 0, print: '' })
   // a visitor starts as a guest: free to look at everything, with every action switched off until they join.
   // (tests open the demo as an existing member with ?demo=member)
   const [demoJoined, setJoined] = useState(() => DEMO && new URLSearchParams(location.search).get('demo') === 'member')   // joining happens once; after it the header shows the profile instead of the join button
@@ -77,6 +77,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const x = ious.find((q) => q.id === id)!; const now = Date.now(); const onTime = now <= x.dueAt, isDefault = now > x.dueAt + 7 * DAY
       const firstWith = !ious.some((q) => q.id !== id && q.status === 'Repaid' && q.debtor === ME && q.creditor === x.creditor)
       setIous((l) => l.map((q) => (q.id === id ? { ...q, status: 'Repaid', repaidAt: now } : q)))
+      if (x.offerId) setOffers((l) => l.map((o) => (o.id === x.offerId ? { ...o, taken: Math.max(0, o.taken - 1) } : o)))   // a repaid shop loan goes back in stock
       if (repayDay.current.day !== dayOf(now)) repayDay.current = { day: dayOf(now), n: 0 }
       const before = baseLevel(me), good0 = me.good ?? me.onTime
       const next: User = { ...me, badges: { ...me.badges }, good: good0 }
@@ -140,12 +141,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (seen.current && now.level > seen.current.level) setLast((l) => ({ ...l, levelUp: now.level }))
         if (seen.current && now.badges > seen.current.badges) setLast((l) => ({ ...l, badge: Object.keys(mine.badges)[now.badges - 1] }))
         seen.current = now }
-      setUsers(d.users); setIous(d.ious); setOffers(d.offers); setChainState({ loaded: true, down: false, holds: d.holdsAgentId, credit: d.credit, print: d.print })
+      setUsers(d.users); setIous(d.ious); setOffers(d.offers); setChainState({ loaded: true, down: false, holds: d.holdsAgentId, credit: d.credit, shop: d.shopFunds, print: d.print })
       return d.print
     } catch (e) { setChainState((c) => ({ ...c, down: true })); throw e }
   }, [])
   useEffect(() => { if (DEMO) return; const go = () => { if (!document.hidden) refresh().catch(() => undefined) }; go(); const id = setInterval(go, 20_000); return () => clearInterval(id) }, [refresh])
-  const v = useMemo<Store>(() => ({ users, ious, offers, me, joined, loaded: chainState.loaded, chainDown: chainState.down, holdsAgentId: chainState.holds, credit: chainState.credit, print: chainState.print, refresh, user, name, owed, hasOverdue, restricted: isRestricted, whyNotBorrow, whyNotSend, tray, openTray: setTray, closeTray: () => setTray(null), toasts, toast, dropToast: (id) => setToasts((t) => t.filter((x) => x.id !== id)), act, last, draftTo, setDraftTo }),
+  const v = useMemo<Store>(() => ({ users, ious, offers, me, joined, loaded: chainState.loaded, chainDown: chainState.down, holdsAgentId: chainState.holds, credit: chainState.credit, shopFunds: chainState.shop, print: chainState.print, refresh, user, name, owed, hasOverdue, restricted: isRestricted, whyNotBorrow, whyNotSend, tray, openTray: setTray, closeTray: () => setTray(null), toasts, toast, dropToast: (id) => setToasts((t) => t.filter((x) => x.id !== id)), act, last, draftTo, setDraftTo }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [users, ious, offers, joined, chainState, refresh, tray, toasts, last, draftTo])
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>

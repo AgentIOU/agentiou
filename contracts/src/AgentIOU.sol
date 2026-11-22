@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 /// @title AgentIOU: a pay-later ledger for Agent ID holders on BNB Smart Chain
 /// @notice Owner powers: none. There is no owner, no upgrade, no pause and no fee.
 ///         The contract never holds anyone's money: a repayment goes straight from the debtor to the creditor.
+///         A shop loan goes straight from the shop's wallet to the borrower, out of an approval the shop set itself.
 ///         The only balance it can hold is BNB that could not be delivered to a creditor, kept under that
 ///         creditor's name until they call withdraw().
 ///         Nothing here moves money by itself: no scheduled collection, no automatic or bundled transfer.
@@ -109,9 +110,11 @@ contract AgentIOU {
     function setNickname(string calldata nickname) external { _checkNickname(nickname); _joined(msg.sender).nickname = nickname; }
 
     // =========================================================== shop offers
-    /// @notice Any member can open a shop. Only MART's offers can carry a Founders sticker (designId 1-3); others pass 0.
+    /// @notice Any member can open a shop. A shop lends its own USDT: when an offer is taken, `price` moves from the shop's wallet
+    ///         to the borrower (the shop must hold it and have approved this contract for it), and comes back when the IOU is repaid.
+    ///         Only MART's offers can carry a Founders sticker (designId 1-3); others pass 0.
     function createOffer(string calldata title, uint8 asset, uint256 price, uint16 termDays, uint32 stock, uint8 designId) external returns (uint256 id) {
-        if (asset > TOKEN_USDT) revert BadAsset();
+        if (asset != TOKEN_USDT) revert BadAsset();   // shop loans are in USDT: the contract can pass USDT from the shop to the borrower, but never holds BNB for anyone
         if (price == 0 || stock == 0) revert BadAmount();
         if (termDays == 0 || termDays > 30) revert BadDays();
         if (bytes(title).length == 0 || bytes(title).length > 48) revert BadMemo();
@@ -131,11 +134,13 @@ contract AgentIOU {
         if (o.shop != msg.sender) revert NotShop();
         o.stock += extra; o.active = true;
     }
-    /// @notice Take an offer on credit: the IOU is active at once and is due termDays from now.
+    /// @notice Take an offer: the shop's USDT comes to you now, with the sticker if the offer has one, and the IOU is due termDays from now.
+    ///         One loan per wallet for an offer that carries a sticker. Repaying puts the place back in stock.
     function takeOffer(uint256 offerId) external returns (uint256 id) {
         Offer storage o = _offer(offerId);
         if (!o.active || o.taken >= o.stock) revert SoldOut();
         if (o.shop == msg.sender) revert SelfIou();
+        if (o.designId != 0 && mints[msg.sender][o.designId].edition != 0) revert AlreadyHeld();
         uint32 cents = _toCents(o.asset, o.price);
         _checkCanBorrow(msg.sender, cents);
         o.taken++;
@@ -145,7 +150,8 @@ contract AgentIOU {
         _activate(msg.sender, id, cents);
         emit IouCreated(id, o.shop, msg.sender, o.asset, o.price, uint40(block.timestamp + uint256(o.termDays) * 1 days));
         emit IouAccepted(id);
-        if (o.designId != 0 && mints[msg.sender][o.designId].edition == 0) _mint(msg.sender, o.designId);
+        if (o.designId != 0) _mint(msg.sender, o.designId);
+        _usdt(o.shop, msg.sender, o.price);   // state first, then the money: from the shop straight to the borrower
     }
 
     // =========================================================== IOUs between people
@@ -201,13 +207,13 @@ contract AgentIOU {
         // state first
         x.status = Status.Repaid; x.repaidAt = uint40(block.timestamp);
         _settle(x, id);
+        if (x.offerId != 0) offers[x.offerId - 1].taken--;   // a repaid shop loan goes back in stock
         // then the money, straight to the creditor
         if (x.asset == BNB) {
             (bool ok, ) = x.creditor.call{value: x.amount, gas: 30000}("");
             if (!ok) credits[x.creditor] += x.amount;
         } else {
-            (bool ok, bytes memory ret) = USDT.call(abi.encodeWithSelector(0x23b872dd, msg.sender, x.creditor, x.amount));
-            if (!ok || (ret.length != 0 && !abi.decode(ret, (bool)))) revert TransferFailed();
+            _usdt(msg.sender, x.creditor, x.amount);
         }
         emit IouRepaid(id, msg.sender, x.creditor, x.amount, block.timestamp <= x.dueAt);
     }
@@ -324,6 +330,11 @@ contract AgentIOU {
     function _iou(uint256 id) internal view returns (Iou storage) { if (id == 0 || id > ious.length) revert WrongStatus(); return ious[id - 1]; }
     function _offer(uint256 id) internal view returns (Offer storage) { if (id == 0 || id > offers.length) revert SoldOut(); return offers[id - 1]; }
     function _step(uint256 tier) internal pure returns (uint256) { return tier == 0 ? 50 : tier == 1 ? 150 : 300; }
+    /// @dev USDT from one wallet straight to another, using the approval `from` gave this contract. Nothing stays here.
+    function _usdt(address from, address to, uint256 amount) internal {
+        (bool ok, bytes memory ret) = USDT.call(abi.encodeWithSelector(0x23b872dd, from, to, amount));
+        if (!ok || (ret.length != 0 && !abi.decode(ret, (bool)))) revert TransferFailed();
+    }
     function _limit(uint8 level) internal pure returns (uint32) { return level == 3 ? 1000 : level == 2 ? 500 : level == 1 ? 100 : 0; } // cents: $10, $5, $1
     function _level(User storage u) internal view returns (uint8) {
         return (u.good >= 10 && u.defaults == 0 && u.people >= 3) ? 3 : u.good >= 3 ? 2 : 1;

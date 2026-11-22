@@ -33,6 +33,9 @@ try:
     ok("repay 0.0004 BNB early: balance back up by $0.24", c["avail"], 3.00); ok("  Trust Score +5", c["score"], a["score"]+5); ok("  XP +40 (30 on time, 10 early)", c["xp"], a["xp"]+40); ok("  on-time count +1", c["onTime"], a["onTime"]+1)
     pg.evaluate("location.hash='mart'"); pg.wait_for_timeout(500); pg.get_by_role("button",name="Take on credit").first.click(); confirm(pg); d=snap(pg); print(d)
     ok("take a sticker on credit: balance down by its price", round(c["avail"]-d["avail"],2) in (0.01,0.03,0.05), True); ok("  score and XP unchanged by borrowing", (d["score"],d["xp"]), (c["score"],c["xp"]))
+    pg.evaluate("location.hash='mart'"); pg.wait_for_timeout(500); left=lambda: [int(x) for x in re.findall(r"(\d+) of 100",pg.inner_text("main"))]; l1=left()
+    repay(pg,"sticker"); pg.evaluate("location.hash='mart'"); pg.wait_for_timeout(500); l2=left(); z=snap(pg)
+    ok("repaying the shop loan puts its place back in stock", sum(l2)-sum(l1), 1); ok("  and frees the same amount of my limit", z["avail"], c["avail"]); d=z
     pg.get_by_role("button",name="Accept").first.click(); confirm(pg); e=snap(pg); print(e)
     ok("accept sam's 1.5 USDT: balance down by $1.50", round(d["avail"]-e["avail"],2), 1.5)
     repay(pg,"Notebook"); f=snap(pg); print(f)

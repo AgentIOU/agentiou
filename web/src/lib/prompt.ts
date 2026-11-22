@@ -34,7 +34,8 @@ const mine = (sig: string, args: string, data: string, value = '0', extra = '') 
 
 export const prompts = {
   join: (nick: string) => mine('join(string)', `nickname = "${nick}"`, encodeFunctionData({ abi: ABI, functionName: 'join', args: [nick] })),
-  takeOffer: (id: number) => mine('takeOffer(uint256)', `offerId = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'takeOffer', args: [BigInt(id)] })),
+  takeOffer: (id: number, price?: number, shop?: string, days?: number) => mine('takeOffer(uint256)', `offerId = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'takeOffer', args: [BigInt(id)] }), '0',
+    price ? `This lends me ${price} USDT from the shop${shop ? ` (${shop})` : ''} and records that I owe it back within ${days} days. Nothing leaves my wallet.\n` : ''),
   createIOU: (debtor: string, asset: Asset, amount: number, days: number, memo: string) =>
     mine('createIOU(address,uint8,uint256,uint16,string)', `debtor = ${debtor}, asset = ${asset}, amount = ${amount} ${asset}, dueDays = ${days}, memo = "${memo}"`,
       encodeFunctionData({ abi: ABI, functionName: 'createIOU', args: [debtor as `0x${string}`, assetId(asset), wei(amount), days, memo] })),

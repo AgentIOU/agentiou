@@ -15,7 +15,7 @@ interface RawUser { joinedAt: number; no: number; onTime: number; late: number; 
 interface RawIou { creditor: string; debtor: string; asset: number; status: number; createdAt: number; dueAt: number; repaidAt: number; usdCents: number; offerId: number; amount: bigint; memo: string }
 interface RawOffer { shop: string; asset: number; active: boolean; termDays: number; stock: number; taken: number; designId: number; price: bigint; title: string }
 export interface ChainView { level: number; score: number; restricted: boolean; overdue: boolean; owed: number }
-export interface Snapshot { users: User[]; ious: Iou[]; offers: Offer[]; chain: Map<string, ChainView>; bnbUsd: number; holdsAgentId: boolean | null; /** BNB the contract is keeping for me because a repayment could not be delivered to my wallet */ credit: number; print: string }
+export interface Snapshot { users: User[]; ious: Iou[]; offers: Offer[]; chain: Map<string, ChainView>; bnbUsd: number; holdsAgentId: boolean | null; /** BNB the contract is keeping for me because a repayment could not be delivered to my wallet */ credit: number; /** USDT the shop can lend right now: the smaller of its balance and its approval */ shopFunds: number; print: string }
 
 const STATUS: Status[] = ['Pending', 'Active', 'Repaid', 'Declined', 'Cancelled']
 const num = (v: bigint) => Number(formatEther(v))
@@ -23,12 +23,14 @@ const iou = (id: bigint, x: RawIou): Iou => ({ id: Number(id), creditor: getAddr
   createdAt: x.createdAt * 1000, dueAt: x.dueAt * 1000, repaidAt: x.repaidAt ? x.repaidAt * 1000 : undefined, status: STATUS[x.status], memo: x.memo, offerId: x.offerId || undefined })
 
 export async function loadAll(): Promise<Snapshot> {
-  const [members, offersRaw, recent, mine, feed, holds, credit] = await Promise.all([
+  const usdt = (functionName: 'balanceOf' | 'allowance', args: `0x${string}`[]) => client.readContract({ address: USDT as `0x${string}`, abi: EXTRA, functionName, args } as never) as Promise<bigint>
+  const [members, offersRaw, recent, mine, feed, holds, credit, shopBal, shopOk] = await Promise.all([
     read<string[]>('getUsers', [0n, 200n]), read<RawOffer[]>('getOffers', [0n, 60n]), read<[bigint[], RawIou[]]>('getRecentIOUs', [300n]),
     HAS_ME ? read<[bigint[], RawIou[]]>('getUserIOUs', [ME, 0n, 300n]) : Promise.resolve<[bigint[], RawIou[]]>([[], []]),
     client.readContract({ address: BNB_FEED as `0x${string}`, abi: EXTRA, functionName: 'latestRoundData' }).catch(() => null),
     HAS_ME ? client.readContract({ address: AGENT_ID as `0x${string}`, abi: EXTRA, functionName: 'balanceOf', args: [ME as `0x${string}`] }).then((n) => n > 0n).catch(() => null) : Promise.resolve(null),
     HAS_ME ? read<bigint>('credits', [ME]) : Promise.resolve(0n),
+    usdt('balanceOf', [MART as `0x${string}`]).catch(() => 0n), usdt('allowance', [MART as `0x${string}`, C]).catch(() => 0n),
   ])
   const addrs = [...new Set([...members.map((a) => getAddress(a)), ...(HAS_ME ? [ME] : [])])]
   const got = await Promise.all(addrs.map((a) => read<[RawUser, number, number, number, boolean, boolean]>('getUser', [a])))
@@ -54,7 +56,7 @@ export async function loadAll(): Promise<Snapshot> {
   const me = users.find((x) => x.address === ME)
   // what would change when one of my own transactions lands; the tray waits for this to move
   const print = JSON.stringify([me && [me.nickname, me.xp, me.onTime, me.late, me.defaults, me.claimed, me.pocket, me.lastCheck, Object.keys(me.stickers)], credit.toString(), ious.filter((x) => x.creditor === ME || x.debtor === ME).map((x) => [x.id, x.status])])
-  return { users, ious, offers, chain, bnbUsd: feed && feed[1] > 0n ? Number(feed[1]) / 1e8 : 0, holdsAgentId: holds, credit: num(credit), print }
+  return { users, ious, offers, chain, bnbUsd: feed && feed[1] > 0n ? Number(feed[1]) / 1e8 : 0, holdsAgentId: holds, credit: num(credit), shopFunds: num(shopBal < shopOk ? shopBal : shopOk), print }
 }
 /** Has my wallet approved the contract to move at least this much USDT? (The first of the two repay steps.) */
 export const usdtAllowanceAtLeast = async (raw: string) => (await client.readContract({ address: USDT as `0x${string}`, abi: EXTRA, functionName: 'allowance', args: [ME as `0x${string}`, C] })) >= BigInt(raw)
