@@ -63,7 +63,7 @@ export function Tray() {
 function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
   const store = useStore(); const base = useRef(store.print)   // my on-chain record as it was when this step was shown
   const [step, setStep] = useState(0)
-  const [phase, setPhase] = useState<'prompt' | 'wait' | 'slow' | 'done' | 'error'>('prompt')
+  const [phase, setPhase] = useState<'prompt' | 'wait' | 'slow' | 'between' | 'done' | 'error'>('prompt')
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState(false)
   const copy = useCopy(); const box = useRef<HTMLDivElement>(null)
@@ -81,7 +81,7 @@ function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
       busy = false
       if (stop) return
       if (!ok) { if (phase === 'wait' && Date.now() - t0 > 40_000) setPhase('slow'); else timer = window.setTimeout(look, phase === 'slow' ? 3000 : 2000); return }
-      if (step < t.steps.length - 1) { setStep(step + 1); setPhase('prompt'); setCopied(false); play('chime'); return }
+      if (step < t.steps.length - 1) { setPhase('between'); setCopied(false); play('chime'); return }
       if (st.seen) await store.refresh().catch(() => undefined)
       setPhase('done'); play('stamp'); try { navigator.vibrate?.(30) } catch { /* optional */ }
     }
@@ -94,30 +94,31 @@ function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
   useEffect(() => {
     if (phase !== 'wait' || !DEMO) return
     const id = setTimeout(() => {
-      if (step < t.steps.length - 1) { setStep(step + 1); setPhase('prompt'); setCopied(false); play('chime'); return }
+      if (step < t.steps.length - 1) { setPhase('between'); setCopied(false); play('chime'); return }
       const e = t.apply()
       if (e) { setErr(e); setPhase('error'); play('error') } else { setPhase('done'); play('stamp'); try { navigator.vibrate?.(30) } catch { /* optional */ } }
     }, 1700)
     return () => clearTimeout(id)
   }, [phase, step, t])
-  const s = t.steps[step]
+  const s = t.steps[step]; const many = t.steps.length > 1
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center md:p-6" style={{ background: '#05061299', animation: 'fadein 200ms' }} onPointerDown={(e) => e.target === e.currentTarget && close()}>
       <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t.title} className="frost w-full max-w-[640px] rounded-t-[22px] md:rounded-[22px] p-5 md:p-7 max-h-[92dvh] overflow-y-auto outline-none" style={{ animation: 'trayup 320ms var(--ease-out)' }}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[20px]">{t.title}</h2>
-            {t.steps.length > 1 && <p className="text-muted text-[14px] mt-1 flex items-center gap-2">Step {step + 1} of {t.steps.length}: {s.label}<span className="inline-flex gap-1" aria-hidden>{t.steps.map((_, i) => <i key={i} className="w-2 h-2 rounded-full" style={{ background: i <= step ? '#FFB23F' : '#2C3156' }} />)}</span></p>}
+            {many && phase !== 'between' && <p className="text-muted text-[14px] mt-1 flex items-center gap-2">Step {step + 1} of {t.steps.length}: {s.label}<span className="inline-flex gap-1" aria-hidden>{t.steps.map((_, i) => <i key={i} className="w-2 h-2 rounded-full" style={{ background: i <= step ? '#FFB23F' : '#2C3156' }} />)}</span></p>}
           </div>
           <button type="button" aria-label="Close" onClick={close} className="w-11 h-11 -mr-2 -mt-2 inline-flex items-center justify-center rounded-full cursor-pointer text-muted hover:text-chalk"><X size={20} /></button>
         </div>
         {phase === 'prompt' && <>
           {t.note && <p className="text-muted mt-3">{t.note}</p>}
-          <div className="flex items-center justify-between mt-4 mb-2"><span className="text-[14px] text-muted">Prompt for your agent</span><button type="button" className="btn btn-secondary btn-sm" onClick={async () => setCopied(await copy(s.prompt, 'Copied'))}>{copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}{copied ? 'Copied' : 'Copy'}</button></div>
+          <div className="flex items-center justify-between mt-4 mb-2"><span className="text-[14px] text-muted">Prompt for your agent</span><button type="button" className="btn btn-secondary btn-sm" onClick={async () => setCopied(await copy(s.prompt, 'Copied'))}>{copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}{copied ? 'Copied' : many ? `Copy prompt ${step + 1} of ${t.steps.length}` : 'Copy'}</button></div>
           <pre className="code max-h-[34dvh] overflow-auto" tabIndex={0}>{s.prompt}</pre>
           <p className="text-[14px] text-muted mt-3">Paste this into your Binance Agentic Wallet agent. It shows a preview and the risks; nothing is sent until you confirm there.</p>
           <div className="flex flex-wrap gap-3 mt-5"><button type="button" className="btn btn-primary" onClick={() => setPhase('wait')}>I confirmed in my agent</button><button type="button" className="btn btn-secondary" onClick={close}>Not now</button></div>
         </>}
+        {phase === 'between' && <div className="pt-6"><div className="flex items-center gap-5"><Mascot pose="jump" expr="success" className="w-24 shrink-0" /><div><p className="led text-amber text-[30px] leading-[1.05]">{step + 1} of {t.steps.length} done</p><p className="font-extrabold text-[18px] leading-tight mt-2">{t.steps.length - step - 1 === 1 ? `One more prompt to finish the ${t.steps[t.steps.length - 1].label.toLowerCase()}.` : `${t.steps.length - step - 1} more prompts to finish.`}</p>{s.landed && <p className="text-muted text-[14px] mt-1.5">{s.landed}</p>}</div></div><button type="button" className="btn btn-primary w-full justify-center mt-5" onClick={() => { setStep(step + 1); setPhase('prompt') }}>Show prompt {step + 2} of {t.steps.length}</button><p className="text-muted text-[13px] text-center mt-2.5">The next prompt opens with its own Copy button.</p></div>}
         {phase === 'wait' && <div className="py-8 flex items-center gap-5"><Mascot pose="wave" expr="thinking" className="w-24 shrink-0" /><div><Dots label="Waiting for your agent" /><p className="text-muted text-[14px] mt-2">{DEMO ? 'The site reads the contract every few seconds: pending, confirmed, then updated. In this demo it confirms by itself.' : 'The site is reading the contract every few seconds. This card moves on by itself, usually within a few seconds of your transaction landing.'}</p>{!DEMO && <button type="button" className="btn-text underline underline-offset-4 text-[14px] text-muted mt-3 min-h-[44px]" onClick={() => setPhase('prompt')}>I have not sent it yet: back to the prompt</button>}</div></div>}
         {phase === 'slow' && <div className="py-6 flex items-center gap-5"><Mascot pose="search" expr="confused" className="w-24 shrink-0" /><div><p className="font-semibold">We can't see it on-chain yet. Still looking.</p><p className="text-muted text-[14px] mt-2">This card moves on by itself as soon as the chain shows it. If your agent showed an error or you did not confirm there, nothing was sent.</p><div className="flex flex-wrap gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" onClick={() => setPhase('wait')}>Check again</button><button type="button" className="btn btn-secondary btn-sm" onClick={() => setPhase('prompt')}>Back to the prompt</button></div></div></div>}
         {phase === 'done' && <div className="py-6 flex flex-wrap items-center gap-6"><Mascot pose={(t.pose as Pose) ?? 'jump'} expr="success" className="w-28 shrink-0" /><div className="flex-1 min-w-[200px]"><PaidStamp text={t.done} />{t.after && <div className="mt-4">{t.after}</div>}<div className="mt-5"><button type="button" className="btn btn-secondary" onClick={close}>Done</button></div></div></div>}

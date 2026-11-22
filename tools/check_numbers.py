@@ -17,6 +17,8 @@ def confirm(pg):
     while time.time()<end:
         pg.wait_for_timeout(300)
         if pg.get_by_role("button",name="Done").count(): pg.wait_for_timeout(600); pg.get_by_role("button",name="Done").click(); pg.wait_for_timeout(300); return
+        nx=pg.get_by_role("button",name=re.compile("^Show prompt"))
+        if nx.count(): nx.click(); continue
         c=pg.get_by_role("button",name="I confirmed in my agent")
         if c.count() and c.is_enabled(): c.click()
     raise SystemExit("the process card never finished: "+pg.locator("[role=dialog]").inner_text()[:300])

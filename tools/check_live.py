@@ -29,10 +29,13 @@ try:
         while time.time()<end:
             pg.wait_for_timeout(500); d=pg.locator("[role=dialog]")
             if expect=="done" and d.get_by_role("button",name="Done").count(): return True
-            if expect=="step2" and "Step 2 of 2" in d.inner_text() and d.locator("pre.code").count(): return True
+            if expect=="step2" and d.get_by_role("button",name="Show prompt 2 of 2").count():   # the stop screen: step 1 is on-chain, the money has not moved
+                stop_ok.append("1 of 2 done" in d.inner_text() and "The money has not moved yet" in d.inner_text() and d.locator("pre.code").count()==0)
+                d.get_by_role("button",name="Show prompt 2 of 2").click(); pg.wait_for_timeout(300)
+                return "Step 2 of 2" in d.inner_text() and d.locator("pre.code").count()==1 and d.get_by_role("button",name="Copy prompt 2 of 2").count()==1
             if expect=="slow" and "can't see it on-chain yet" in d.inner_text(): return True
         return False
-    speed=[]
+    speed=[]; stop_ok=[]
     def act(frm, expect="done"):
         r=send_prompt(frm); t=time.time(); c=confirm(expect); speed.append(time.time()-t); return r=="success" and c
     done=lambda: (pg.get_by_role("button",name="Done").click(), pg.wait_for_timeout(300))
@@ -83,6 +86,7 @@ try:
     # ---- E. repay USDT in two steps
     go("me"); pg.get_by_role("button",name="Repay").first.click(); pg.wait_for_timeout(400)
     ok("repay step 1: the card moves to step 2 only when the approval is on-chain",act(ANA,"step2"))
+    ok("between the two prompts a stop screen says 1 of 2 done and that the money has not moved; prompt 2 shows only after a tap",len(stop_ok)==1 and all(stop_ok),stop_ok)
     ok("repay step 2: finished when the repayment is on-chain",act(ANA)); done()
     c=same("after an on-time repay"); ok("on-time repay of a 1-day loan: XP 120 (50 + 30 + first-repay badge 25 + new person 15; no early bonus, a 1-day loan can never be 24 hours early), score 57, nothing owed",(c["xp"],c["score"],c["owedCents"],c["onTime"])==(120,57,0,1),c)
     ok("the shop has its money back and earned nothing",int(node("usdt",A["mart"]))==m0 and int(node("usdt",ANA))==u0)

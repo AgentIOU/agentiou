@@ -36,7 +36,10 @@ try:
       ctx.close()
     # ---- 2. flows on one page (demo state lives in the page)
     pg=b.new_page(viewport={"width":1440,"height":900}); errs=[]; pg.on("pageerror",lambda e:errs.append(str(e)))
-    conf=lambda: (pg.get_by_role("button",name="I confirmed in my agent").click(), pg.wait_for_timeout(2600))
+    def conf():
+        pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(2600)
+        nx=pg.get_by_role("button",name=re.compile("^Show prompt"))   # the stop screen between two prompts
+        if nx.count(): nx.click(); pg.wait_for_timeout(300)
     dlg=lambda: pg.locator("[role=dialog]").inner_text()
     pg.goto(U+"mart"); pg.wait_for_timeout(1200)
     pg.get_by_role("button",name="Take on credit").first.click(); pg.wait_for_timeout(400)
@@ -56,7 +59,10 @@ try:
     # USDT repay = 2 steps with exact approve
     pg.locator("li:has(> div.line)",has_text="Night owl sticker").get_by_role("button",name="Repay").click(); pg.wait_for_timeout(300)
     pr=pg.locator("pre.code").inner_text(); ok("USDT step 1 is an exact approve","approve(address,uint256)" in pr and "0.03 USDT (exact, not unlimited)" in pr and "f"*20 not in pr.lower().split("calldata:")[1],pr[-200:])
-    conf(); pr=pg.locator("pre.code").inner_text(); ok("USDT step 2 is repay and names who gets paid","repay(uint256)" in pr and "to 0xde30" in pr and "Promise Mart" in pr,pr); conf(); ok("repay USDT",'Paid' in dlg(),dlg()[:80]); pg.get_by_role("button",name="Done").click()
+    pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(2600); d=pg.locator("[role=dialog]")
+    ok("after step 1 a stop screen says 1 of 2 done, the money has not moved, and hides the prompt until tapped","1 of 2 done" in d.inner_text() and "One more prompt to finish the repay." in d.inner_text() and "The money has not moved yet" in d.inner_text() and d.locator("pre.code").count()==0 and d.get_by_role("button",name="I confirmed in my agent").count()==0,d.inner_text()[:200])
+    d.get_by_role("button",name="Show prompt 2 of 2").click(); pg.wait_for_timeout(300); ok("prompt 2 has its own numbered Copy button",d.get_by_role("button",name="Copy prompt 2 of 2").count()==1 and "Step 2 of 2" in d.inner_text())
+    pr=pg.locator("pre.code").inner_text(); ok("USDT step 2 is repay and names who gets paid","repay(uint256)" in pr and "to 0xde30" in pr and "Promise Mart" in pr,pr); conf(); ok("repay USDT",'Paid' in dlg(),dlg()[:80]); pg.get_by_role("button",name="Done").click()
     # BNB repay = 1 step with value
     pg.locator("li:has(> div.line)",has_text="Phone top-up").get_by_role("button",name="Repay").click(); pg.wait_for_timeout(300)
     pr=pg.locator("pre.code").inner_text(); ok("BNB repay sends the exact value and names who gets paid","Value: 0.0004 BNB" in pr and "to 0xde30" in pr and "(rafi)" in pr,pr); conf(); ok("repay BNB",'Paid' in dlg()); pg.get_by_role("button",name="Done").click()
@@ -128,7 +134,9 @@ try:
     r.evaluate("location.hash='me'"); r.wait_for_timeout(600)
     for step in (1,2):
       r.get_by_role("button",name="Repay",exact=True).first.click(); r.wait_for_timeout(300)
-      while r.get_by_role("button",name="I confirmed in my agent").count(): r.get_by_role("button",name="I confirmed in my agent").click(); r.wait_for_timeout(2500)
+      while r.get_by_role("button",name="I confirmed in my agent").count() or r.get_by_role("button",name=re.compile("^Show prompt")).count():
+        if r.get_by_role("button",name=re.compile("^Show prompt")).count(): r.get_by_role("button",name=re.compile("^Show prompt")).click(); r.wait_for_timeout(300); continue
+        r.get_by_role("button",name="I confirmed in my agent").click(); r.wait_for_timeout(2500)
       r.get_by_role("button",name="Done").click(); r.wait_for_timeout(300)
       lab=r.get_by_role("button",name=re.compile("IOU Card for tuku")).get_attribute("aria-label") or ""
       if step==1: ok("phone: repaying one overdue IOU lifts Restricted","Restricted account" not in lab and "IOU past due" in r.inner_text("main"))
@@ -180,6 +188,8 @@ try:
         for _ in range(40):
             j.wait_for_timeout(300)
             if j.get_by_role("button",name="Done").count(): j.get_by_role("button",name="Done").click(); break
+            nx=j.get_by_role("button",name=re.compile("^Show prompt"))
+            if nx.count(): nx.click(); continue
             c=j.get_by_role("button",name="I confirmed in my agent")
             if c.count() and c.is_enabled(): c.click()
         j.wait_for_timeout(400)

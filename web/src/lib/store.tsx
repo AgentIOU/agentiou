@@ -5,7 +5,7 @@ import { BNB_USD, DAY, DEMO, HAS_ME, setBnbUsd, baseLevel, dayOf, isRestricted, 
 // One store, two sources. Live (a contract address was set at build time): every number is read from the contract and nothing here changes it.
 // Demo store. It follows the contract's rules (limits, XP, vouchers, soulbound stickers) in memory,
 // so every flow can be tried before the contract is live. Reloading the page resets it.
-export interface TrayStep { label: string; prompt: string; /** live only: has this step landed on-chain? Default: my own record changed. */ seen?: () => Promise<boolean> }
+export interface TrayStep { label: string; prompt: string; /** live only: has this step landed on-chain? Default: my own record changed. */ seen?: () => Promise<boolean>; /** shown on the stop screen once this step has landed and another follows */ landed?: string }
 export interface TrayReq { title: string; note?: string; steps: TrayStep[]; done: string; apply: () => string | void; after?: ReactNode; pose?: string }
 export interface Toast { id: number; text: string; kind?: 'ok' | 'bad' }
 interface Store {
