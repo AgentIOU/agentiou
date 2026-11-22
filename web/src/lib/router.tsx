@@ -3,7 +3,7 @@ import { useEffect, useState, type AnchorHTMLAttributes } from 'react'
 // One router, two address styles: real paths on the public site (/tasks, /u/0x…),
 // plain #names inside the preview (#tasks, #u-0x…), because a preview frame only passes a plain hash.
 const HASH = import.meta.env.VITE_ROUTER === 'hash'
-export const ROUTES = ['home', 'start', 'me', 'mart', 'tasks', 'new', 'board', 'proof', 'judges', 'legal', 'u'] as const
+export const ROUTES = ['home', 'start', 'me', 'mart', 'tasks', 'new', 'board', 'proof', 'about', 'legal', 'u'] as const
 export type RouteName = (typeof ROUTES)[number] | 'notfound'
 export interface Route { name: RouteName; param?: string }
 

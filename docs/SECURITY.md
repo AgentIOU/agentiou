@@ -10,14 +10,14 @@ The deploying address is stored as `MART` (Promise Mart, the demo shop). Its onl
 
 | Action | Money moved |
 |---|---|
-| `join`, `createIOU`, `acceptIOU`, `declineIOU`, `cancelIOU`, `takeOffer`, `checkIn`, `claimVoucher`, `mintSticker` | None. Gas only |
+| `join`, `setNickname`, `createIOU`, `acceptIOU`, `declineIOU`, `cancelIOU`, `takeOffer`, `checkIn`, `claimVoucher`, `mintSticker` | None. Gas only |
 | `repay` (USDT) | Exactly the IOU amount, from the borrower to the lender, using an approval the borrower gave for that exact amount |
 | `repay` (BNB) | Exactly the IOU amount, sent with the call and forwarded to the lender. If the lender cannot receive BNB, it is kept under the lender's name |
 | `withdraw` | The caller's own undelivered BNB, back to the caller |
 
 The site never asks for an unlimited approval. Every repay prompt names who gets paid and how much.
 
-## Hackathon safety rules
+## What AgentIOU never does
 
 | Rule | How AgentIOU meets it |
 |---|---|
@@ -32,6 +32,8 @@ The site never asks for an unlimited approval. Every repay prompt names who gets
 ## Website protection
 
 - Static site with no backend: there is no database or account to break into.
+- The only thing kept in the visitor's browser is the public address they typed in, plus the sound and motion settings. No key, no session, no cookie.
+- The site moves a step forward only when it can read the result from the contract; a visitor pressing "I confirmed" proves nothing by itself.
 - Content Security Policy blocks outside scripts; only the BNB Smart Chain RPC hosts can be contacted.
 - Every record lives in the contract, and only an address's own wallet can change it (`msg.sender`). The site cannot edit anyone's profile.
 - User text (nicknames, notes) is limited to plain characters and never rendered as HTML.

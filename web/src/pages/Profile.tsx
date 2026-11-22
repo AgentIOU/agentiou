@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BADGES, DEMO, plain, DESIGNS, LEVELS, ME, SEASON, TIERS, dateShort, dueText, usd, isAddr, levelOf, nickError, score, viewOf, type User } from '../lib/data'
+import { BADGES, DEMO, saveMe, plain, DESIGNS, LEVELS, ME, SEASON, TIERS, dateShort, dueText, usd, isAddr, levelOf, nickError, score, viewOf, type User } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
 import { usePrefs } from '../lib/prefs'
@@ -77,6 +77,7 @@ export function Me() {
     <div className="wrap pt-28 pb-16 grid gap-14">
       <ProfileHead u={me} own />
       {s.hasOverdue(ME) && <div className="panel border-coral p-4 flex items-center gap-4"><Mascot pose="rest" expr="worried" className="w-16 shrink-0" /><p>{s.restricted(ME) ? 'Your account is Restricted: you can only repay. Press Repay on the overdue IOUs below and it opens again at once.' : 'You have an IOU past due. Your level is one lower until you repay it. A second one makes the account Restricted.'}</p></div>}
+      {s.credit > 0 && <div className="panel p-4 flex flex-wrap items-center justify-between gap-3 border-amber"><p><b className="money">{s.credit} BNB</b> is waiting for you. A repayment could not be delivered to your wallet, so the contract is keeping it under your address.</p><button type="button" className="btn btn-primary btn-sm" onClick={() => f.withdraw(s.credit)}>Collect it</button></div>}
       {DEMO && !s.hasOverdue(ME) && owe.length >= 2 && <div className="panel p-4 flex flex-wrap items-center justify-between gap-3 border-dashed"><p className="max-w-[60ch]"><b>Demo only.</b> Want to see what Restricted looks like, and how repaying lifts it? This makes two of your demo IOUs overdue.</p><button type="button" className="btn btn-secondary btn-sm" onClick={() => { s.act.demoOverdue(); window.scrollTo({ top: 0 }) }}>Show me Restricted</button></div>}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,470px)_1fr] items-start">
         <div><Card u={me} /><p className="text-muted text-[14px] mt-3">Press the card to turn it over.</p></div>
@@ -96,7 +97,7 @@ export function Me() {
       <Pocket u={me} own /><Shelf u={me} /><BadgeBoard u={me} />
       <section aria-labelledby="t-set" className="max-w-[560px]"><h2 id="t-set" className="text-[20px]">Settings</h2>
         <div className="mt-5"><label className="label" htmlFor="nick">Nickname</label><div className="flex gap-3"><input id="nick" className="input" value={nick} onChange={(e) => setNick(e.target.value)} maxLength={20} aria-describedby="nick-h" /><button type="button" className="btn btn-secondary" disabled={!!bad || nick === me.nickname} onClick={() => f.setNick(nick)}>Save</button></div><p id="nick-h" className={`hint ${bad ? 'text-coral' : ''}`}>{bad || 'Not unique and not searchable. It always shows next to your short address.'}</p></div>
-        <Toggle label="Public profile" on={me.isPublic} set={f.setPublic} hint="Off hides you from our leaderboard. Chain data is public either way." />
+        {!DEMO && <div className="flex items-start justify-between gap-6 py-4 border-b border-rule mt-1"><div><p className="font-semibold">This device's address</p><p className="hint mt-0.5 mono break-all">{ME}</p><p className="hint mt-0.5">Only this public address is saved here, in your browser. No key, no connection.</p></div><button type="button" className="btn btn-secondary btn-sm shrink-0" onClick={() => saveMe(null)}>Forget it</button></div>}
         <Toggle label="Reduce motion" on={p.reduce} set={(v) => p.set({ reduce: v })} hint="Stops the moving background, floating things and stamps." />
         <Toggle label="Sound" on={p.sound} set={(v) => p.set({ sound: v })} hint="Off by default. Short, soft sounds made in your browser." />
         <p className="hint mt-5">Settings and your address stay on this device. No cookies, no account.</p>
@@ -111,7 +112,7 @@ function Toggle({ label, on, set, hint }: { label: string; on: boolean; set: (v:
 export function Public({ address }: { address: string }) {
   const f2 = useFlows(); const s = useStore(); const u = isAddr(address) ? s.user(address) : undefined
   if (!isAddr(address)) return <div className="wrap pt-32 pb-24"><h1 className="h2">Profile</h1><p className="text-coral mt-4">This doesn't look like a BNB Smart Chain address.</p><Link to="board" className="btn btn-secondary mt-6">Open the leaderboard</Link></div>
-  if (!u) return <div className="wrap pt-32 pb-24 flex flex-wrap items-center gap-8"><Mascot pose="search" expr="confused" className="w-40" /><div><h1 className="h2">No AgentIOU profile here</h1><p className="lead mt-3">This address hasn't joined yet. The demo only knows the demo members.</p><Link to="board" className="btn btn-secondary mt-6">Open the leaderboard</Link></div></div>
+  if (!u) return <div className="wrap pt-32 pb-24 flex flex-wrap items-center gap-8"><Mascot pose="search" expr="confused" className="w-40" /><div><h1 className="h2">No AgentIOU profile here</h1><p className="lead mt-3">This address hasn't joined yet.{DEMO && ' The demo only knows the demo members.'}</p><Link to="board" className="btn btn-secondary mt-6">Open the leaderboard</Link></div></div>
   const self = u.address === ME
   const list = s.ious.filter((x) => x.debtor === u.address && x.status !== 'Pending' && x.status !== 'Declined').sort((a, b) => b.createdAt - a.createdAt)
   return (

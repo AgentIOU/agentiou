@@ -19,9 +19,9 @@ The site never connects to a wallet. It writes a plain-text prompt with the exac
 
 | Folder | What it holds |
 |---|---|
-| `contracts/` | `AgentIOU.sol` (the whole contract), test mocks, compile script and a 92-check test run on a local chain |
+| `contracts/` | `AgentIOU.sol` (the whole contract), test mocks, compile script and a 93-check test run on a local chain, and the local-chain helper for the live website test |
 | `web/` | The website: Vite, React, TypeScript, Tailwind, GSAP, viem. No backend, no login, no wallet connect, no stored sessions |
-| `tools/` | Image cutting scripts and the browser checks for the site (`check.py`, `check2.py`, `check_numbers.py`, `check_abi.mjs`, `check_units.mjs`) |
+| `tools/` | Image cutting scripts and the browser checks for the site (`check.py`, `check2.py`, `check_numbers.py`, `check_abi.mjs`, `check_units.mjs`), the live test `check_live.py` (the built site against a local chain, sending each prompt's exact call), and `abi.mjs` (exports the contract's read interface for the site) |
 | `docs/SECURITY.md` | Owner permissions (none), money flows, how the hackathon safety rules are met, known limits |
 
 ## Contract
@@ -45,7 +45,12 @@ Run the tests (Node 20+):
     npm run dev            # local site
     npm run build          # public build for Cloudflare Pages (output: web/dist)
 
-The site runs on demo data until the contract is deployed; every screen with demo numbers says so. After deployment, `CONTRACT` and `DEMO` in `web/src/lib/data.ts` switch it to live contract reads.
+Demo or live is chosen when the site is built:
+
+- **Demo** (no settings): the site runs on demo data and every screen says so.
+- **Live**: set `VITE_CONTRACT` (the AgentIOU address) and `VITE_MART` (the Promise Mart wallet) in the build environment. Every number is then read from the contract; the site only reads, it never signs or sends.
+
+A visitor starts as a guest: they can look at everything, and every action stays off until their wallet has joined. The only thing saved in the browser is the visitor's public address.
 
 ## Licence
 

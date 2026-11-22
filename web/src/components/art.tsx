@@ -1,6 +1,6 @@
 import { memo, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import badgeArt from '../data/badges.json'
-import { LEVELS, assets, dateShort, dateUtc, short, type Mint, type Tier } from '../lib/data'
+import { LEVELS, assets, dateShort, dateUtc, short, type Mint, type Tier, DEMO } from '../lib/data'
 import { img } from './fx'
 import { Lock } from 'lucide-react'
 
@@ -94,7 +94,7 @@ export function IouCard({ nick, address, no, level, available, limit, back, over
               <span className="block mono opacity-80" style={{ fontSize: '2.6cqw', marginTop: '0.5cqw' }}>{short(address)}</span>
             </span>
             <span className="absolute" style={{ right: '4.6cqw', bottom: '4.3cqw' }}><Seal size={44} /></span>
-            {demo && <span className="absolute demo-chip" style={{ left: '34%', bottom: '5cqw', color: '#fff', borderColor: '#fff', fontSize: '2.4cqw' }}>Demo data</span>}
+            {demo && DEMO && <span className="absolute demo-chip" style={{ left: '34%', bottom: '5cqw', color: '#fff', borderColor: '#fff', fontSize: '2.4cqw' }}>Demo data</span>}
             {(overdue || restricted) && <span className={`absolute stamp ${restricted ? 'text-white bg-[#7A0F12]/70' : 'text-coral'}`} style={{ right: '26%', top: '40%' }}>{restricted ? 'Restricted' : 'Overdue'}</span>}
           </span>
           <span className="face-back block" style={{ ...shell, background: restricted ? 'linear-gradient(115deg, #5E0B0E, #A01C1B)' : 'linear-gradient(115deg, #0A2F7A, #1552B8)' }}>

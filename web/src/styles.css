@@ -150,3 +150,11 @@ main { overflow-x: clip; }
 .tour-scene { transition: opacity 320ms var(--ease-out), transform 420ms var(--ease-out), visibility 0s; will-change: opacity, transform; }
 @keyframes rise { from { transform: translateY(14px) scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes tourtext { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* "Browse as a guest": a glass pill whose arrow keeps nudging forward */
+.guest-pill { background: #ffffff14; border: 1px solid #ffffff2e; color: var(--color-chalk, #F0F1F7); transition: background 200ms, border-color 200ms; }
+.guest-pill:hover { background: #ffffff22; border-color: #8C96FF; }
+.guest-arrow { background: #8C96FF; color: #0E1024; }
+.guest-arrow svg { animation: nudge 1.5s var(--ease-out) infinite; }
+.guest-pill:hover .guest-arrow svg { animation-duration: 0.7s; }
+@keyframes nudge { 0%, 55%, 100% { transform: translateX(-2px); } 75% { transform: translateX(4px); } }

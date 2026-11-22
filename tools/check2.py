@@ -1,9 +1,9 @@
 """Extra checks: more screen widths, Android emulation, keyboard-only use, speed numbers."""
 import subprocess, sys, time, gzip, glob
 from playwright.sync_api import sync_playwright
-ROOT="/home/claude/agentiou/web/dist-preview"; U="http://127.0.0.1:4173/index.html#"
+ROOT="/home/claude/agentiou/web/dist-preview"; U="http://127.0.0.1:4173/index.html?demo=member#"; G="http://127.0.0.1:4173/index.html#"   # U: the demo as a member; G: as a first-time guest
 MIRA="0xde300000000000000000000000000000000002b7"; ME="0xde30000000000000000000000000000000000142"
-PAGES=["home","start","me","mart","tasks","new","board","proof","judges","legal","u-"+MIRA,"nowhere"]
+PAGES=["home","start","me","mart","tasks","new","board","proof","about","legal","u-"+MIRA,"nowhere"]
 res=[]
 def ok(n,c,note=""): res.append((bool(c),n,note)); print(("PASS " if c else "FAIL ")+n+((" :: "+str(note)) if note and not c else ""))
 srv=subprocess.Popen([sys.executable,"-m","http.server","4173","--bind","127.0.0.1"],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
@@ -50,5 +50,5 @@ try:
     pg.goto(U+"home"); pg.wait_for_timeout(5000); lcp=pg.evaluate("__lcp"); cls=pg.evaluate("__cls")
     ok(f"speed: largest paint {lcp/1000:.2f}s (target under 2.5s, local files, 4x slower CPU)",lcp<2500); ok(f"speed: layout shift {cls:.3f} (target under 0.1)",cls<0.1); ctx.close(); b.close()
 finally: srv.terminate()
-js=sum(len(gzip.compress(open(f,'rb').read())) for f in glob.glob(ROOT+"/assets/*.js")); ok(f"first JavaScript {js/1024:.0f} KB gzip (target under 200 KB)",js<200*1024)
+js=sum(len(gzip.compress(open(f,'rb').read())) for f in glob.glob(ROOT+"/assets/index-*.js")); ok(f"first JavaScript {js/1024:.0f} KB gzip (target under 200 KB)",js<200*1024)
 f=[r for r in res if not r[0]]; print(f"\n{len(res)-len(f)} of {len(res)} extra checks passed")

@@ -2,7 +2,10 @@ import { useEffect } from 'react'
 import { useRoute } from './lib/router'
 import { PrefsProvider } from './lib/prefs'
 import { StoreProvider, useStore } from './lib/store'
-import { LEVELS } from './lib/data'
+import { DEMO, HAS_ME, LEVELS, ME } from './lib/data'
+import { Link } from './lib/router'
+import { Mascot } from './components/fx'
+import { Eye } from 'lucide-react'
 import { play } from './lib/sound'
 import { Sky } from './components/fx'
 import { ArtDefs } from './components/art'
@@ -12,11 +15,13 @@ import Home from './pages/Home'
 import Mart from './pages/Mart'
 import Tasks from './pages/Tasks'
 import { Me, Public } from './pages/Profile'
-import { Board, Judges, Legal, NewIou, NotFound, ProofPage, Start } from './pages/More'
+import { Board, About, Legal, NewIou, NotFound, ProofPage, Start } from './pages/More'
 
-const TITLES: Record<string, string> = { home: "AgentIOU: pay later, can't disappear", start: 'Get IOU Verified', me: 'My IOUs', mart: 'Promise Mart', tasks: 'Task Hub', new: 'New IOU', board: 'Leaderboard', proof: 'Proof & Safety', judges: 'For judges', legal: 'Terms, privacy and risks', u: 'Profile', notfound: 'Page not found' }
+const TITLES: Record<string, string> = { home: "AgentIOU: pay later, can't disappear", start: 'Get IOU Verified', me: 'My IOUs', mart: 'Promise Mart', tasks: 'Task Hub', new: 'New IOU', board: 'Leaderboard', proof: 'Proof & Safety', about: 'About AgentIOU', legal: 'Terms, privacy and risks', u: 'Profile', notfound: 'Page not found' }
 function Shell() {
-  const r = useRoute(); const { last, toast } = useStore()
+  const r = useRoute(); const { last, toast, joined, loaded, chainDown } = useStore()
+  // live: My IOUs, New IOU and my own profile exist only once this device's address has joined
+  const needMe = loaded && !joined && (r.name === 'me' || r.name === 'new' || (r.name === 'u' && (r.param ?? '').toLowerCase() === ME.toLowerCase()))
   useEffect(() => { document.title = r.name === 'home' ? TITLES.home : `${TITLES[r.name]} | AgentIOU` }, [r.name])
   useEffect(() => { if (last.levelUp) { toast(`Level up. You are now L${last.levelUp} ${LEVELS[last.levelUp - 1].name} with a $${LEVELS[last.levelUp - 1].limit} limit.`); play('levelup') } }, [last.levelUp, toast])
   useEffect(() => { if (last.badge) toast(`New badge: ${last.badge}`) }, [last.badge, toast])
@@ -25,7 +30,10 @@ function Shell() {
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:z-[80] focus:top-3 focus:left-3 btn btn-secondary bg-ink" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus() }}>Skip to content</a>
       <ArtDefs /><Sky /><Header route={r.name} />
       <main id="main" tabIndex={-1} className="relative z-[1] min-h-[80vh] outline-none">
-        {r.name === 'home' ? <Home /> : r.name === 'start' ? <Start /> : r.name === 'me' ? <Me /> : r.name === 'mart' ? <Mart /> : r.name === 'tasks' ? <Tasks /> : r.name === 'new' ? <NewIou /> : r.name === 'board' ? <Board /> : r.name === 'proof' ? <ProofPage /> : r.name === 'judges' ? <Judges /> : r.name === 'legal' ? <Legal /> : r.name === 'u' ? <Public address={r.param ?? ''} /> : <NotFound />}
+        {!DEMO && chainDown && <p role="status" className="wrap pt-20 -mb-16 text-coral text-[14px] font-semibold">Can't reach BNB Smart Chain right now. Numbers may be out of date; the site keeps trying.</p>}
+        {loaded && !joined && r.name !== 'start' && !needMe && <p role="note" className="wrap pt-[76px] -mb-[60px] relative z-[2]"><span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-rule bg-ledger/90 px-3.5 py-2 text-[14px]"><span className="pill pill-muted"><Eye size={14} aria-hidden />Guest</span><span className="text-muted">You can look at everything. Actions switch on once you get IOU Verified.</span><Link to="start" className="font-semibold underline underline-offset-4">Get IOU Verified</Link></span></p>}
+        {needMe ? <div className="wrap pt-32 pb-24 flex flex-wrap items-center gap-8"><Mascot pose="wave" className="w-40" /><div><h1 className="h2">{HAS_ME ? 'Get IOU Verified first' : 'Add your Agentic Wallet address'}</h1><p className="lead mt-3">{DEMO ? 'You are browsing as a guest. Your own IOUs and profile appear here once you join.' : HAS_ME ? 'This address has not joined AgentIOU yet. Joining takes one transaction.' : 'The site shows your IOUs once it knows your public address. It never asks for a key or a connection.'}</p><Link to="start" className="btn btn-primary mt-6">{HAS_ME ? 'Get IOU Verified' : 'Add my address'}</Link></div></div>
+          : r.name === 'home' ? <Home /> : r.name === 'start' ? <Start /> : r.name === 'me' ? <Me /> : r.name === 'mart' ? <Mart /> : r.name === 'tasks' ? <Tasks /> : r.name === 'new' ? <NewIou /> : r.name === 'board' ? <Board /> : r.name === 'proof' ? <ProofPage /> : r.name === 'about' ? <About /> : r.name === 'legal' ? <Legal /> : r.name === 'u' ? <Public address={r.param ?? ''} /> : <NotFound />}
       </main>
       <div className="relative z-[1]"><Footer /></div>
       <TabBar route={r.name} /><Tray /><Toasts />

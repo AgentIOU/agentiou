@@ -8,6 +8,6 @@ import tailwind from '@tailwindcss/vite'
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.bnbchain.org https://bsc-rpc.publicnode.com; object-src 'none'; base-uri 'self'; form-action 'none'; require-trusted-types-for 'script'"
 export default defineConfig(({ mode }) => ({
   base: mode === 'preview' ? './' : '/',
-  plugins: [react(), tailwind(), ...(mode === 'preview' ? [] : [{ name: 'csp-meta', transformIndexHtml: (html: string) => html.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`) }]), { name: 'no-outside-urls', renderChunk: (code: string) => code.replace(/https:\/\/(docs\.soliditylang\.org|gsap\.com)/g, '$1') }],
+  plugins: [react(), tailwind(), ...(mode === 'preview' ? [] : [{ name: 'csp-meta', transformIndexHtml: (html: string) => html.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`) }]), { name: 'no-outside-urls', renderChunk: (code: string) => code.replace(/https:\/\/(docs\.soliditylang\.org|gsap\.com|4byte\.sourcify\.dev|arweave\.net|ipfs\.io)/g, '$1') }],
   build: { target: 'es2020', chunkSizeWarningLimit: 700 },
 }))

@@ -1,4 +1,4 @@
-import { encodeFunctionData, parseAbi, parseEther } from 'viem'
+import { encodeFunctionData, formatEther, parseAbi, parseEther } from 'viem'
 import { CONTRACT, USDT, type Asset } from './data'
 
 // The interface the AgentIOU contract will expose. The site builds exact calldata from it, so the agent never has to guess.
@@ -14,7 +14,6 @@ export const ABI = parseAbi([
   'function mintSticker(uint256 designId)',
   'function checkIn()',
   'function setNickname(string nickname)',
-  'function setPublic(bool isPublic)',
   'function withdraw()',
 ])
 const ERC20 = parseAbi(['function approve(address spender, uint256 amount) returns (bool)'])
@@ -42,14 +41,13 @@ export const prompts = {
   accept: (id: number) => mine('acceptIOU(uint256)', `id = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'acceptIOU', args: [BigInt(id)] })),
   decline: (id: number) => mine('declineIOU(uint256)', `id = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'declineIOU', args: [BigInt(id)] })),
   cancel: (id: number) => mine('cancelIOU(uint256)', `id = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'cancelIOU', args: [BigInt(id)] })),
-  repayBnb: (id: number, amount: number, to: string, name: string) => mine('repay(uint256)', `id = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'repay', args: [BigInt(id)] }), String(amount), `This pays exactly ${amount} BNB to ${to} (${name}). Nothing else is sent.\n`),
-  approveUsdt: (amount: number) => text(USDT, 'USDT, BSC-USD', 'approve(address,uint256)', `spender = ${target}, amount = ${amount} USDT (exact, not unlimited)`, '0',
-    encodeFunctionData({ abi: ERC20, functionName: 'approve', args: [SPENDER, wei(amount)] }), 'Approve this exact amount only. Never an unlimited approval.\n'),
+  repayBnb: (id: number, amount: number, to: string, name: string, raw?: string) => mine('repay(uint256)', `id = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'repay', args: [BigInt(id)] }), raw ? formatEther(BigInt(raw)) : String(amount), `This pays exactly ${amount} BNB to ${to} (${name}). Nothing else is sent.\n`),
+  approveUsdt: (amount: number, raw?: string) => text(USDT, 'USDT, BSC-USD', 'approve(address,uint256)', `spender = ${target}, amount = ${amount} USDT (exact, not unlimited)`, '0',
+    encodeFunctionData({ abi: ERC20, functionName: 'approve', args: [SPENDER, raw ? BigInt(raw) : wei(amount)] }), 'Approve this exact amount only. Never an unlimited approval.\n'),
   repayUsdt: (id: number, amount: number, to: string, name: string) => mine('repay(uint256)', `id = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'repay', args: [BigInt(id)] }), '0', `This moves exactly ${amount} USDT from my wallet to ${to} (${name}). Nothing else is sent.\n`),
   claim: (tier: number) => mine('claimVoucher(uint8)', `tier = ${tier}`, encodeFunctionData({ abi: ABI, functionName: 'claimVoucher', args: [tier] })),
   checkIn: () => mine('checkIn()', '', encodeFunctionData({ abi: ABI, functionName: 'checkIn' })),
   setNickname: (nick: string) => mine('setNickname(string)', `nickname = "${nick}"`, encodeFunctionData({ abi: ABI, functionName: 'setNickname', args: [nick] })),
-  setPublic: (on: boolean) => mine('setPublic(bool)', `isPublic = ${on}`, encodeFunctionData({ abi: ABI, functionName: 'setPublic', args: [on] })),
   withdraw: () => mine('withdraw()', '', encodeFunctionData({ abi: ABI, functionName: 'withdraw' }), '0', 'This only collects BNB that is already kept under my own address. Nothing leaves my wallet.\n'),
   mint: (design: number) => mine('mintSticker(uint256)', `designId = ${design}`, encodeFunctionData({ abi: ABI, functionName: 'mintSticker', args: [BigInt(design)] })),
 }

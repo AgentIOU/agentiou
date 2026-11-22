@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { ShieldCheck, Ban, ArrowLeftRight, KeyRound, Check, ChevronDown, CircleHelp, CirclePlay, Wallet, X } from 'lucide-react'
+import { ArrowRight, Eye, ShieldCheck, Ban, ArrowLeftRight, KeyRound, Check, ChevronDown, CircleHelp, CirclePlay, Wallet, X } from 'lucide-react'
 import { Tour } from '../components/Tour'
-import { CONTRACT, LEVELS, ME, SEASON, amt, levelOf, score, short, viewOf } from '../lib/data'
+import { CONTRACT, DEMO, LEVELS, ME, SEASON, amt, levelOf, score, short, viewOf } from '../lib/data'
 import { useStore } from '../lib/store'
 import { usePrefs } from '../lib/prefs'
 import { Link } from '../lib/router'
@@ -31,7 +31,8 @@ const HERO_FLOAT = [
 ] as const
 
 export default function Home() {
-  const s = useStore(), me = s.me, lv = levelOf(me), limit = LEVELS[lv - 1].limit, owed = s.owed(ME)
+  // a guest has no card of their own yet, so the hero shows the demo member's card as a sample
+  const s = useStore(), me = s.joined ? s.me : s.user(ME) ?? s.me, lv = levelOf(me), limit = LEVELS[lv - 1].limit, owed = s.owed(ME)
   const repaid = s.ious.filter((x) => x.status === 'Repaid')
   return (
     <>
@@ -82,7 +83,7 @@ export default function Home() {
         <div className="wrap"><h2 id="t-pass" className="h2">Credit Pass</h2><p className="lead mt-3">Three levels. Each one opens a higher limit, and only your own repayments move you up.</p>
           <ul className="flex flex-wrap gap-x-8 gap-y-4 mt-8" aria-label="Badges you get on the way">{['IOU Verified', 'First Promise', 'Trusted', 'Highly Trusted'].map((b) => <li key={b} className="flex items-center gap-3 font-semibold"><Badge name={b} size={56} />{b}</li>)}</ul>
           <div className="grid gap-8 mt-10 sm:grid-cols-3 max-w-[980px]">{([1, 2, 3] as const).map((n) => <CreditPass key={n} level={n} no={me.no} state={n === lv ? 'current' : n < lv ? 'open' : 'locked'} progress={<Progress now={me.onTime} of={n === 2 ? 3 : 10} />} />)}</div>
-          <p className="text-muted text-[14px] mt-6 flex items-center gap-2"><DemoChip /> The marked level belongs to the demo profile.</p></div>
+          {DEMO && <p className="text-muted text-[14px] mt-6 flex items-center gap-2"><DemoChip /> The marked level belongs to the demo profile.</p>}</div>
       </section>
 
       <section className="band pt-0 glow" style={{ '--glow': 'radial-gradient(50% 60% at 10% 30%,#FFB23F26,transparent),radial-gradient(40% 50% at 95% 80%,#F2A7E026,transparent)' } as React.CSSProperties} aria-labelledby="t-mart">
@@ -94,7 +95,7 @@ export default function Home() {
       <section className="border-y border-rule bg-[#0A0C1C]" aria-labelledby="t-stats">
         <div className="wrap py-14"><h2 id="t-stats" className="sr-only">Ledger numbers</h2>
           <dl className="grid grid-cols-2 lg:grid-cols-4 gap-y-10 gap-x-6">{[[s.users.length, 'Members'], [repaid.filter((x) => viewOf(x) === 'Repaid').length, 'IOUs repaid on time'], [s.ious.filter((x) => x.status === 'Active').length, 'Open promises'], [s.users.reduce((n, u) => n + Object.keys(u.stickers).length, 0), 'Stickers minted']].map(([n, l]) => <div key={l}><dd className="led text-amber text-[64px] leading-none" style={{ textShadow: '0 0 18px #FFB23F66' }}>{n}</dd><dt className="text-muted mt-2">{l}</dt></div>)}</dl>
-          <p className="mt-8 text-[14px] text-muted flex items-center gap-2"><DemoChip /> These numbers come from the demo ledger. After deploy they are read from the contract.</p></div>
+          {DEMO ? <p className="mt-8 text-[14px] text-muted flex items-center gap-2"><DemoChip /> These numbers come from the demo ledger. After deploy they are read from the contract.</p> : <p className="mt-8 text-[14px] text-muted">These numbers are read from the contract on BNB Smart Chain.</p>}</div>
       </section>
 
       <section className="band relative overflow-hidden" aria-labelledby="t-proof">
@@ -105,7 +106,7 @@ export default function Home() {
           <Link to="proof" className="btn btn-secondary mt-6">Read Proof &amp; Safety</Link></div>
       </section>
 
-      <section id="faq" className="band pt-0 scroll-mt-20" aria-labelledby="t-faq"><div className="wrap max-w-[820px] mx-0"><h2 id="t-faq" className="h2">Questions</h2><div className="mt-8 border-t border-rule">{FAQ.map(([q, a]) => <Q key={q} q={q} a={a} />)}</div></div></section>
+      <section id="faq" className="band pt-0 scroll-mt-20" aria-labelledby="t-faq"><div className="wrap max-w-[820px] mx-0"><h2 id="t-faq" className="h2">FAQs</h2><div className="mt-8 border-t border-rule">{FAQ.map(([q, a]) => <Q key={q} q={q} a={a} />)}</div></div></section>
 
       <section className="band pt-0"><div className="wrap"><div className="panel p-8 md:p-12 flex flex-wrap items-center gap-8 justify-between" style={{ borderRadius: 28 }}><div><h2 className="h2 max-w-[16ch]">Make one small promise. Keep it.</h2><p className="lead mt-3">Five minutes to get verified. Your first voucher is waiting.</p><div className="flex flex-wrap gap-3 mt-7"><Link to="start" className="btn btn-primary">Get IOU Verified</Link><Link to="mart" className="btn btn-secondary">Open Promise Mart</Link></div></div><Mascot pose="jump" expr="success" className="w-40 md:w-52" /></div></div></section>
     </>
@@ -191,9 +192,11 @@ function StartButtons() {
         <ol className="grid gap-2.5">{['Paste your Agentic Wallet address. A public address only.', 'Copy the prompt the site writes and give it to your agent.', 'Confirm in your agent. The site never connects to your wallet.'].map((t, i) => <li key={t} className="flex gap-3"><span className="led text-amber text-[20px] leading-6 w-4 shrink-0">{i + 1}</span><span>{t}</span></li>)}</ol>
         <Link to="start" className="btn btn-primary mt-4">Start the 5 steps</Link>
       </div>}</>}
-      <div className="grid grid-cols-2 gap-2.5 mt-3">
-        <button type="button" onClick={() => setGuide(true)} className="btn px-3 text-[15px] rounded-[14px] min-h-[48px]" style={{ background: '#FFF4D2', color: '#6B4300' }}><CircleHelp size={18} aria-hidden />No Agent ID yet?</button>
-        <button type="button" onClick={() => setTour(true)} className="btn btn-secondary px-3 text-[15px] rounded-[14px] min-h-[48px] bg-ledger"><CirclePlay size={18} aria-hidden />How it works</button>
+      {/* two buttons at most (join, or look around as a guest), then one quiet line of help, so the block stays calm */}
+      {!joined && <Link to="mart" className="guest-pill flex items-center gap-2.5 min-h-[50px] mt-3 pl-5 pr-2 rounded-full font-semibold text-[16px]"><Eye size={19} aria-hidden className="shrink-0" /><span>Browse as a guest</span><span className="guest-arrow inline-flex items-center justify-center w-9 h-9 rounded-full shrink-0 ml-auto"><ArrowRight size={18} aria-hidden /></span></Link>}
+      <div className="flex flex-wrap items-center gap-x-6 mt-2">
+        <button type="button" onClick={() => setTour(true)} className="btn-text inline-flex items-center gap-2 min-h-[44px] text-[15px] text-muted hover:text-chalk cursor-pointer"><CirclePlay size={17} aria-hidden /><span className="underline underline-offset-4">How it works</span></button>
+        {!joined && <button type="button" onClick={() => setGuide(true)} className="btn-text inline-flex items-center gap-2 min-h-[44px] text-[15px] text-muted hover:text-chalk cursor-pointer"><CircleHelp size={17} aria-hidden /><span className="underline underline-offset-4">No Agent ID yet?</span></button>}
       </div>
       {tour && <Tour close={() => setTour(false)} />}
       {guide && createPortal(<div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6" style={{ background: '#05061299', animation: 'fadein 200ms' }} onPointerDown={(e) => e.target === e.currentTarget && setGuide(false)}>

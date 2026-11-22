@@ -1,6 +1,8 @@
 node_modules
 dist
 dist-preview
+dist-live
+dist-pub
 contracts/out
 tools/shots
 __pycache__

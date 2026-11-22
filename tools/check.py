@@ -2,13 +2,13 @@
 Prints PASS/FAIL per check."""
 import subprocess, sys, time, re, glob
 from playwright.sync_api import sync_playwright
-ROOT="/home/claude/agentiou/web/dist-preview"; U="http://127.0.0.1:4173/index.html#"
+ROOT="/home/claude/agentiou/web/dist-preview"; U="http://127.0.0.1:4173/index.html?demo=member#"; G="http://127.0.0.1:4173/index.html#"   # U: the demo as a member; G: as a first-time guest
 AXE=open("/home/claude/agentiou/web/node_modules/axe-core/axe.min.js").read()
 res=[]
 def ok(name, cond, note=""): res.append((bool(cond), name, note)); print(("PASS " if cond else "FAIL ")+name+((" :: "+str(note)) if note and not cond else ""))
 srv=subprocess.Popen([sys.executable,"-m","http.server","4173","--bind","127.0.0.1"],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
 ME="0xde30000000000000000000000000000000000142"; MIRA="0xde300000000000000000000000000000000002b7"
-PAGES=["home","start","me","mart","tasks","new","board","proof","judges","legal","u-"+MIRA,"nowhere"]
+PAGES=["home","start","me","mart","tasks","new","board","proof","about","legal","u-"+MIRA,"nowhere"]
 try:
   with sync_playwright() as p:
     b=p.chromium.launch(executable_path="/usr/bin/google-chrome",args=["--no-sandbox"])
@@ -83,17 +83,19 @@ try:
     pg.locator("section",has=pg.locator("#t-shelf")).get_by_role("button",name="Mint",exact=True).nth(2).click(); pg.wait_for_timeout(300); conf(); ok("mint a stamp",'Minted' in dlg()); pg.get_by_role("button",name="Done").click()
     st=pg.get_by_role("button",name=re.compile("Checked, Rare stamp")); st.click(); pg.wait_for_timeout(700); ok("mint proof shows edition and block","Mint proof" in pg.inner_text("body") and "Block" in pg.inner_text("body"))
     # over-limit refusal: L2 limit $25
-    pg.goto(U+"start"); pg.wait_for_timeout(500)
+    pg.goto(G+"start"); pg.wait_for_timeout(700)   # the join page is for guests; members see "You are IOU Verified"
     for _ in range(3): pg.get_by_role("button",name="I did this").click(); pg.wait_for_timeout(120)
     pg.fill("#aw","hello"); ok("bad address message","doesn't look like" in pg.inner_text("body")); pg.fill("#aw",ME); pg.get_by_role("button",name="Save on this device").click()
     pg.fill("#nn","binance-help"); ok("banned nickname is refused",pg.get_by_role("button",name="Get IOU Verified").last.is_disabled()); pg.fill("#nn","tuku")
-    pg.get_by_role("button",name="Get IOU Verified").last.click(); pg.wait_for_timeout(300); ok("join prompt",'join(string)' in pg.locator("pre.code").inner_text()); pg.keyboard.press("Escape")
+    pg.get_by_role("button",name="Get IOU Verified").last.click(); pg.wait_for_timeout(300); ok("join prompt",'join(string)' in pg.locator("pre.code").inner_text()); pg.keyboard.press("Escape"); pg.goto(U+"home"); pg.wait_for_timeout(700)
     # home: tour, guide, wallet button, pause motion
     pg.goto(U+"home"); pg.wait_for_timeout(2600)
     pg.get_by_role("button",name="How it works").click(); pg.wait_for_timeout(300)
     for i in range(4): pg.get_by_role("button",name="Next").click(); pg.wait_for_timeout(150)
-    ok("tour reaches step 5 with the start link","Step 5 of 5" in dlg() and pg.locator("[role=dialog]").get_by_role("link",name="Get IOU Verified").count()==1); pg.keyboard.press("Escape"); pg.wait_for_timeout(200); ok("tour closes with Esc",pg.locator("[role=dialog]").count()==0)
-    pg.get_by_role("button",name="No Agent ID yet?").click(); pg.wait_for_timeout(300); ok("Agent ID guide opens","How to get an Agent ID" in dlg()); pg.keyboard.press("Escape")
+    ok("tour reaches step 5; a member gets the profile link","Step 5 of 5" in dlg() and pg.locator("[role=dialog]").get_by_role("link",name="Open my profile").count()==1); pg.keyboard.press("Escape"); pg.wait_for_timeout(200); ok("tour closes with Esc",pg.locator("[role=dialog]").count()==0)
+    ok("a member is not offered the Agent ID guide or the guest button",pg.get_by_role("button",name="No Agent ID yet?").count()==0 and pg.get_by_role("link",name="Browse as a guest").count()==0)
+    gp=b.new_page(viewport={"width":390,"height":844}); gp.goto(G+"home"); gp.wait_for_timeout(1500); gp.get_by_role("button",name="No Agent ID yet?").click(); gp.wait_for_timeout(300); ok("Agent ID guide opens for a guest","How to get an Agent ID" in gp.locator("[role=dialog]").inner_text()); gp.keyboard.press("Escape")
+    gl=gp.get_by_role("link",name="Browse as a guest").bounding_box(); ga=gp.locator(".guest-arrow").bounding_box(); ok("guest button fits a phone with its arrow inside",gl["x"]>=0 and gl["x"]+gl["width"]<=390 and ga["x"]+ga["width"]<=gl["x"]+gl["width"] and gl["height"]>=44,gl); gp.close()
     ok("the footer has no Pause motion button",pg.get_by_role("button",name=re.compile("Pause motion|Play motion")).count()==0)
     mo=b.new_page(viewport={"width":1280,"height":900}); mo.goto(U+"me"); mo.wait_for_timeout(900); mo.get_by_role("switch",name="Reduce motion").click(); mo.wait_for_timeout(200); ok("Reduce motion in Settings stops movement",mo.evaluate("document.documentElement.classList.contains('motion-off')")); mo.get_by_role("switch",name="Reduce motion").click(); mo.close()
     # restricted account, limits, not-verified receiver
@@ -135,7 +137,7 @@ try:
     st=b.new_page(viewport={"width":1280,"height":900}); st.goto(U+"me"); st.wait_for_timeout(900); st.fill("#nick","tuku-two"); st.get_by_role("button",name="Save",exact=True).click(); st.wait_for_timeout(400)
     pr=st.locator("pre.code").inner_text(); ok("nickname change writes a setNickname prompt",'setNickname(string)' in pr and 'nickname = "tuku-two"' in pr and "Do not execute until I confirm" in pr,pr)
     st.keyboard.press("Escape"); st.wait_for_timeout(300); ok("nickname is not changed until the wallet step is done","tuku-two" not in st.inner_text("header"))
-    st.get_by_role("switch",name="Public profile").click(); st.wait_for_timeout(400); pr=st.locator("pre.code").inner_text(); ok("public profile switch writes a setPublic prompt",'setPublic(bool)' in pr,pr); st.keyboard.press("Escape"); st.close()
+    ok("there is no switch to hide a profile",st.get_by_role("switch",name="Public profile").count()==0); st.close()
     # the guide tour must fit a phone: nothing in a scene is cut off and both buttons stay inside the card
     for w in (360,390):
         t=b.new_page(viewport={"width":w,"height":800}); t.goto(U+"home"); t.wait_for_timeout(1200); t.get_by_role("button",name="How it works").first.click(); t.wait_for_timeout(600); bad=[]
@@ -149,7 +151,15 @@ try:
         ok(f"guide tour fits a {w}px phone on all 5 slides",not bad,bad[:4]); t.close()
     # joining is once: before it the header offers the join button, after it the profile takes its place (phone and computer)
     for w in (390,1280):
-        j=b.new_page(viewport={"width":w,"height":850}); j.goto(U+"home"); j.wait_for_timeout(1000); hd=j.locator("header")
+        j=b.new_page(viewport={"width":w,"height":850}); j.goto(G+"home"); j.wait_for_timeout(1000); hd=j.locator("header")
+        ok(f"{w}px guest: the Guest note and the Browse as a guest link are shown","Guest" in j.inner_text("main") and j.get_by_role("link",name="Browse as a guest").count()==1)
+        j.get_by_role("link",name="Browse as a guest").click(); j.wait_for_timeout(600); tk=j.get_by_role("button",name="Take on credit")
+        ok(f"{w}px guest: the shop can be seen but nothing can be taken",tk.count()>=2 and all(tk.nth(i).is_disabled() for i in range(tk.count())))
+        j.evaluate("location.hash='tasks'"); j.wait_for_timeout(600); ok(f"{w}px guest: check-in, claim and mint are off",j.get_by_role("button",name="Check in").is_disabled() and all(x.is_disabled() for x in j.get_by_role("button",name=re.compile("^(Claim|Mint)")).all()))
+        j.evaluate("location.hash='me'"); j.wait_for_timeout(500); ok(f"{w}px guest: My IOUs asks to join instead of showing someone's record","Get IOU Verified first" in j.inner_text("main") and j.get_by_role("button",name="Repay").count()==0)
+        j.evaluate("location.hash='new'"); j.wait_for_timeout(500); ok(f"{w}px guest: cannot send an IOU",j.locator("#to").count()==0)
+        j.evaluate("location.hash='board'"); j.wait_for_timeout(500); ok(f"{w}px guest: the leaderboard and other profiles are open to look at",j.locator("ol.ledger > li").count()>=5)
+        j.evaluate("location.hash='home'"); j.wait_for_timeout(500)
         ok(f"{w}px before joining: header has the join button and no profile",hd.get_by_role("link",name="Get IOU Verified").count()==1 and hd.get_by_role("link",name=re.compile("^Profile:")).count()==0)
         j.evaluate("location.hash='start'"); j.wait_for_timeout(500)
         for _ in range(3): j.get_by_role("button",name="I did this").first.click(); j.wait_for_timeout(150)
@@ -164,6 +174,7 @@ try:
         r=hd.get_by_role("link",name=re.compile("^Profile:")).bounding_box(); ok(f"{w}px profile icon is inside the screen and big enough to tap",r["x"]>=0 and r["x"]+r["width"]<=w and r["height"]>=40,r)
         j.evaluate("location.hash='start'"); j.wait_for_timeout(500); ok(f"{w}px join page does not offer a second join","You are IOU Verified" in j.inner_text("main") and j.locator("#nn").count()==0)
         j.evaluate("location.hash='home'"); j.wait_for_timeout(600); ok(f"{w}px home start button turns into the profile button",j.locator("main").get_by_role("link",name=re.compile("IOU Verified.*Open my profile")).count()==1); j.close()
+    gh=pg.locator("footer").get_by_role("link",name="Source code on GitHub"); ok("footer links to the public source code and has no leftover placeholder",gh.get_attribute("href")=="https://github.com/AgentIOU/agentiou" and "go here at launch" not in pg.inner_text("footer"))
     fx=pg.locator("footer").get_by_role("link",name="@AgentIOU on X"); ok("footer links to the project's X account, in a new tab, without passing the page along",fx.get_attribute("href")=="https://x.com/AgentIOU" and fx.get_attribute("target")=="_blank" and "noopener" in (fx.get_attribute("rel") or ""))
     ok("no script errors during flows",not errs,errs[:3]); b.close()
 finally: srv.terminate()
@@ -173,10 +184,10 @@ ok("no wallet connection code",not re.search(r"window\.ethereum|walletconnect|et
 ok("no network calls in the site code",not re.search(r"\bfetch\(|XMLHttpRequest|WebSocket\(|sendBeacon",src))
 ok("no raw HTML is ever written into the page",src.count("dangerouslySetInnerHTML")==0 and "innerHTML" not in src)
 ok("no eval or new Function",not re.search(r"\beval\(|new Function\(",src))
-ok("storage keys are settings only",set(re.findall(r"(?:read|write)\('(\w+)'",src))<= {"sound","reduce"},sorted(set(re.findall(r"(?:read|write)\('(\w+)'",src))))
-js=open(glob.glob(ROOT+"/assets/*.js")[0]).read(); ok("build has no outside URLs to load",not re.findall(r"https?://(?!x\.com/AgentIOU|www\.w3\.org|reactjs\.org|react\.dev|github\.com|viem\.sh|oxlib\.sh|abitype\.dev)[\w.-]+",js) ,sorted(set(re.findall(r"https?://(?!x\.com/AgentIOU|www\.w3\.org|reactjs\.org|react\.dev|github\.com|viem\.sh|oxlib\.sh|abitype\.dev)[\w.-]+",js)))[:6])
+ok("storage keys are settings only",set(re.findall(r"(?:read|write)\('(\w+)'",src))<= {"sound","reduce"} and src.count("localStorage.setItem(ME_KEY")==1,sorted(set(re.findall(r"(?:read|write)\('(\w+)'",src))))
+js="".join(open(f).read() for f in glob.glob(ROOT+"/assets/*.js")); ok("build has no outside URLs to load",not re.findall(r"https?://(?!x\.com/AgentIOU|github\.com/AgentIOU|bscscan\.com/address|bsc-dataseed1?\.bnbchain\.org|bsc-rpc\.publicnode\.com|www\.w3\.org|reactjs\.org|react\.dev|github\.com|viem\.sh|oxlib\.sh|abitype\.dev)[\w.-]+",js) ,sorted(set(re.findall(r"https?://(?!x\.com/AgentIOU|github\.com/AgentIOU|bscscan\.com/address|bsc-dataseed1?\.bnbchain\.org|bsc-rpc\.publicnode\.com|www\.w3\.org|reactjs\.org|react\.dev|github\.com|viem\.sh|oxlib\.sh|abitype\.dev)[\w.-]+",js)))[:6])
 hd=open("/home/claude/agentiou/web/public/_headers").read(); ok("security headers file",all(k in hd for k in ("Content-Security-Policy","frame-ancestors 'none'","nosniff","Referrer-Policy","Permissions-Policy")))
 import subprocess as sp
-for script,want in (("check_abi.mjs","13 of 13 site calls match the contract"),("check_units.mjs","200013 of 200013 amounts exact")):
+for script,want in (("check_abi.mjs","12 of 12 site calls match the contract"),("check_units.mjs","200013 of 200013 amounts exact")):
     out=sp.run(["node","/home/claude/agentiou/tools/"+script],capture_output=True,text=True).stdout.strip(); ok(script+": "+want,want in out,out[-300:])
 f=[r for r in res if not r[0]]; print(f"\n{len(res)-len(f)} of {len(res)} checks passed"); [print("FAILED:",n,note) for _,n,note in f]

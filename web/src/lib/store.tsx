@@ -1,13 +1,16 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
-import { BNB_USD, DAY, baseLevel, dayOf, isRestricted, live, DESIGNS, LEVELS, ME, MART, TIERS, claimable, levelOf, score, seedIous, seedOffers, seedUsers, viewOf, type Asset, type Iou, type Offer, type User } from './data'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { BNB_USD, DAY, DEMO, HAS_ME, setBnbUsd, baseLevel, dayOf, isRestricted, live, DESIGNS, LEVELS, ME, MART, TIERS, claimable, levelOf, score, seedIous, seedOffers, seedUsers, viewOf, type Asset, type Iou, type Offer, type User } from './data'
 
+
+// One store, two sources. Live (a contract address was set at build time): every number is read from the contract and nothing here changes it.
 // Demo store. It follows the contract's rules (limits, XP, vouchers, soulbound stickers) in memory,
 // so every flow can be tried before the contract is live. Reloading the page resets it.
-export interface TrayStep { label: string; prompt: string }
+export interface TrayStep { label: string; prompt: string; /** live only: has this step landed on-chain? Default: my own record changed. */ seen?: () => Promise<boolean> }
 export interface TrayReq { title: string; note?: string; steps: TrayStep[]; done: string; apply: () => string | void; after?: ReactNode; pose?: string }
 export interface Toast { id: number; text: string; kind?: 'ok' | 'bad' }
 interface Store {
   users: User[]; ious: Iou[]; offers: Offer[]; me: User; joined: boolean
+  /** live only */ loaded: boolean; chainDown: boolean; holdsAgentId: boolean | null; credit: number; print: string; refresh: () => Promise<string>
   user: (a: string) => User | undefined; name: (a: string) => string
   owed: (a: string) => number; hasOverdue: (a: string) => boolean; restricted: (a: string) => boolean
   /** Why I cannot borrow this amount right now, or '' if I can. Mirrors the contract's checks, so no prompt is written for a call that would fail. */
@@ -15,18 +18,23 @@ interface Store {
   tray: TrayReq | null; openTray: (t: TrayReq) => void; closeTray: () => void
   toasts: Toast[]; toast: (text: string, kind?: Toast['kind']) => void; dropToast: (id: number) => void
   act: { join: (nick: string) => void; takeOffer: (id: number) => string | void; repay: (id: number) => string | void; accept: (id: number) => string | void; decline: (id: number) => void; cancel: (id: number) => void
-    create: (debtor: string, asset: Asset, amount: number, days: number, memo: string) => string | void; claim: (tier: number) => string | void; checkIn: () => string | void; mint: (design: number) => string | void; setPublic: (v: boolean) => void; setNick: (n: string) => void; demoOverdue: () => void }
+    create: (debtor: string, asset: Asset, amount: number, days: number, memo: string) => string | void; claim: (tier: number) => string | void; checkIn: () => string | void; mint: (design: number) => string | void; setNick: (n: string) => void; demoOverdue: () => void }
   last: { levelUp?: number; badge?: string }
   draftTo: string; setDraftTo: (a: string) => void
 }
+/** Shown as "me" on the live site until this device's address has joined. */
+const BLANK: User = { address: ME, nickname: 'guest', no: 0, joinedAt: 0, onTime: 0, late: 0, defaults: 0, people: 0, xp: 0, claimed: [0, 0, 0], pocket: [0, 0, 0], stickers: {}, badges: {}, checkDays: 0, lastCheck: 0 }
 const Ctx = createContext<Store>(null as unknown as Store)
 export const useStore = () => useContext(Ctx)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = useState(seedUsers)
-  const [ious, setIous] = useState(seedIous)
-  const [offers, setOffers] = useState(seedOffers)
-  const [joined, setJoined] = useState(false)   // joining happens once; after it the header shows the profile instead of the join button
+  const [users, setUsers] = useState<User[]>(DEMO ? seedUsers : [])
+  const [ious, setIous] = useState<Iou[]>(DEMO ? seedIous : [])
+  const [offers, setOffers] = useState<Offer[]>(DEMO ? seedOffers : [])
+  const [chainState, setChainState] = useState<{ loaded: boolean; down: boolean; holds: boolean | null; credit: number; print: string }>({ loaded: DEMO, down: false, holds: null, credit: 0, print: '' })
+  // a visitor starts as a guest: free to look at everything, with every action switched off until they join.
+  // (tests open the demo as an existing member with ?demo=member)
+  const [demoJoined, setJoined] = useState(() => DEMO && new URLSearchParams(location.search).get('demo') === 'member')   // joining happens once; after it the header shows the profile instead of the join button
   const [tray, setTray] = useState<TrayReq | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [last, setLast] = useState<Store['last']>({})
@@ -34,22 +42,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const seq = useRef(100)
   // which accounts have IOUs past due right now (the contract works this out the same way)
   live.overdue = new Map()
-  for (const x of ious) if (x.status === 'Active' && Date.now() > x.dueAt) { const o = live.overdue.get(x.debtor) ?? { n: 0, def: false }; live.overdue.set(x.debtor, { n: o.n + 1, def: o.def || Date.now() > x.dueAt + 7 * DAY }) }
+  if (DEMO) for (const x of ious) if (x.status === 'Active' && Date.now() > x.dueAt) { const o = live.overdue.get(x.debtor) ?? { n: 0, def: false }; live.overdue.set(x.debtor, { n: o.n + 1, def: o.def || Date.now() > x.dueAt + 7 * DAY }) }
   const RESTRICTED = 'Your account is Restricted. Repay your overdue IOUs to unlock it.'
-  const me = users.find((x) => x.address === ME)!
+  const found = users.find((x) => x.address === ME)
+  const joined = DEMO ? demoJoined : !!found && found.joinedAt > 0
+  const me = joined && found ? found : BLANK   // a guest has no record of their own
   const user = useCallback((a: string) => users.find((x) => x.address.toLowerCase() === a.toLowerCase()), [users])
   const name = useCallback((a: string) => (a === MART ? 'Promise Mart' : user(a)?.nickname ?? 'unknown'), [user])
-  const owed = useCallback((a: string) => ious.filter((x) => x.debtor === a && x.status === 'Active').reduce((s, x) => s + x.usd, 0), [ious])
-  const hasOverdue = useCallback((a: string) => ious.some((x) => x.debtor === a && viewOf(x) === 'Overdue'), [ious])
+  const owed = useCallback((a: string) => live.chain.get(a)?.owed ?? ious.filter((x) => x.debtor === a && x.status === 'Active').reduce((s, x) => s + x.usd, 0), [ious])
+  const hasOverdue = useCallback((a: string) => live.chain.get(a)?.overdue ?? ious.some((x) => x.debtor === a && viewOf(x) === 'Overdue'), [ious])
   const patchMe = (f: (m: User) => User) => setUsers((us) => us.map((x) => (x.address === ME ? f(x) : x)))
   const toast = useCallback((text: string, kind?: Toast['kind']) => { const id = ++seq.current; setToasts((t) => [...t.slice(-2), { id, text, kind }]); if (kind !== 'bad') setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000) }, [])
   const room = () => LEVELS[levelOf(me) - 1].limit - owed(ME)
   const repayDay = useRef({ day: -1, n: 0 })
   const mintRec = (m: User, design: number) => ({ ...m.stickers, [design]: { edition: 20 + ((design * 37 + seq.current) % 60), block: 52_600_000 + seq.current * 13, time: Date.now() } })
 
-  const whyNotBorrow = (usd: number) => isRestricted(ME) ? 'Restricted: repay your overdue IOUs first' : ious.filter((x) => x.debtor === ME && x.status === 'Active').length >= 10 ? 'You already have 10 active IOUs' : usd > room() + 1e-9 ? `Over your $${LEVELS[levelOf(me) - 1].limit} limit` : ''
-  const whyNotSend = () => isRestricted(ME) ? 'Restricted: repay your overdue IOUs first' : ious.filter((x) => x.creditor === ME && x.status === 'Pending').length >= 20 ? 'You have 20 IOUs waiting for accept. Cancel one first.' : ''
-  const act: Store['act'] = {
+  const NOT_YET = !HAS_ME ? 'Add your Agentic Wallet address first' : 'Get IOU Verified first'
+  const whyNotBorrow = (usd: number) => !joined ? NOT_YET : isRestricted(ME) ? 'Restricted: repay your overdue IOUs first' : ious.filter((x) => x.debtor === ME && x.status === 'Active').length >= 10 ? 'You already have 10 active IOUs' : usd > room() + 1e-9 ? `Over your $${LEVELS[levelOf(me) - 1].limit} limit` : ''
+  const whyNotSend = () => !joined ? NOT_YET : isRestricted(ME) ? 'Restricted: repay your overdue IOUs first' : ious.filter((x) => x.creditor === ME && x.status === 'Pending').length >= 20 ? 'You have 20 IOUs waiting for accept. Cancel one first.' : ''
+  const demoAct: Store['act'] = {
     join: (nick) => { setJoined(true); patchMe((m) => ({ ...m, nickname: nick || m.nickname })) },
     takeOffer: (id) => {
       const o = offers.find((x) => x.id === id)!; const usd = o.asset === 'BNB' ? o.price * BNB_USD : o.price
@@ -115,12 +126,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     // demo only: push two of my active IOUs past their due date, to show the Restricted state and the way out of it
     demoOverdue: () => { let n = 0; setIous((l) => l.map((q) => (q.debtor === ME && q.status === 'Active' && n < 2 ? (n++, { ...q, dueAt: Date.now() - (n === 1 ? 2 : 1) * DAY }) : q))) },
-    setPublic: (v) => patchMe((m) => ({ ...m, isPublic: v })),
     setNick: (n) => patchMe((m) => ({ ...m, nickname: n })),
   }
-  const v = useMemo<Store>(() => ({ users, ious, offers, me, joined, user, name, owed, hasOverdue, restricted: isRestricted, whyNotBorrow, whyNotSend, tray, openTray: setTray, closeTray: () => setTray(null), toasts, toast, dropToast: (id) => setToasts((t) => t.filter((x) => x.id !== id)), act, last, draftTo, setDraftTo }),
+  // live: the contract is the only thing that changes state. The site re-reads it now and then, and right after each confirmed step.
+  const act = DEMO ? demoAct : Object.fromEntries(Object.keys(demoAct).map((k) => [k, () => undefined])) as unknown as Store['act']
+  const seen = useRef<{ level: number; badges: number } | null>(null)
+  const refresh = useCallback(async () => {
+    try {
+      const d = await (await import('./chain')).loadAll()   // loaded only on the live site, so the demo and the first paint stay light
+      live.chain = d.chain; setBnbUsd(d.bnbUsd)
+      const mine = d.users.find((x) => x.address === ME)
+      if (mine) { const now = { level: d.chain.get(ME)?.level ?? 1, badges: Object.keys(mine.badges).length }
+        if (seen.current && now.level > seen.current.level) setLast((l) => ({ ...l, levelUp: now.level }))
+        if (seen.current && now.badges > seen.current.badges) setLast((l) => ({ ...l, badge: Object.keys(mine.badges)[now.badges - 1] }))
+        seen.current = now }
+      setUsers(d.users); setIous(d.ious); setOffers(d.offers); setChainState({ loaded: true, down: false, holds: d.holdsAgentId, credit: d.credit, print: d.print })
+      return d.print
+    } catch (e) { setChainState((c) => ({ ...c, down: true })); throw e }
+  }, [])
+  useEffect(() => { if (DEMO) return; const go = () => { if (!document.hidden) refresh().catch(() => undefined) }; go(); const id = setInterval(go, 20_000); return () => clearInterval(id) }, [refresh])
+  const v = useMemo<Store>(() => ({ users, ious, offers, me, joined, loaded: chainState.loaded, chainDown: chainState.down, holdsAgentId: chainState.holds, credit: chainState.credit, print: chainState.print, refresh, user, name, owed, hasOverdue, restricted: isRestricted, whyNotBorrow, whyNotSend, tray, openTray: setTray, closeTray: () => setTray(null), toasts, toast, dropToast: (id) => setToasts((t) => t.filter((x) => x.id !== id)), act, last, draftTo, setDraftTo }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [users, ious, offers, joined, tray, toasts, last, draftTo])
+    [users, ious, offers, joined, chainState, refresh, tray, toasts, last, draftTo])
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>
 }
 export { score, levelOf }

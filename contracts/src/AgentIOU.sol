@@ -32,7 +32,7 @@ contract AgentIOU {
     address public immutable MART;
 
     struct User {
-        uint40 joinedAt; uint32 no; bool isPublic;
+        uint40 joinedAt; uint32 no;
         uint16 onTime; uint16 late; uint16 defaults; uint16 people;
         uint16 good;                    // on-time repays counted toward the level; a late repay cuts it
         uint32 owedCents; uint32 xp; uint8 badges;
@@ -102,12 +102,11 @@ contract AgentIOU {
         if (u.joinedAt != 0) revert AlreadyJoined();
         _checkNickname(nickname);
         members.push(msg.sender);
-        u.joinedAt = uint40(block.timestamp); u.no = uint32(members.length); u.isPublic = true;
+        u.joinedAt = uint40(block.timestamp); u.no = uint32(members.length);
         u.nickname = nickname; u.xp = 50; u.badges = 1;
         emit Joined(msg.sender, u.no, nickname);
     }
     function setNickname(string calldata nickname) external { _checkNickname(nickname); _joined(msg.sender).nickname = nickname; }
-    function setPublic(bool isPublic) external { _joined(msg.sender).isPublic = isPublic; }
 
     // =========================================================== shop offers
     /// @notice Any member can open a shop. Only MART's offers can carry a Founders sticker (designId 1-3); others pass 0.

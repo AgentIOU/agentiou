@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright
 res=[]
 def ok(name, got, want): c = got==want; res.append(c); print(("PASS " if c else "FAIL ")+name+("" if c else f" :: got {got}, want {want}"))
 srv=subprocess.Popen([sys.executable,"-m","http.server","4174","--bind","127.0.0.1"],cwd="/home/claude/agentiou/web/dist-preview",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
-U="http://127.0.0.1:4174/index.html#"
+U="http://127.0.0.1:4174/index.html?demo=member#"; G="http://127.0.0.1:4174/index.html#"   # U: the demo as a member; G: as a first-time guest
 def snap(pg):
     pg.evaluate("location.hash='tasks'"); pg.wait_for_timeout(500); t=pg.inner_text("main"); xp=int(re.search(r"([\d,]+)\s*XP",t).group(1).replace(",",""))
     pg.evaluate("location.hash='me'"); pg.wait_for_timeout(500); t=pg.inner_text("main")

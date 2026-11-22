@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle, Check, CheckCircle2, Clock, Copy, Info, ShieldAlert, X, CircleDot } from 'lucide-react'
-import { LEVELS, ME, amt, dateShort, dateUtc, dueText, short, usd, viewOf, type Iou, type View } from '../lib/data'
+import { DEMO, LEVELS, ME, amt, dateShort, dateUtc, dueText, short, usd, viewOf, type Iou, type View } from '../lib/data'
 import { useStore, type TrayReq } from '../lib/store'
 import { play } from '../lib/sound'
 import { Avatar, Money, PaidStamp } from './art'
@@ -9,7 +9,7 @@ import { score, levelOf, plain } from '../lib/data'
 import { Link } from '../lib/router'
 
 export const Dots = ({ label }: { label?: string }) => <span className="inline-flex items-center gap-3" role="status"><span className="dots" aria-hidden><i /><i /><i /><i /></span>{label && <span>{label}</span>}</span>
-export const DemoChip = ({ text = 'Demo data' }: { text?: string }) => <span className="demo-chip"><CircleDot size={13} aria-hidden />{text}</span>
+export const DemoChip = ({ text = 'Demo data' }: { text?: string }) => (DEMO ? <span className="demo-chip"><CircleDot size={13} aria-hidden />{text}</span> : null)
 
 const TONE: Record<View, [string, typeof Check]> = { Repaid: ['pill-leaf', CheckCircle2], 'Repaid late': ['pill-coral', Clock], Pending: ['pill-muted', Clock], Active: ['pill-iris', CircleDot], 'Due soon': ['pill-iris', Clock], Overdue: ['pill-coral', AlertTriangle], Declined: ['pill-muted', X], Cancelled: ['pill-muted', X] }
 export const BAR: Record<View, string> = { Repaid: '#3FBF8A', 'Repaid late': '#FF6B57', Pending: '#2C3156', Active: '#8C96FF', 'Due soon': '#8C96FF', Overdue: '#FF6B57', Declined: '#2C3156', Cancelled: '#2C3156' }
@@ -61,14 +61,32 @@ export function Tray() {
   return <TrayInner key={tray.title} t={tray} close={closeTray} />
 }
 function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
+  const store = useStore(); const base = useRef(store.print)   // my on-chain record as it was when this step was shown
   const [step, setStep] = useState(0)
-  const [phase, setPhase] = useState<'prompt' | 'wait' | 'done' | 'error'>('prompt')
+  const [phase, setPhase] = useState<'prompt' | 'wait' | 'slow' | 'done' | 'error'>('prompt')
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState(false)
   const copy = useCopy(); const box = useRef<HTMLDivElement>(null)
   useEffect(() => { play('swish'); box.current?.focus(); const k = (e: KeyboardEvent) => e.key === 'Escape' && close(); document.addEventListener('keydown', k); const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.removeEventListener('keydown', k); document.body.style.overflow = o } }, [close])
   useEffect(() => {
-    if (phase !== 'wait') return
+    if (phase !== 'wait' || DEMO) return
+    // live: nothing is assumed. The card moves on only when the contract shows the step: my record changed, or the step's own check passed.
+    let stop = false, timer = 0; const t0 = Date.now(), st = t.steps[step]
+    const look = async () => {
+      let ok = false
+      try { ok = st.seen ? await st.seen() : (await store.refresh()) !== base.current } catch { /* the next look tries again */ }
+      if (stop) return
+      if (!ok) { if (Date.now() - t0 > 75_000) setPhase('slow'); else timer = window.setTimeout(look, 3000); return }
+      if (step < t.steps.length - 1) { setStep(step + 1); setPhase('prompt'); setCopied(false); play('chime'); return }
+      if (st.seen) await store.refresh().catch(() => undefined)
+      setPhase('done'); play('stamp'); try { navigator.vibrate?.(30) } catch { /* optional */ }
+    }
+    timer = window.setTimeout(look, 2500)
+    return () => { stop = true; clearTimeout(timer) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, step, t])
+  useEffect(() => {
+    if (phase !== 'wait' || !DEMO) return
     const id = setTimeout(() => {
       if (step < t.steps.length - 1) { setStep(step + 1); setPhase('prompt'); setCopied(false); play('chime'); return }
       const e = t.apply()
@@ -94,7 +112,8 @@ function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
           <p className="text-[14px] text-muted mt-3">Paste this into your Binance Agentic Wallet agent. It shows a preview and the risks; nothing is sent until you confirm there.</p>
           <div className="flex flex-wrap gap-3 mt-5"><button type="button" className="btn btn-primary" onClick={() => setPhase('wait')}>I confirmed in my agent</button><button type="button" className="btn btn-secondary" onClick={close}>Not now</button></div>
         </>}
-        {phase === 'wait' && <div className="py-8 flex items-center gap-5"><Mascot pose="wave" expr="thinking" className="w-24 shrink-0" /><div><Dots label="Waiting for your agent" /><p className="text-muted text-[14px] mt-2">The site reads the contract every few seconds: pending, confirmed, then updated. In this demo it confirms by itself.</p></div></div>}
+        {phase === 'wait' && <div className="py-8 flex items-center gap-5"><Mascot pose="wave" expr="thinking" className="w-24 shrink-0" /><div><Dots label="Waiting for your agent" /><p className="text-muted text-[14px] mt-2">{DEMO ? 'The site reads the contract every few seconds: pending, confirmed, then updated. In this demo it confirms by itself.' : 'The site is reading the contract every few seconds. This card moves on by itself when your transaction is on-chain.'}</p></div></div>}
+        {phase === 'slow' && <div className="py-6 flex items-center gap-5"><Mascot pose="search" expr="confused" className="w-24 shrink-0" /><div><p className="font-semibold">We can't see it on-chain yet.</p><p className="text-muted text-[14px] mt-2">If your agent showed a success, it can take a little longer. If it showed an error or you did not confirm there, nothing was sent.</p><div className="flex flex-wrap gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" onClick={() => setPhase('wait')}>Check again</button><button type="button" className="btn btn-secondary btn-sm" onClick={() => setPhase('prompt')}>Back to the prompt</button></div></div></div>}
         {phase === 'done' && <div className="py-6 flex flex-wrap items-center gap-6"><Mascot pose={(t.pose as Pose) ?? 'jump'} expr="success" className="w-28 shrink-0" /><div className="flex-1 min-w-[200px]"><PaidStamp text={t.done} />{t.after && <div className="mt-4">{t.after}</div>}<div className="mt-5"><button type="button" className="btn btn-secondary" onClick={close}>Done</button></div></div></div>}
         {phase === 'error' && <div className="py-6 flex items-center gap-5"><Mascot pose="rest" expr="worried" className="w-28 shrink-0" /><div><p className="font-semibold text-coral flex gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />{err}</p><p className="text-muted text-[14px] mt-2">Nothing was sent.</p><button type="button" className="btn btn-secondary mt-4" onClick={close}>Close</button></div></div>}
       </div>

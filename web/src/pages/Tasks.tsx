@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
-import { ME, SEASON, TIERS, TIER_XP, claimable, dayOf, isAddr, levelOf } from '../lib/data'
+import { ME, SEASON, TIERS, TIER_XP, claimable, dayOf, isAddr, levelOf, DEMO, HAS_ME, saveMe } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
 import { StickerCard, Ticket } from '../components/art'
@@ -43,7 +43,7 @@ export default function Tasks() {
       <Floaters items={[{ k: 'ticket', w: 96, style: { right: '4%', top: 96 }, desk: true }, { k: 'star', w: 50, style: { right: '15%', top: 250 }, far: true, desk: true }, { k: 'coin', w: 60, style: { left: '2%', top: 900 }, far: true, desk: true }]} />
       <div className="wrap relative pt-28 pb-16 grid gap-14">
         <div><div className="flex flex-wrap items-center gap-3"><h1 className="h2">Task Hub</h1><DemoChip /></div><p className="lead mt-3">Get XP for keeping your word, turn it into vouchers, and mint Season 1 stamps for free.</p>
-          <form className="mt-6 max-w-[520px]" onSubmit={(e) => { e.preventDefault(); if (isAddr(addr)) s.toast('The live site loads this address from the contract. The demo keeps showing the demo profile.') }}>
+          <form className="mt-6 max-w-[520px]" onSubmit={(e) => { e.preventDefault(); if (!isAddr(addr)) return; if (DEMO) s.toast('The live site loads this address from the contract. The demo keeps showing the demo profile.'); else saveMe(addr) }} hidden={!DEMO && HAS_ME}>
             <label className="label" htmlFor="see">See your progress</label><div className="flex gap-3"><input id="see" className="input mono" placeholder="0x… your Agentic Wallet address" value={addr} onChange={(e) => setAddr(e.target.value)} aria-describedby="see-h" autoComplete="off" spellCheck={false} /><button className="btn btn-secondary" disabled={!isAddr(addr)}>Show</button></div>
             <p id="see-h" className={`hint ${addr && !isAddr(addr) ? 'text-coral' : ''}`}>{addr && !isAddr(addr) ? "This doesn't look like a BNB Smart Chain address." : 'A public address only. It is saved on this device and nowhere else.'}</p></form></div>
 
@@ -55,7 +55,7 @@ export default function Tasks() {
             <Mascot pose="stamp" expr={checked ? 'success' : 'happy'} className="w-24 hidden md:block" />
             <div><h3 className="text-[20px]">Daily check-in</h3><p className="text-chalk/75 mt-1">One small transaction a day for 5 XP. Seven days in a row adds a 20 XP bonus on day 7, then the card starts again. Miss a day and it restarts at day 1; you lose no XP.</p>
               <ol className="flex flex-wrap gap-1.5 sm:gap-2 mt-4" aria-label={`Check-in card: ${cardDays} of 7 days in a row`}>{Array.from({ length: 7 }, (_, i) => { const on = i < cardDays; return <li key={i} className={`w-9 h-9 sm:w-12 sm:h-12 rounded-full border-2 flex items-center justify-center led text-[16px] ${on ? 'border-amber bg-amber text-ink' : 'border-dashed border-chalk/40 text-chalk/60'}`} style={on && i === cardDays - 1 && checked ? { animation: 'stamp 700ms var(--ease-out) both', transform: 'none' } : undefined}>{on ? <Check size={20} aria-hidden /> : i === 6 ? <span className="text-[12px] sm:text-[14px] text-amber">+20</span> : i + 1}</li> })}</ol></div>
-            <div className="text-left md:text-right"><p className="led text-amber text-[32px] leading-none">+{!checked && cardDays === 6 ? 25 : 5} <span className="text-[16px]">XP</span></p><button type="button" className="btn btn-primary mt-3" disabled={checked} onClick={f.checkIn}>{checked ? 'Come back tomorrow' : 'Check in'}</button></div>
+            <div className="text-left md:text-right"><p className="led text-amber text-[32px] leading-none">+{!checked && cardDays === 6 ? 25 : 5} <span className="text-[16px]">XP</span></p><button type="button" className="btn btn-primary mt-3" disabled={checked || !s.joined} onClick={f.checkIn}>{checked ? 'Come back tomorrow' : 'Check in'}</button></div>
           </div></section>
 
         <section aria-labelledby="t-once"><h2 id="t-once" className="text-[20px]">One-time</h2><ul className="grid gap-4 mt-4 md:grid-cols-2 xl:grid-cols-3">{ONCE.map((q) => <QuestCard key={q.key} q={q} done={done[q.key]} />)}</ul></section>
@@ -65,12 +65,12 @@ export default function Tasks() {
         <section aria-labelledby="t-claim"><h2 id="t-claim" className="text-[20px]">Vouchers</h2><p className="text-muted mt-1">Claiming is one transaction through your agent. In your pocket: {me.pocket.map((n, i) => `${n} ${TIERS[i]}`).join(', ')}.</p>
           {od && <p className="text-coral mt-3 font-semibold">You have an overdue IOU. Repay it to unlock vouchers and minting.</p>}
           <ul className="grid gap-6 mt-6 grid-cols-3 max-w-[620px]">{TIERS.map((t, i) => <li key={t} className="text-center"><div className="relative mx-auto w-full max-w-[150px]"><Ticket tier={t} code={`x${me.pocket[i]}`} style={{ opacity: can[i] > 0 || me.pocket[i] > 0 ? 1 : 0.4, animation: me.pocket[i] > 0 ? undefined : undefined }} />{can[i] > 0 && <span className="absolute -top-2 -right-2 bg-amber text-ink rounded-full min-w-7 h-7 px-1.5 inline-flex items-center justify-center font-extrabold text-[14px]" aria-label={`${can[i]} ready to claim`}>{can[i]}</span>}</div>
-            <button type="button" className="btn btn-primary btn-sm mt-4 w-full max-w-[150px]" disabled={can[i] < 1 || od} onClick={() => f.claim(i)}>Claim<span className="sr-only sm:not-sr-only"> {t}</span></button></li>)}</ul></section>
+            <button type="button" className="btn btn-primary btn-sm mt-4 w-full max-w-[150px]" disabled={can[i] < 1 || od || !s.joined} onClick={() => f.claim(i)}>Claim<span className="sr-only sm:not-sr-only"> {t}</span></button></li>)}</ul></section>
 
         <section aria-labelledby="t-shelf"><div className="flex flex-wrap items-center gap-4"><h2 id="t-shelf" className="text-[20px]">Season 1 stamps</h2><Mascot pose="coin" className="w-14" /></div><p className="text-muted mt-1">One voucher mints any one stamp of its tier. You choose; it is never random. Each design once per wallet.</p>
           {TIERS.map((t, ti) => <div key={t} className="mt-7"><h3 className="text-[16px] font-semibold flex items-center gap-3">{t}<span className="text-muted font-normal text-[14px]">{me.pocket[ti]} voucher{me.pocket[ti] === 1 ? '' : 's'} in pocket</span></h3>
             <ul className="grid grid-cols-3 gap-4 mt-3 max-w-[620px]">{SEASON.filter((d) => d.tier === t).map((d) => { const have = me.stickers[d.id]; return <li key={d.id} className="text-center"><StickerCard k={d.key} name={d.name} tier={t} mint={have} owner={ME} dim={!have} onFlip />
-              {have ? <span className="pill pill-leaf mt-3">Minted</span> : <button type="button" className="btn btn-secondary btn-sm mt-3 w-full" disabled={me.pocket[ti] < 1 || od} onClick={() => f.mint(d.id)}>Mint</button>}</li> })}</ul></div>)}
+              {have ? <span className="pill pill-leaf mt-3">Minted</span> : <button type="button" className="btn btn-secondary btn-sm mt-3 w-full" disabled={me.pocket[ti] < 1 || od || !s.joined} onClick={() => f.mint(d.id)}>Mint</button>}</li> })}</ul></div>)}
           <p className="text-muted text-[14px] mt-6">Minting costs gas only and needs no token approval. Stamps are soulbound.</p></section>
       </div>
     </div>

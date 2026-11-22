@@ -4,7 +4,7 @@ import { Link, type RouteName } from '../lib/router'
 import { usePrefs } from '../lib/prefs'
 import { play } from '../lib/sound'
 import { useStore } from '../lib/store'
-import { DEMO, ME, claimable, levelOf, score } from '../lib/data'
+import { CONTRACT, DEMO, ME, claimable, levelOf, score } from '../lib/data'
 import { Avatar, Logo } from './art'
 
 export function Header({ route }: { route: RouteName }) {
@@ -49,7 +49,7 @@ export function Footer() {
       <div className="wrap pt-10 grid gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
         <div><Logo /><p className="text-muted mt-3 text-[13px] max-w-[44ch]">Independent project, not affiliated with Binance. Not financial advice.</p><p className="text-muted mt-2 text-[13px]">XP has no cash value. Vouchers and stickers can't be sold or transferred.</p></div>
         <nav aria-label="Pages" className="grid gap-2 content-start"><Link to="start" className={l}>Get IOU Verified</Link><Link to="mart" className={l}>Promise Mart</Link><Link to="tasks" className={l}>Task Hub</Link><Link to="new" className={l}>New IOU</Link><Link to="board" className={l}>Leaderboard</Link></nav>
-        <nav aria-label="Trust" className="grid gap-2 content-start"><Link to="proof" className={l}>Proof &amp; Safety</Link><Link to="judges" className={l}>For judges</Link><Link to="legal" className={l}>Terms, privacy and risks</Link><span className="text-muted text-[14px]">GitHub, BscScan and X links go here at launch.</span></nav>
+        <nav aria-label="Trust" className="grid gap-2 content-start"><Link to="proof" className={l}>Proof &amp; Safety</Link><Link to="about" className={l}>About AgentIOU</Link><Link to="legal" className={l}>Terms, privacy and risks</Link><a href="https://github.com/AgentIOU/agentiou" target="_blank" rel="noopener noreferrer" className={l}>Source code on GitHub</a>{CONTRACT ? <a href={`https://bscscan.com/address/${CONTRACT}#code`} target="_blank" rel="noopener noreferrer" className={l}>Contract on BscScan</a> : <span className="text-muted text-[14px]">The BscScan link appears here when the contract is deployed.</span>}</nav>
       </div>
       <div className="wrap mt-8 pt-6 border-t border-rule flex flex-wrap items-center gap-x-6 gap-y-3 text-[14px] text-muted">
         <span className="inline-flex items-center gap-2"><i className={`w-2.5 h-2.5 rounded-full ${DEMO ? 'bg-iris' : 'bg-leaf'}`} aria-hidden />{DEMO ? 'Demo data: not reading BNB Smart Chain yet' : 'Reading BNB Smart Chain'}</span>

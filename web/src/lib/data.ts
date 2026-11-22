@@ -1,21 +1,26 @@
-import { isAddress } from 'viem'
+import { getAddress, isAddress } from 'viem'
 import assets from '../data/assets.json'
 export { assets }
 
-export const DEMO = true                     // true until the contract is deployed; every screen then says "Demo data"
-export const CONTRACT: `0x${string}` | null = null   // set after deploy on BNB Smart Chain
+// Live or demo is decided when the site is built: with VITE_CONTRACT set, every number comes from that contract on BNB Smart Chain.
+// Without it the site runs on demo data, and every screen says "Demo data".
+const env = import.meta.env
+export const CONTRACT: `0x${string}` | null = env.VITE_CONTRACT && isAddress(env.VITE_CONTRACT) ? getAddress(env.VITE_CONTRACT) : null
+export const DEMO = !CONTRACT
+export const RPCS: string[] = env.VITE_RPC ? [env.VITE_RPC] : ['https://bsc-dataseed.bnbchain.org', 'https://bsc-dataseed1.bnbchain.org', 'https://bsc-rpc.publicnode.com']
 export const AGENT_ID = '0x60b9262456de011f7d15a54cdd8c48baaa8b022f'
 export const USDT = '0x55d398326f99059fF775485246999027B3197955'
 export const BNB_FEED = '0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE'
-export const BNB_USD = 600                   // demo price; live builds read the Chainlink feed
+export let BNB_USD = 600                     // demo price; the live site replaces it with the Chainlink feed's price
+export const setBnbUsd = (n: number) => { if (n > 0) BNB_USD = n }
 export const DAY = 86400_000
 
 export type Asset = 'BNB' | 'USDT'
 export type Status = 'Pending' | 'Active' | 'Repaid' | 'Declined' | 'Cancelled'
 export type Tier = 'Common' | 'Rare' | 'Legendary'
-export interface Iou { id: number; creditor: string; debtor: string; asset: Asset; amount: number; usd: number; createdAt: number; dueAt: number; repaidAt?: number; status: Status; memo: string; offerId?: number }
+export interface Iou { id: number; creditor: string; debtor: string; asset: Asset; amount: number; /** the exact on-chain amount in wei, on the live site */ raw?: string; usd: number; createdAt: number; dueAt: number; repaidAt?: number; status: Status; memo: string; offerId?: number }
 export interface Mint { edition: number; block: number; time: number }
-export interface User { address: string; nickname: string; no: number; joinedAt: number; isPublic: boolean; onTime: number; late: number; defaults: number; people: number; xp: number; claimed: [number, number, number]; pocket: [number, number, number]; stickers: Record<number, Mint>; badges: Record<string, number>; checkDays: number; lastCheck: number; good?: number }
+export interface User { address: string; nickname: string; no: number; joinedAt: number; onTime: number; late: number; defaults: number; people: number; xp: number; claimed: [number, number, number]; pocket: [number, number, number]; stickers: Record<number, Mint>; badges: Record<string, number>; checkDays: number; lastCheck: number; good?: number }
 export interface Offer { id: number; design: number; title: string; asset: Asset; price: number; termDays: number; stock: number; taken: number }
 
 export const LEVELS = [
@@ -59,10 +64,18 @@ export const XP_TASKS = [
 ]
 
 const addr = (n: number) => '0x' + n.toString(16).padStart(40, '0').replace(/^0{4}/, 'de30')   // demo-only addresses
-export const ME = addr(0x142), MART = addr(0xa11), MIRA = addr(0x2b7), SAM = addr(0x3c9), RAFI = addr(0x4d1), LINA = addr(0x5e3), OMAR = addr(0x9c5)
+// "Me" on the live site is the public address the visitor saved on this device (never a key, never a connection).
+// It is read once when the page loads; saving or forgetting an address reloads the page.
+const ME_KEY = 'agentiou.me'
+const savedMe = (() => { try { const v = localStorage.getItem(ME_KEY); return v && isAddress(v) ? getAddress(v) : null } catch { return null } })()
+export const HAS_ME = DEMO || !!savedMe
+export const saveMe = (a: string | null) => { try { if (a && isAddress(a)) localStorage.setItem(ME_KEY, getAddress(a)); else localStorage.removeItem(ME_KEY) } catch { /* storage may be unavailable */ } location.reload() }
+export const ME: string = DEMO ? addr(0x142) : savedMe ?? '0x0000000000000000000000000000000000000000'
+export const MART: string = DEMO ? addr(0xa11) : env.VITE_MART && isAddress(env.VITE_MART) ? getAddress(env.VITE_MART) : '0x0000000000000000000000000000000000000000'
+export const MIRA = addr(0x2b7), SAM = addr(0x3c9), RAFI = addr(0x4d1), LINA = addr(0x5e3), OMAR = addr(0x9c5)
 const T0 = Date.now()
 const u = (address: string, nickname: string, no: number, onTime: number, people: number, late = 0, extra: Partial<User> = {}): User => ({
-  address, nickname, no, joinedAt: T0 - (160 - no) * DAY * 0.2 - 3 * DAY, isPublic: true, onTime, late, defaults: 0, people, xp: 50 + onTime * 30, claimed: [0, 0, 0], pocket: [0, 0, 0], stickers: {}, badges: onTime >= 0 && nickname !== 'promise-mart' ? { 'IOU Verified': T0 - 20 * DAY, ...(onTime > 0 ? { 'First Promise': T0 - 12 * DAY } : {}), ...(onTime >= 3 ? { Trusted: T0 - 8 * DAY } : {}), ...(onTime >= 10 && people >= 3 ? { 'Highly Trusted': T0 - 3 * DAY } : {}) } : {}, checkDays: 0, lastCheck: 0, ...extra })
+  address, nickname, no, joinedAt: T0 - (160 - no) * DAY * 0.2 - 3 * DAY, onTime, late, defaults: 0, people, xp: 50 + onTime * 30, claimed: [0, 0, 0], pocket: [0, 0, 0], stickers: {}, badges: onTime >= 0 && nickname !== 'promise-mart' ? { 'IOU Verified': T0 - 20 * DAY, ...(onTime > 0 ? { 'First Promise': T0 - 12 * DAY } : {}), ...(onTime >= 3 ? { Trusted: T0 - 8 * DAY } : {}), ...(onTime >= 10 && people >= 3 ? { 'Highly Trusted': T0 - 3 * DAY } : {}) } : {}, checkDays: 0, lastCheck: 0, ...extra })
 export const seedUsers = (): User[] => [
   u(ME, 'tuku', 142, 4, 2, 0, { xp: 350, checkDays: 2, lastCheck: T0 - DAY, claimed: [2, 1, 0], pocket: [1, 0, 0],
     stickers: { 1: { edition: 9, block: 52_340_118, time: T0 - 6 * DAY }, 4: { edition: 42, block: 52_512_904, time: T0 - 2 * DAY }, 7: { edition: 17, block: 52_540_377, time: T0 - DAY } },
@@ -92,13 +105,15 @@ export const seedIous = (): Iou[] => [
 ]
 
 /** IOUs past due right now, per address. The demo store fills this in; on the live site the contract returns the same numbers. */
-export const live = { overdue: new Map<string, { n: number; def: boolean }>() }
+export const live = { overdue: new Map<string, { n: number; def: boolean }>(), chain: new Map<string, { level: number; score: number; restricted: boolean; overdue: boolean; owed: number }>() }
 const od = (a: string) => live.overdue.get(a) ?? { n: 0, def: false }
-export const isRestricted = (a: string) => od(a).def || od(a).n >= 2
-export const score = (x: User) => Math.max(0, Math.min(100, 50 + 5 * x.onTime - 10 * (x.late + od(x.address).n) - 25 * x.defaults + Math.min(10, 2 * x.people)))
+// on the live site level, score and Restricted are the contract's own answers; the formulas below are the demo's copy of them
+export const isRestricted = (a: string) => live.chain.get(a)?.restricted ?? (od(a).def || od(a).n >= 2)
+export const score = (x: User) => live.chain.get(x.address)?.score ?? Math.max(0, Math.min(100, 50 + 5 * x.onTime - 10 * (x.late + od(x.address).n) - 25 * x.defaults + Math.min(10, 2 * x.people)))
 /** The level before overdue IOUs are looked at. `good` is the contract's counter: on-time repays that count (3 a day at most); a late repay cuts it. */
 export function baseLevel(x: User) { const g = x.good ?? x.onTime; return g >= 10 && x.defaults === 0 && x.people >= 3 ? 3 : g >= 3 ? 2 : 1 }
 export function levelOf(x: User) {
+  const c = live.chain.get(x.address); if (c?.level) return c.level
   const base = baseLevel(x)
   return isRestricted(x.address) ? 1 : od(x.address).n === 1 ? Math.max(1, base - 1) : base
 }

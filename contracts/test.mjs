@@ -110,8 +110,8 @@ try {
   await send(cat, 'createIOU', [ben, 1, U('0.1'), 7, 'to restricted']); await reverts('restricted: cannot accept an IOU', 'Restricted', ben, 'acceptIOU', [BigInt((await read('stats'))[1])])
   await send(ben, 'approve', [iou, U('0.04')], 0n, USDT, usdt); await send(ben, 'repay', [r1]); ok('repaying one lifts the restriction', (await read('getUser', [ben]))[5] === false)
   await send(ben, 'repay', [r2]); ;[u, , , , x, rs] = await read('getUser', [ben]); ok('repaying all clears overdue; both stay on the record as late', x === false && rs === false && u.late === 3)
-  await send(ben, 'setNickname', ['ben_new']); await send(ben, 'setPublic', [false])
-  ok('a profile can only be changed by its own wallet', (await read('getUser', [ben]))[0].nickname === 'ben_new' && (await read('getUser', [ana]))[0].nickname === 'ana' && (await read('getUser', [ana]))[0].isPublic === true)
+  await send(ben, 'setNickname', ['ben_new'])
+  ok('a profile can only be changed by its own wallet', (await read('getUser', [ben]))[0].nickname === 'ben_new' && (await read('getUser', [ana]))[0].nickname === 'ana')
   const touch = A.filter((f) => f.type === 'function' && !['view', 'pure'].includes(f.stateMutability) && f.inputs.some((i) => i.type.startsWith('address'))).map((f) => f.name).sort().join(',')
   ok('no function lets one wallet act on another wallet\'s profile or money', touch === 'createIOU', touch)
   await send(cat, 'takeOffer', [1n]); const defId = BigInt((await read('stats'))[1]); await warp(10 * 86400)
@@ -167,6 +167,8 @@ try {
   }
   ok(`random run: ${done} accepted actions of 600, contract never held USDT, BNB equals undelivered credits, owed totals match`, !bad && done > 100, bad || `only ${done} actions`)
   const st = await read('stats'); ok('stats add up', st[0] === 6n && st[1] > 20n)
+  { const all = await read('getUsers', [0n, 50n]); const nos = []; for (const m of all) nos.push((await read('getUser', [m]))[0].no)
+    ok('member numbers are 1, 2, 3... in joining order, one per wallet, never repeated', nos.length === 6 && nos.every((n, i) => n === i + 1), nos.join(',')) }
   // ---- the 7-day check-in card
   { const day = async () => { await warp(86400); await send(eve, 'checkIn'); return (await read('getUser', [eve]))[0] }
     await warp(2 * 86400); await send(eve, 'checkIn'); let e = (await read('getUser', [eve]))[0]; const x0 = e.xp
