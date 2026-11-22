@@ -2,6 +2,8 @@
 
 **Pay later. Can't disappear.**
 
+Live site: [agentiou.pages.dev](https://agentiou.pages.dev)
+
 AgentIOU is an on-chain pay-later ledger for Agent ID holders on BNB Smart Chain. An IOU ("I owe you") is a small promise to pay later. Every promise, repayment and late payment is written on-chain against the borrower's Agent ID, so a good record builds a Trust Score and a higher credit level, and a broken promise stays visible.
 
 Built for the Agent ID Hackathon (Nov 18 to Dec 9, 2026). Updates: [@AgentIOU on X](https://x.com/AgentIOU). Independent project, not affiliated with Binance. Not financial advice: nobody guarantees that an IOU is repaid.
@@ -30,7 +32,7 @@ The site never connects to a wallet. It writes a plain-text prompt with the exac
 - Solidity 0.8.28, optimizer on with **runs = 1**, EVM version **paris**, no via-IR. Use the same settings to verify it on BscScan.
 - Constructor argument: the metadata base URI for the soulbound stickers.
 - Fixed addresses (constants): Agent ID `0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F`, USDT (BSC-USD) `0x55d398326f99059fF775485246999027B3197955`, Chainlink BNB/USD `0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE`.
-- Deployed address: added here after deployment.
+- Deployed on BNB Smart Chain, source verified: [`0x75DE83b3CE69c8eE363BE702FD3cd02e9Ab7F3f8`](https://bscscan.com/address/0x75DE83b3CE69c8eE363BE702FD3cd02e9Ab7F3f8#code) (block 135141765). Constructor argument `https://agentiou.pages.dev/meta/{id}.json`.
 - Promise Mart (the deploying wallet, a plain wallet with no special rights beyond its Founders stickers): `0xf2d95FDEdE5Ba5BCA7F47cCb60a779E427d9f179`.
 
 Run the tests (Node 20+):

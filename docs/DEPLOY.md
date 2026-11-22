@@ -68,7 +68,7 @@ That approval is the shop's whole risk: a loan that is never repaid is the shop'
 
 ## 7. Switch the website to live
 
-In Cloudflare Pages, Settings, Environment variables (Production):
+Put the two public addresses in `web/.env.production` (this repository does), or set them in Cloudflare Pages, Settings, Environment variables (Production). A Cloudflare variable wins over the file.
 
 | Name | Value |
 |---|---|
