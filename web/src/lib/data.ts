@@ -64,13 +64,35 @@ export const XP_TASKS = [
 ]
 
 const addr = (n: number) => '0x' + n.toString(16).padStart(40, '0').replace(/^0{4}/, 'de30')   // demo-only addresses
-// "Me" on the live site is the public address the visitor saved on this device (never a key, never a connection).
-// It is read once when the page loads; saving or forgetting an address reloads the page.
-const ME_KEY = 'agentiou.me'
-const savedMe = (() => { try { const v = localStorage.getItem(ME_KEY); return v && isAddress(v) ? getAddress(v) : null } catch { return null } })()
-export const HAS_ME = DEMO || !!savedMe
-export const saveMe = (a: string | null) => { try { if (a && isAddress(a)) localStorage.setItem(ME_KEY, getAddress(a)); else localStorage.removeItem(ME_KEY) } catch { /* storage may be unavailable */ } location.reload() }
-export const ME: string = DEMO ? addr(0x142) : savedMe ?? '0x0000000000000000000000000000000000000000'
+// "Me" on the live site is a wallet the visitor has PROVED they control on this device: its own Agentic Wallet signed a message
+// naming this device (lib/proof.ts). Typing an address alone never makes a profile "mine". No key, no connection, no server.
+// It is read once when the page loads; proving or forgetting reloads the page.
+const ME_KEY = 'agentiou.me', PROOF_KEY = 'agentiou.proof', DEVICE_KEY = 'agentiou.device'
+/** The signed proof kept on the device. */
+export interface Proof { wallet: string; device: string; issued: number; expires: number; sig: `0x${string}` }
+const read = (k: string) => { try { return localStorage.getItem(k) } catch { return null } }
+/** This device's own random code. A proof is signed for one device and is no use on another. */
+export function deviceId(): string {
+  const have = read(DEVICE_KEY); if (have && /^[A-Z2-7]{4}-[A-Z2-7]{4}$/.test(have)) return have
+  const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', r = crypto.getRandomValues(new Uint8Array(8)); let d = ''
+  r.forEach((x, i) => { d += abc[x % 32] + (i === 3 ? '-' : '') })
+  try { localStorage.setItem(DEVICE_KEY, d) } catch { /* storage may be unavailable */ }
+  return d
+}
+const savedMe = (() => { const v = read(ME_KEY); return v && isAddress(v) ? getAddress(v) : null })()
+export const storedProof: Proof | null = (() => { try { const x = JSON.parse(read(PROOF_KEY) ?? 'null'); return x && typeof x.wallet === 'string' && isAddress(x.wallet) && typeof x.device === 'string' && Number.isInteger(x.issued) && Number.isInteger(x.expires) && /^0x[0-9a-fA-F]{130}$/.test(x.sig) ? x as Proof : null } catch { return null } })()
+// shape check here; the signature itself is re-checked right after load (store.tsx), and a proof that fails is forgotten
+const proven = !DEMO && !!savedMe && !!storedProof && getAddress(storedProof.wallet) === savedMe && storedProof.device === read(DEVICE_KEY)
+export const HAS_ME = DEMO || proven
+/** Make a wallet "mine" on this device with its proof, or forget it (no argument). */
+export const saveMe = (proof?: Proof | null) => {
+  try {
+    if (proof) { localStorage.setItem(ME_KEY, getAddress(proof.wallet)); localStorage.setItem(PROOF_KEY, JSON.stringify(proof)) }
+    else { localStorage.removeItem(ME_KEY); localStorage.removeItem(PROOF_KEY); localStorage.removeItem('agentiou.ask') }
+  } catch { /* storage may be unavailable */ }
+  location.reload()
+}
+export const ME: string = DEMO ? addr(0x142) : proven && savedMe ? savedMe : '0x0000000000000000000000000000000000000000'
 export const MART: string = DEMO ? addr(0xa11) : env.VITE_MART && isAddress(env.VITE_MART) ? getAddress(env.VITE_MART) : '0x0000000000000000000000000000000000000000'
 export const MIRA = addr(0x2b7), SAM = addr(0x3c9), RAFI = addr(0x4d1), LINA = addr(0x5e3), OMAR = addr(0x9c5)
 const T0 = Date.now()

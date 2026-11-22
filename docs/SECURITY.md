@@ -24,7 +24,7 @@ The site never asks for an unlimited approval. Every repay prompt names who gets
 
 | Rule | How AgentIOU meets it |
 |---|---|
-| No web QR or pairing-code login, no stored sessions | The site has no login and no wallet connection. It only writes prompts the person pastes into their own Agentic Wallet |
+| No web QR or pairing-code login, no stored sessions | The site has no account, password, QR code, pairing code or wallet connection, and no server to hold a session. It only writes prompts the person pastes into their own Agentic Wallet. To show a profile as "mine" on a device, the wallet signs one EIP-712 message (statement, wallet, device code, issued, expires) with `sign-message`; the signature is checked in the browser (`web/src/lib/proof.ts`) and kept on that device only. It is a signature only: no transaction, no approval. Typing an address never makes a profile "mine"; anyone can still view a public record, as on BscScan |
 | No confirmation bypass | Every prompt ends: "Show me the preview and risks first. Do not execute until I confirm." |
 | No scheduled collection, automatic or bundled transfers, unlimited approvals | Every transfer is one call the borrower starts and confirms; approvals are for the exact amount |
 | Open source, owner permissions documented | This repository and this file; the contract source is verified on BscScan after deployment |

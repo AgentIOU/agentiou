@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { BNB_USD, DAY, DEMO, HAS_ME, setBnbUsd, baseLevel, dayOf, isRestricted, live, DESIGNS, LEVELS, ME, MART, TIERS, claimable, levelOf, score, seedIous, seedOffers, seedUsers, viewOf, type Asset, type Iou, type Offer, type User } from './data'
+import { BNB_USD, DAY, DEMO, HAS_ME, saveMe, storedProof, setBnbUsd, baseLevel, dayOf, isRestricted, live, DESIGNS, LEVELS, ME, MART, TIERS, claimable, levelOf, score, seedIous, seedOffers, seedUsers, viewOf, type Asset, type Iou, type Offer, type User } from './data'
 
 
 // One store, two sources. Live (a contract address was set at build time): every number is read from the contract and nothing here changes it.
@@ -59,7 +59,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const repayDay = useRef({ day: -1, n: 0 })
   const mintRec = (m: User, design: number) => ({ ...m.stickers, [design]: { edition: 20 + ((design * 37 + seq.current) % 60), block: 52_600_000 + seq.current * 13, time: Date.now() } })
 
-  const NOT_YET = !HAS_ME ? 'Add your Agentic Wallet address first' : 'Get IOU Verified first'
+  const NOT_YET = !HAS_ME ? 'Prove your wallet first' : 'Get IOU Verified first'
   const whyNotBorrow = (usd: number) => !joined ? NOT_YET : isRestricted(ME) ? 'Restricted: repay your overdue IOUs first' : ious.filter((x) => x.debtor === ME && x.status === 'Active').length >= 10 ? 'You already have 10 active IOUs' : usd > room() + 1e-9 ? `Over your $${LEVELS[levelOf(me) - 1].limit} limit` : ''
   const demoTakes = useRef({ day: -1, n: 0 })
   const takesToday = DEMO ? (demoTakes.current.day === dayOf(Date.now()) ? demoTakes.current.n : 0) : me.takesToday ?? 0
@@ -151,6 +151,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return d.print
     } catch (e) { setChainState((c) => ({ ...c, down: true })); throw e }
   }, [])
+  // the proof kept on this device is checked again on every load; one that does not hold is forgotten
+  useEffect(() => { if (DEMO || !HAS_ME || !storedProof) return; let live = true; import('./proof').then((m) => m.proofHolds(storedProof!)).then((ok) => { if (live && !ok) saveMe(null) }).catch(() => undefined); return () => { live = false } }, [])
   useEffect(() => { if (DEMO) return; const go = () => { if (!document.hidden) refresh().catch(() => undefined) }; go(); const id = setInterval(go, 20_000); return () => clearInterval(id) }, [refresh])
   const v = useMemo<Store>(() => ({ users, ious, offers, me, joined, loaded: chainState.loaded, chainDown: chainState.down, holdsAgentId: chainState.holds, credit: chainState.credit, shopFunds: chainState.shop, print: chainState.print, refresh, user, name, owed, hasOverdue, restricted: isRestricted, whyNotBorrow, whyNotSend, whyNotTake, tray, openTray: setTray, closeTray: () => setTray(null), toasts, toast, dropToast: (id) => setToasts((t) => t.filter((x) => x.id !== id)), act, last, draftTo, setDraftTo }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

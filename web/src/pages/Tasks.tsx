@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check } from 'lucide-react'
-import { ME, SEASON, TIERS, TIER_XP, claimable, dayOf, isAddr, levelOf, DEMO, HAS_ME, saveMe } from '../lib/data'
+import { Check, Eye } from 'lucide-react'
+import { ME, SEASON, TIERS, TIER_XP, claimable, dayOf, isAddr, levelOf, score, short, DEMO } from '../lib/data'
+import { Link } from '../lib/router'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
 import { StickerCard, Ticket } from '../components/art'
@@ -30,7 +31,7 @@ function QuestCard({ q, done }: { q: Quest; done?: boolean }) {
 }
 export default function Tasks() {
   const s = useStore(), f = useFlows(), me = s.me, can = claimable(me), od = s.hasOverdue(ME)
-  const [addr, setAddr] = useState('')
+  const [addr, setAddr] = useState(''); const [seen, setSeen] = useState('')
   const next = TIER_XP.map((step) => step - (me.xp % step))
   const done: Record<string, boolean> = { join: s.joined, repay: me.onTime > 0, early: me.onTime > 1, paidback: false, newperson: me.people > 0, badge: Object.keys(me.badges).length > 0, level: levelOf(me) > 1 }
   const checked = dayOf(me.lastCheck) === dayOf(Date.now())
@@ -43,9 +44,13 @@ export default function Tasks() {
       <Floaters items={[{ k: 'ticket', w: 96, style: { right: '4%', top: 96 }, desk: true }, { k: 'star', w: 50, style: { right: '15%', top: 250 }, far: true, desk: true }, { k: 'coin', w: 60, style: { left: '2%', top: 900 }, far: true, desk: true }]} />
       <div className="wrap relative pt-28 pb-16 grid gap-14">
         <div><div className="flex flex-wrap items-center gap-3"><h1 className="h2">Task Hub</h1><DemoChip /></div><p className="lead mt-3">Get XP for keeping your word, turn it into vouchers, and mint Season 1 stamps for free.</p>
-          <form className="mt-6 max-w-[520px]" onSubmit={(e) => { e.preventDefault(); if (!isAddr(addr)) return; if (DEMO) s.toast('The live site loads this address from the contract. The demo keeps showing the demo profile.'); else saveMe(addr) }} hidden={!DEMO && HAS_ME}>
-            <label className="label" htmlFor="see">See your progress</label><div className="flex gap-3"><input id="see" className="input mono" placeholder="0x… your Agentic Wallet address" value={addr} onChange={(e) => setAddr(e.target.value)} aria-describedby="see-h" autoComplete="off" spellCheck={false} /><button className="btn btn-secondary" disabled={!isAddr(addr)}>Show</button></div>
-            <p id="see-h" className={`hint ${addr && !isAddr(addr) ? 'text-coral' : ''}`}>{addr && !isAddr(addr) ? "This doesn't look like a BNB Smart Chain address." : 'A public address only. It is saved on this device and nowhere else.'}</p></form></div>
+          <form className="mt-6 max-w-[520px]" onSubmit={(e) => { e.preventDefault(); if (isAddr(addr)) setSeen(addr) }}>
+            <label className="label" htmlFor="see">Look up a wallet</label><div className="flex gap-3"><input id="see" className="input mono" placeholder="0x… any Agentic Wallet address" value={addr} onChange={(e) => { setAddr(e.target.value); setSeen('') }} aria-describedby="see-h" autoComplete="off" spellCheck={false} /><button className="btn btn-secondary" disabled={!isAddr(addr)}>Show</button></div>
+            <p id="see-h" className={`hint ${addr && !isAddr(addr) ? 'text-coral' : ''}`}>{addr && !isAddr(addr) ? "This doesn't look like a BNB Smart Chain address." : 'Public numbers only. Nothing is saved, and it does not change whose profile this device shows.'}</p></form>
+          {seen && (() => { const u = s.users.find((x) => x.address.toLowerCase() === seen.toLowerCase())
+            return <div className="panel p-4 mt-4 max-w-[520px]" role="status">{u
+              ? <><p className="text-[13px] text-muted flex items-center gap-1.5"><Eye size={14} aria-hidden />Viewing only</p><p className="font-semibold mt-1">{u.nickname} <span className="mono text-muted font-normal text-[14px]">{short(u.address)}</span></p><p className="mt-1"><span className="led text-amber text-[22px]">{u.xp}</span> XP, level L{levelOf(u)}, Trust Score {score(u)}</p><Link to="u" param={u.address} className="underline underline-offset-4 text-[14px] inline-block mt-2">Open the public profile</Link></>
+              : <p className="text-muted">{s.loaded || DEMO ? 'This address is not IOU Verified.' : 'Reading the contract. Try again in a moment.'}</p>}</div> })()}</div>
 
         <section aria-labelledby="t-xp" className="quest p-6 md:p-8" style={{ background: 'linear-gradient(120deg,#23286A,#3B2A6E 60%,#5A2E63)' }}><div className="flex flex-wrap items-end justify-between gap-4"><div><h2 id="t-xp" className="text-[20px]">Your XP</h2><p className="relative led text-[72px] leading-none text-chalk mt-2 inline-block" aria-live="polite">{me.xp}{gain > 0 && <span className="absolute left-full top-0 ml-3 text-amber text-[32px] whitespace-nowrap" style={{ animation: 'xpfly 1.4s var(--ease-out) both' }}>+{gain}</span>}</p></div><p className="text-chalk/80 max-w-[34ch]">XP only goes up. It never changes your Trust Score or your limit. <InfoTip label="About XP">XP has no cash value. Vouchers and stamps can't be sold or transferred.</InfoTip></p></div>
           <ul className="grid gap-5 mt-7 sm:grid-cols-3">{TIERS.map((t, i) => <li key={t}><div className="flex justify-between text-[14px]"><b>{t}</b><span className="text-chalk/70">every {TIER_XP[i]} XP</span></div><div className="h-2 rounded-full bg-ink/50 overflow-hidden mt-2"><div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${((TIER_XP[i] - next[i]) / TIER_XP[i]) * 100}%`, background: i === 2 ? 'var(--holo)' : i === 1 ? '#FFB23F' : '#AEB5FF' }} /></div><p className="text-[14px] text-chalk/70 mt-2">{next[i]} XP to the next voucher</p></li>)}</ul></section>

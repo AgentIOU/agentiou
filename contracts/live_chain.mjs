@@ -31,6 +31,10 @@ if (cmd === 'setup') {
   else if (cmd === 'call') { await w(a[0], contract, A, a[1], JSON.parse(a[2] || '[]').map((v) => (typeof v === 'string' && /^\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v))); console.log('success') }
   else if (cmd === 'pay') { await w(a[0], contract, A, a[1], JSON.parse(a[2]).map((v) => BigInt(v)), parseEther(a[3])); console.log('success') }
   else if (cmd === 'block') { await c.setCode({ address: a[0], bytecode: a[1] === 'on' ? art.Rejector.deployed : '0x' }); console.log('success') }   // make an address unable to receive BNB, or able again
+  else if (cmd === 'sign') {   // what the wallet's sign-message does: sign the site's EIP-712 request, answer the way the agent does
+    const req = JSON.parse(a[1]); const sig = await c.request({ method: 'eth_signTypedData_v4', params: [a[0], req.params[1]] })
+    console.log(`Signature: ${sig.slice(2, 130)} signatureRecovery: ${sig.slice(130) === '1c' ? '01' : '00'}`)
+  }
   else if (cmd === 'usdt') { console.log((await c.readContract({ address: USDT, abi: art.MockUsdt.abi, functionName: 'balanceOf', args: [a[0]] })).toString()) }
   else if (cmd === 'shop') { await w(mart, USDT, art.MockUsdt.abi, 'approve', [contract, parseEther(a[0])]); console.log('success') }   // change how much the shop lets the contract lend
   else if (cmd === 'credit') { console.log((await c.readContract({ address: contract, abi: A, functionName: 'credits', args: [a[0]] })).toString()) }

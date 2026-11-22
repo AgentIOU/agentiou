@@ -1,11 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Check, ClipboardPaste, ShieldCheck } from 'lucide-react'
+import { Check, ClipboardPaste, Copy, ShieldCheck } from 'lucide-react'
 import { HAS_ME, saveMe, rankPoints, AGENT_ID, BNB_FEED, BNB_USD, CONTRACT, DEMO, LEVELS, ME, SAFE_TEXT, USDT, isAddr, levelOf, nickError, score, short, usd, viewOf } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
+import { prompts } from '../lib/prompt'
+import { checkPasted, dropAsk, newAsk, openAsk, signRequest, type Ask } from '../lib/proof'
 import { Link } from '../lib/router'
 import { Avatar, Led, rosette } from '../components/art'
-import { DemoChip, LevelChip, RestrictedTag, Risk } from '../components/ui'
+import { DemoChip, LevelChip, RestrictedTag, Risk, useCopy } from '../components/ui'
 import { Mascot, type Pose } from '../components/fx'
 import { FAQ, Q } from './Home'
 
@@ -14,9 +16,43 @@ const START: [string, string, Pose][] = [
   ['Claim your Agent ID in the Binance App', 'The contract only lets Agent ID holders join. The live site checks this by reading the Agent ID contract for your address.', 'search'],
   ['Turn on Developer Mode in the App', 'It lets your Agentic Wallet call a contract directly. It can only be turned on in the Binance App.', 'read'],
   ['Keep a little BNB in your Agentic Wallet', 'Every action costs a small amount of gas. The live site reads your balance to check.', 'coin'],
-  ['Paste your Agentic Wallet address', 'A public address only. It is saved on this device so the site can show your profile. Never paste a key or seed phrase anywhere.', 'card'],
+  ['Prove the wallet is yours', 'Paste your Agentic Wallet address, then sign one message with it: no transaction, no gas. Without that signature a profile is never shown as yours. Never paste a key or seed phrase anywhere.', 'card'],
   ['Get IOU Verified', 'Pick a nickname, copy the prompt to your agent and confirm there. You start with 50 XP and a $1 limit.', 'stamp'],
 ]
+/** Step 4 on the live site: an address becomes "mine" on this device only with a signature from that wallet. */
+function ProveWallet() {
+  const s = useStore(); const copy = useCopy()
+  const [ask, setAsk] = useState<Ask | null>(() => openAsk()); const [addr, setAddr] = useState(''); const [pasted, setPasted] = useState(''); const [busy, setBusy] = useState(false); const [why, setWhy] = useState(''); const [copied, setCopied] = useState(false)
+  const prompt = useMemo(() => (ask ? prompts.prove(signRequest(ask)) : ''), [ask])
+  const again = () => { dropAsk(); setAsk(null); setPasted(''); setWhy(''); setCopied(false) }
+  const check = async () => {
+    if (!ask) return
+    setBusy(true); setWhy('')
+    const r = await checkPasted(ask, pasted).catch(() => ({ ok: false as const, why: 'wrong' as const }))
+    setBusy(false)
+    if (r.ok) { dropAsk(); saveMe(r.proof); return }
+    setWhy(r.why === 'none' ? "We can't find a signature in that. Paste your agent's whole answer after it has signed." : r.why === 'expired' ? 'This request ran out after 15 minutes. Start again to get a new prompt.' : 'That signature is not from this wallet for this request. Copy the prompt again and sign it with the wallet shown above.')
+  }
+  if (!ask) return (
+    <div className="mt-4"><label className="label" htmlFor="aw">Agentic Wallet address</label><div className="flex gap-3"><input id="aw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => setAddr(e.target.value)} autoComplete="off" spellCheck={false} /><button type="button" className="btn btn-secondary" aria-label="Paste from clipboard" onClick={async () => { try { setAddr((await navigator.clipboard.readText()).trim()) } catch { s.toast('Paste with your keyboard here.', 'bad') } }}><ClipboardPaste size={17} aria-hidden />Paste</button></div>
+      {addr && !isAddr(addr) && <p className="hint text-coral">This doesn't look like a BNB Smart Chain address.</p>}{isAddr(addr) && <p className="hint text-leaf flex items-center gap-1.5"><Check size={15} aria-hidden />Looks like a valid address</p>}
+      <button type="button" className="btn btn-primary btn-sm mt-4" disabled={!isAddr(addr)} onClick={() => setAsk(newAsk(addr))}>Prove this wallet is mine</button>
+      <p className="hint mt-3">To look at a wallet without proving anything, use the lookup in <Link to="tasks" className="underline underline-offset-4">Task Hub</Link> or open its public profile.</p></div>
+  )
+  return (
+    <div className="mt-4">
+      <p className="text-[14px]"><span className="text-muted">Wallet:</span> <span className="mono break-all">{ask.wallet}</span></p>
+      <div className="flex items-center justify-between mt-4 mb-2"><span className="text-[14px] text-muted">Prompt for your agent</span><button type="button" className="btn btn-secondary btn-sm" onClick={async () => setCopied(await copy(prompt, 'Copied'))}>{copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}{copied ? 'Copied' : 'Copy'}</button></div>
+      <pre className="code max-h-[30dvh] overflow-auto" tabIndex={0}>{prompt}</pre>
+      <p className="text-[14px] text-muted mt-3">Your Agentic Wallet signs one message. It is a signature only: nothing is sent on-chain, it costs no gas, and it approves nothing. It is for this device (code <span className="mono">{ask.device}</span>) and runs out in 15 minutes.</p>
+      <label className="label mt-5" htmlFor="sg">Paste your agent's answer</label>
+      <textarea id="sg" className="input mono min-h-[96px] py-3" placeholder="Signature: …" value={pasted} onChange={(e) => { setPasted(e.target.value); setWhy('') }} autoComplete="off" spellCheck={false} />
+      {why && <p className="hint text-coral" role="alert">{why}</p>}
+      <div className="flex flex-wrap gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" disabled={busy || pasted.trim().length < 128} onClick={check}>{busy ? 'Checking' : 'Check the signature'}</button><button type="button" className="btn btn-secondary btn-sm" onClick={again}>Start again</button></div>
+      <p className="hint mt-3">The check happens in your browser. The signature is kept on this device only, and only this wallet could have made it.</p>
+    </div>
+  )
+}
 export function Start() {
   const s = useStore(), f = useFlows()
   const [done, setDone] = useState(() => (!DEMO && HAS_ME ? [true, true, true, true] : [false, false, false, false])); const [addr, setAddr] = useState(''); const [nick, setNick] = useState('')
@@ -32,13 +68,14 @@ export function Start() {
           return <li key={t} className="panel p-5 flex gap-4" style={{ borderColor: now ? '#FFB23F' : undefined }} aria-current={now ? 'step' : undefined}>
             <span className={`w-9 h-9 rounded-full shrink-0 inline-flex items-center justify-center font-extrabold ${ok ? 'bg-leaf text-ink' : 'border border-rule'}`}>{ok ? <Check size={18} aria-label="Done" /> : i + 1}</span>
             <div className="flex-1 min-w-0"><h2 className="text-[20px]">{t}</h2><p className="text-muted mt-1">{d}</p>
-              {i === 3 && !ok && <div className="mt-4"><label className="label" htmlFor="aw">Agentic Wallet address</label><div className="flex gap-3"><input id="aw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => setAddr(e.target.value)} autoComplete="off" spellCheck={false} /><button type="button" className="btn btn-secondary" aria-label="Paste from clipboard" onClick={async () => { try { setAddr((await navigator.clipboard.readText()).trim()) } catch { s.toast('Paste with your keyboard here.', 'bad') } }}><ClipboardPaste size={17} aria-hidden />Paste</button></div>
+              {i === 3 && !ok && !DEMO && now && <ProveWallet />}
+              {i === 3 && !ok && DEMO && <div className="mt-4"><label className="label" htmlFor="aw">Agentic Wallet address</label><div className="flex gap-3"><input id="aw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => setAddr(e.target.value)} autoComplete="off" spellCheck={false} /><button type="button" className="btn btn-secondary" aria-label="Paste from clipboard" onClick={async () => { try { setAddr((await navigator.clipboard.readText()).trim()) } catch { s.toast('Paste with your keyboard here.', 'bad') } }}><ClipboardPaste size={17} aria-hidden />Paste</button></div>
                 {addr && !isAddr(addr) && <p className="hint text-coral">This doesn't look like a BNB Smart Chain address.</p>}{isAddr(addr) && <p className="hint text-leaf flex items-center gap-1.5"><Check size={15} aria-hidden />Looks like a valid address</p>}</div>}
-              {i < 4 && !ok && now && <button type="button" className="btn btn-secondary btn-sm mt-4" disabled={i === 3 && !isAddr(addr)} onClick={() => (i === 3 && !DEMO ? saveMe(addr) : tick(i))}>{i === 3 ? 'Save on this device' : 'I did this'}</button>}
+              {i < 4 && !ok && now && !(i === 3 && !DEMO) && <button type="button" className="btn btn-secondary btn-sm mt-4" disabled={i === 3 && !isAddr(addr)} onClick={() => tick(i)}>{i === 3 ? 'Save on this device' : 'I did this'}</button>}
               {i === 4 && now && <div className="mt-4 max-w-[420px]"><label className="label" htmlFor="nn">Nickname</label><input id="nn" className="input" value={nick} onChange={(e) => setNick(e.target.value)} maxLength={20} placeholder="2 to 20 characters" /><p className={`hint ${badNick ? 'text-coral' : ''}`}>{badNick || 'Not unique and not searchable. It always shows next to your short address.'}</p><button type="button" className="btn btn-primary mt-4" disabled={!nick || !!badNick} onClick={() => f.join(nick)}>Get IOU Verified</button></div>}
             </div></li> })}</ol>
-        {DEMO ? <p className="hint mt-5">In this demo you tick the first steps yourself. On the live site steps 1, 3 and 5 are checked on-chain.</p>
-          : HAS_ME && <div className="panel p-4 mt-5 flex flex-wrap items-center gap-x-4 gap-y-2"><span className="text-[14px] text-muted">Address on this device:</span><span className="mono text-[14px] break-all">{ME}</span>{s.holdsAgentId === true && <span className="pill pill-leaf"><ShieldCheck size={14} aria-hidden />Holds an Agent ID</span>}{s.holdsAgentId === false && <span className="text-coral text-[14px] font-semibold">This address has no Agent ID yet, so joining will be refused. Claim one in the Binance App first.</span>}<button type="button" className="btn-text underline underline-offset-4 text-[14px] ml-auto" onClick={() => saveMe(null)}>Use a different address</button></div>}</div>
+        {DEMO ? <p className="hint mt-5">In this demo you tick the first steps yourself. On the live site steps 1, 3 and 5 are checked on-chain, and step 4 needs a signature from the wallet.</p>
+          : HAS_ME && <div className="panel p-4 mt-5 flex flex-wrap items-center gap-x-4 gap-y-2"><span className="text-[14px] text-muted">Proved on this device:</span><span className="mono text-[14px] break-all">{ME}</span>{s.holdsAgentId === true && <span className="pill pill-leaf"><ShieldCheck size={14} aria-hidden />Holds an Agent ID</span>}{s.holdsAgentId === false && <span className="text-coral text-[14px] font-semibold">This address has no Agent ID yet, so joining will be refused. Claim one in the Binance App first.</span>}<button type="button" className="btn-text underline underline-offset-4 text-[14px] ml-auto" onClick={() => saveMe(null)}>Use a different address</button></div>}</div>
       <aside className="hidden lg:block sticky top-28 text-center"><Mascot pose={START[cur][2]} expr={cur === 4 ? 'success' : 'happy'} className="w-56 mx-auto" /><p className="text-muted mt-4">Step {cur + 1} of 5</p></aside>
     </div>
   )
@@ -109,7 +146,7 @@ export function Board() {
 
 /* /proof */
 const RED: [string, string][] = [
-  ['Never asks you to log in or connect a wallet', 'There is no login and no wallet connection. The site only reads a public address.'],
+  ['Never asks for a password or a wallet connection', 'No account, no password, no wallet connection, no QR or pairing code. To show a profile as yours, your wallet signs one message that moves nothing, and the check runs in your browser.'],
   ['Never acts without your confirmation', 'Every prompt ends with: show me the preview first, do not execute until I confirm.'],
   ['Never takes an unlimited approval', "Approvals are for the exact amount. The contract can't pull anyone's money."],
   ['Never hides its code', 'The source is public under the MIT licence. There is no owner, so there are no owner powers.'],
@@ -163,7 +200,7 @@ export function Legal() {
   return (
     <div className="wrap pt-28 pb-16 max-w-[860px] mx-0 xl:mx-auto"><h1 className="h2">Terms, privacy and risks</h1><P>Short and plain. AgentIOU is an independent project, not affiliated with Binance. Nothing here is financial advice.</P>
       <H>Terms</H><P>AgentIOU is a public smart contract and a website that reads it. There is no company account, no custody and no operator who can reverse a transaction. You use it at your own choice and your own risk.</P><P>An IOU is a promise between two wallets. AgentIOU records it; it does not enforce it and can't recover money for anyone.</P><P>XP has no cash value. Vouchers and stickers can't be sold or transferred.</P>
-      <H>Privacy</H><P>No cookies, no analytics, no account, no personal details. The site keeps only your public address and your settings, on your own device. Fonts and scripts are served from this site; nothing loads from third parties.</P><P>What you write on-chain is public and permanent: addresses, amounts, due dates, nicknames and notes. Don't put private details in a note.</P>
+      <H>Privacy</H><P>No cookies, no analytics, no account, no personal details. The site keeps only your public address, the signature that proves it is yours on this device, a random device code and your settings, all on your own device. Fonts and scripts are served from this site; nothing loads from third parties.</P><P>What you write on-chain is public and permanent: addresses, amounts, due dates, nicknames and notes. Don't put private details in a note.</P>
       <H>Risks</H><P>People may not repay. Smart contracts can have bugs. Token prices move. Gas costs change. Only promise what you can repay, and only give credit you could afford to lose.</P>
       <H>FAQs</H><div className="mt-4 border-t border-rule">{FAQ.slice(1, 4).map(([q, a]) => <Q key={q} q={q} a={a} />)}</div>
     </div>
