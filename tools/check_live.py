@@ -32,8 +32,9 @@ try:
             if expect=="step2" and "Step 2 of 2" in d.inner_text() and d.locator("pre.code").count(): return True
             if expect=="slow" and "can't see it on-chain yet" in d.inner_text(): return True
         return False
+    speed=[]
     def act(frm, expect="done"):
-        r=send_prompt(frm); c=confirm(expect); return r=="success" and c
+        r=send_prompt(frm); t=time.time(); c=confirm(expect); speed.append(time.time()-t); return r=="success" and c
     done=lambda: (pg.get_by_role("button",name="Done").click(), pg.wait_for_timeout(300))
     def site():
         go("tasks",700); t=main(); xp=int(re.search(r"([\d,]+)\s*XP",t).group(1).replace(",",""))
@@ -90,7 +91,11 @@ try:
     if mint: mint[0].click(); pg.wait_for_timeout(400); ok("mint with the voucher",act(ANA)); done(); ok("voucher used on-chain",chain(ANA)["pocket"][0]==0)
     # ---- G. the visitor says "confirmed" but never sent it
     go("mart"); pg.get_by_role("button",name="Take on credit").first.click(); pg.wait_for_timeout(400)
-    ok("nothing sent: the card does not pretend, it says it cannot see it (takes ~75s)",confirm("slow",100))
+    pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(1500)
+    ok("while it waits, the visitor can go straight back to the prompt",pg.get_by_role("button",name=re.compile("back to the prompt")).count()==1)
+    t0=time.time(); slow=False
+    while time.time()-t0<70 and not slow: pg.wait_for_timeout(500); slow="can't see it on-chain yet" in pg.locator("[role=dialog]").inner_text()
+    ok(f"nothing sent: the card does not pretend, it says it cannot see it (after {time.time()-t0+1.5:.0f}s)",slow and time.time()-t0<50)
     ok("nothing changed on-chain",chain(ANA)["owedCents"]==0)
     pg.get_by_role("button",name="Back to the prompt").click(); pg.wait_for_timeout(300); ok("and it works once the call is really sent",act(ANA)); done()
     # ---- H. send an IOU to a friend, who accepts
@@ -126,6 +131,7 @@ try:
     ok("leaderboard: both members, with the contract's score, XP and points",len(lis)==2 and row("ana",ca) and row("ben",cb),lis)
     ok("leaderboard: higher points first",lis and ("ana" in lis[0])==(ca["score"]*10+ca["xp"]>=cb["score"]*10+cb["xp"]),lis)
     go("u-"+BEN); ok("another member's profile is readable","ben" in main() and "Member No. 000001" in main(),main()[:200])
+    ok(f"a confirmed step shows up fast: {sorted(speed)[len(speed)//2]:.1f}s typical, {max(speed):.1f}s slowest of {len(speed)}",max(speed)<8,speed)
     ok("the page only ever talked to its own host and the chain",hosts<={"127.0.0.1:4175","127.0.0.1:8547"},hosts); ok("no script errors",not errs,errs[:3]); b.close()
 finally:
     srv.terminate(); anvil.terminate()
