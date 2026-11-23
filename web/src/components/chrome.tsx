@@ -54,8 +54,10 @@ export function Footer() {
       <div className="wrap mt-8 pt-6 border-t border-rule flex flex-wrap items-center gap-x-6 gap-y-3 text-[14px] text-muted">
         <span className="inline-flex items-center gap-2"><i className={`w-2.5 h-2.5 rounded-full ${DEMO ? 'bg-iris' : 'bg-leaf'}`} aria-hidden />{DEMO ? 'Demo data: not reading BNB Smart Chain yet' : 'Reading BNB Smart Chain'}</span>
         {motionOff && <span>Motion is reduced</span>}
-        <a href="https://x.com/AgentIOU" target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-2 min-h-[44px] hover:text-chalk hover:underline underline-offset-4"><ArrowUpRight size={16} aria-hidden />@AgentIOU on X</a>
-        <span>A TUKU project</span>
+        <span className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-3">
+          <a href="https://x.com/AgentIOU" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 min-h-[44px] px-5 rounded-full border border-rule bg-ledger/60 text-chalk font-semibold hover:border-muted hover:bg-ledger">Follow @AgentIOU on X<ArrowUpRight size={16} aria-hidden /></a>
+          <span className="inline-flex items-center gap-3 text-[12px] font-semibold tracking-[0.2em]"><i className="w-6 h-px bg-rule" aria-hidden />A TUKU PROJECT</span>
+        </span>
       </div>
     </footer>
   )

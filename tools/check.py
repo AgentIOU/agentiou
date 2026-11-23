@@ -198,7 +198,7 @@ try:
         j.evaluate("location.hash='start'"); j.wait_for_timeout(500); ok(f"{w}px join page does not offer a second join","You are IOU Verified" in j.inner_text("main") and j.locator("#nn").count()==0)
         j.evaluate("location.hash='home'"); j.wait_for_timeout(600); ok(f"{w}px home start button turns into the profile button",j.locator("main").get_by_role("link",name=re.compile("IOU Verified.*Open my profile")).count()==1); j.close()
     gh=pg.locator("footer").get_by_role("link",name="Source code on GitHub"); ok("footer links to the public source code and has no leftover placeholder",gh.get_attribute("href")=="https://github.com/AgentIOU/agentiou" and "go here at launch" not in pg.inner_text("footer"))
-    fx=pg.locator("footer").get_by_role("link",name="@AgentIOU on X"); ok("footer links to the project's X account, in a new tab, without passing the page along",fx.get_attribute("href")=="https://x.com/AgentIOU" and fx.get_attribute("target")=="_blank" and "noopener" in (fx.get_attribute("rel") or ""))
+    fx=pg.locator("footer").get_by_role("link",name="Follow @AgentIOU on X"); ok("footer links to the project's X account, in a new tab, without passing the page along",fx.get_attribute("href")=="https://x.com/AgentIOU" and fx.get_attribute("target")=="_blank" and "noopener" in (fx.get_attribute("rel") or ""))
     ok("no script errors during flows",not errs,errs[:3]); b.close()
 finally: srv.terminate()
 # ---- 3. static rules on the source and the build
