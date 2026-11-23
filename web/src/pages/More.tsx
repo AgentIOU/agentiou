@@ -31,7 +31,7 @@ function ProveWallet() {
     const r = await checkPasted(ask, pasted).catch(() => ({ ok: false as const, why: 'wrong' as const }))
     setBusy(false)
     if (r.ok) { dropAsk(); saveMe(r.proof); return }
-    setWhy(r.why === 'none' ? "We can't find a signature in that. Paste your agent's whole answer after it has signed." : r.why === 'expired' ? 'This request ran out after 15 minutes. Start again to get a new prompt.' : 'That signature is not from this wallet for this request. Copy the prompt again and sign it with the wallet shown above.')
+    setWhy(r.why === 'none' ? "We can't find a signature in that. If your agent shows the signature in a box, copy that box (the long code) and paste it here." : r.why === 'expired' ? 'This request ran out after 15 minutes. Start again to get a new prompt.' : 'That signature is not from this wallet for this request. Copy the prompt again and sign it with the wallet shown above.')
   }
   if (!ask) return (
     <div className="mt-4"><label className="label" htmlFor="aw">Agentic Wallet address</label><div className="flex gap-3"><input id="aw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => setAddr(e.target.value)} autoComplete="off" spellCheck={false} /><button type="button" className="btn btn-secondary" aria-label="Paste from clipboard" onClick={async () => { try { setAddr((await navigator.clipboard.readText()).trim()) } catch { s.toast('Paste with your keyboard here.', 'bad') } }}><ClipboardPaste size={17} aria-hidden />Paste</button></div>
@@ -46,7 +46,8 @@ function ProveWallet() {
       <pre className="code max-h-[30dvh] overflow-auto" tabIndex={0}>{prompt}</pre>
       <p className="text-[14px] text-muted mt-3">Your Agentic Wallet signs one message. It is a signature only: nothing is sent on-chain, it costs no gas, and it approves nothing. It is for this device (code <span className="mono">{ask.device}</span>) and runs out in 15 minutes.</p>
       <label className="label mt-5" htmlFor="sg">Paste your agent's answer</label>
-      <textarea id="sg" className="input mono min-h-[96px] py-3" placeholder="Signature: …" value={pasted} onChange={(e) => { setPasted(e.target.value); setWhy('') }} autoComplete="off" spellCheck={false} />
+      <textarea id="sg" className="input mono min-h-[96px] py-3" placeholder="AGENTIOU-PROOF …" value={pasted} onChange={(e) => { setPasted(e.target.value); setWhy('') }} autoComplete="off" spellCheck={false} />
+      <p className="hint">Copy the line that starts with AGENTIOU-PROOF. If your agent shows the signature in a box instead, copy that box: the long code alone is enough.</p>
       {why && <p className="hint text-coral" role="alert">{why}</p>}
       <div className="flex flex-wrap gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" disabled={busy || pasted.trim().length < 128} onClick={check}>{busy ? 'Checking' : 'Check the signature'}</button><button type="button" className="btn btn-secondary btn-sm" onClick={again}>Start again</button></div>
       <p className="hint mt-3">The check happens in your browser. The signature is kept on this device only, and only this wallet could have made it.</p>

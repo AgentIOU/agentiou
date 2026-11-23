@@ -47,11 +47,26 @@ async function signedBy(a: Ask, rs: string): Promise<`0x${string}` | null> {
 export type CheckResult = { ok: true; proof: Proof } | { ok: false; why: 'none' | 'expired' | 'wrong' }
 /** Check what the visitor pasted: their agent's whole answer, or just the signature. */
 export async function checkPasted(a: Ask, pasted: string): Promise<CheckResult> {
-  const m = pasted.match(/(?<![0-9a-fA-F])(?:0x)?([0-9a-fA-F]{128})(?:[0-9a-fA-F]{2})?(?![0-9a-fA-F])/)
-  if (!m) return { ok: false, why: 'none' }
+  const found = signaturesIn(pasted)
+  if (!found.length) return { ok: false, why: 'none' }
   if (a.expires <= nowS()) return { ok: false, why: 'expired' }
-  const sig = await signedBy(a, m[1])
-  return sig ? { ok: true, proof: { ...a, sig } } : { ok: false, why: 'wrong' }
+  for (const rs of found) { const sig = await signedBy(a, rs); if (sig) return { ok: true, proof: { ...a, sig } } }
+  return { ok: false, why: 'wrong' }
+}
+/** Every piece of the pasted text that could be a signature: 128 hex characters (r and s), with or without 0x and a recovery byte.
+ *  A copied code box can arrive broken over several lines, so pieces that are split only by spaces or line breaks are joined. */
+export function signaturesIn(pasted: string): string[] {
+  const out: string[] = []
+  const add = (h: string) => { const x = h.toLowerCase(); if (!out.includes(x)) out.push(x) }
+  for (const m of pasted.matchAll(/(?<![0-9a-fA-F])(?:0x)?([0-9a-fA-F]{128})(?:[0-9a-fA-F]{2})?(?![0-9a-fA-F])/g)) add(m[1])
+  for (const run of pasted.matchAll(/(?:(?<![0-9a-zA-Z])(?:0x)?[0-9a-fA-F]+(?![0-9a-zA-Z])\s*)+/g)) {
+    const parts = run[0].trim().split(/\s+/).map((p) => p.replace(/^0x/i, ''))
+    for (let i = 0; i < parts.length; i++) {
+      let joined = ''
+      for (let j = i; j < parts.length && joined.length < 130; j++) { joined += parts[j]; if (j > i && (joined.length === 128 || joined.length === 130)) add(joined.slice(0, 128)) }
+    }
+  }
+  return out
 }
 /** Re-check a proof kept on this device (at page load): right device, right wallet, real signature. */
 export async function proofHolds(p: Proof): Promise<boolean> {

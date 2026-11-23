@@ -85,7 +85,7 @@ try:
     paste(node("sign",BEN,req)); ok("a request that has run out is refused, even with the right signature","ran out" in main() and guest(),main()[-300:])
     pg.get_by_role("button",name="Start again").click(); pg.wait_for_timeout(300)
     # an address that holds no Agent ID proves itself, and the site warns before any prompt
-    req=ask_for(CAT); paste(node("sign",CAT,req))
+    req=ask_for(CAT); rc=node("sign",CAT,req); paste("Done.\nAGENTIOU-PROOF "+re.search(r"([0-9a-fA-F]{128})",rc).group(1)+" "+re.search(r"signatureRecovery:\s*(\d\d)",rc).group(1))   # the one-line form the prompt asks for
     ok("the wallet's own signature is accepted","Proved on this device" in main() and CAT in main(),main()[-400:])
     ok("address without an Agent ID: the site warns before any prompt","has no Agent ID yet" in main(),main()[-400:])
     # someone edits the browser storage to point the kept proof at another member
@@ -94,7 +94,11 @@ try:
     to_step4(); req=ask_for(CAT); paste(node("sign",CAT,req)); pg.get_by_role("button",name="Use a different address").click(); pg.wait_for_timeout(2500)
     ok("the proved wallet can be forgotten","agentiou.me" not in keys() and "agentiou.proof" not in keys() and guest(),keys())
     # ---- C. join
-    to_step4(); req=ask_for(ANA.lower()); paste(node("sign",ANA,req))
+    to_step4(); req=ask_for(ANA.lower()); raw=node("sign",ANA,req); h=re.search(r"([0-9a-fA-F]{128})",raw).group(1)
+    ok("the signing prompt asks the agent for one plain line to copy","AGENTIOU-PROOF <signature> <signatureRecovery>" in pg.locator("pre.code").inner_text() and "no code block" in pg.locator("pre.code").inner_text())
+    paste("Signature from order 4b16d500084b487e8e78867ec7118d6b (status COMPLETED):\n\n\n\nsignatureRecovery: 005b9b6\n\nSigned by wallet "+ANA+" for the AgentIOU Proof typed data on chain ID 56, valid 1795420320-1795421220 (15 minutes). No transaction, transfer, or approval was involved.")
+    ok("an answer copied without its code box: the site says to copy the box, and stays a guest","copy that box" in main() and guest(),main()[-300:])
+    paste("Signature code\n"+h[:43]+"\n"+h[43:86]+"\n"+h[86:]+"\nsignatureRecovery: 005b9b6")   # a copied code box, broken over three lines
     ok("address with an Agent ID is recognised","Holds an Agent ID" in main(),main()[-300:])
     ok("the device keeps only the address, its proof and a device code",keys()==["agentiou.device","agentiou.me","agentiou.proof"],keys())
     kept=pg.evaluate("[localStorage.getItem('agentiou.me'),localStorage.getItem('agentiou.proof')]")
