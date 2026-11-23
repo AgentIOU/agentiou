@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, Home, ShoppingBag, ListChecks, BookOpen, User as UserIcon, Volume2, VolumeX } from 'lucide-react'
+import { Home, ShoppingBag, ListChecks, BookOpen, User as UserIcon, Volume2, VolumeX } from 'lucide-react'
 import { Link, type RouteName } from '../lib/router'
 import { usePrefs } from '../lib/prefs'
 import { play } from '../lib/sound'
 import { useStore } from '../lib/store'
 import { CONTRACT, DEMO, ME, claimable, levelOf, score } from '../lib/data'
 import { Avatar, Logo } from './art'
+import { img } from './fx'
 
 export function Header({ route }: { route: RouteName }) {
   const { sound, set } = usePrefs(); const { me, hasOverdue, joined } = useStore()
@@ -55,7 +56,7 @@ export function Footer() {
         <span className="inline-flex items-center gap-2"><i className={`w-2.5 h-2.5 rounded-full ${DEMO ? 'bg-iris' : 'bg-leaf'}`} aria-hidden />{DEMO ? 'Demo data: not reading BNB Smart Chain yet' : 'Reading BNB Smart Chain'}</span>
         {motionOff && <span>Motion is reduced</span>}
         <span className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-3">
-          <a href="https://x.com/AgentIOU" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 min-h-[44px] px-5 rounded-full border border-rule bg-ledger/60 text-chalk font-semibold hover:border-muted hover:bg-ledger">Follow @AgentIOU on X<ArrowUpRight size={16} aria-hidden /></a>
+          <a href="https://x.com/AgentIOU" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2.5 min-h-[44px] pl-3 pr-5 rounded-full border border-rule bg-ledger/60 text-chalk font-semibold hover:border-muted hover:bg-ledger"><img src={img('x-mark')} alt="" width={26} height={26} className="rounded-full" />Follow @AgentIOU on X</a>
           <span className="inline-flex items-center gap-3 text-[12px] font-semibold tracking-[0.2em]"><i className="w-6 h-px bg-rule" aria-hidden />A TUKU PROJECT</span>
         </span>
       </div>
