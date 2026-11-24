@@ -85,8 +85,8 @@ try:
     paste(node("sign",BEN,req)); ok("a request that has run out is refused, even with the right signature","ran out" in main() and guest(),main()[-300:])
     pg.get_by_role("button",name="Start again").click(); pg.wait_for_timeout(300)
     # an address that holds no Agent ID proves itself, and the site warns before any prompt
-    req=ask_for(CAT); rc=node("sign",CAT,req); paste("Done.\nAGENTIOU-PROOF "+re.search(r"([0-9a-fA-F]{128})",rc).group(1)+" "+re.search(r"signatureRecovery:\s*(\d\d)",rc).group(1))   # the one-line form the prompt asks for
-    ok("the wallet's own signature is accepted","Proved on this device" in main() and CAT in main(),main()[-400:])
+    req=ask_for(CAT); rc=node("sign",CAT,req); hc=re.search(r"([0-9a-fA-F]{128})",rc).group(1); paste("Done.\nAGENTIOU-PROOF "+hc[:40]+"\u200b"+hc[40:90]+"\u00ad"+hc[90:]+" "+re.search(r"signatureRecovery:\s*(\d\d)",rc).group(1))   # the one-line form the prompt asks for, with invisible characters a copy can add inside the code
+    ok("the wallet's own signature is accepted, even with invisible characters inside the code","Proved on this device" in main() and CAT in main(),main()[-400:])
     ok("address without an Agent ID: the site warns before any prompt","has no Agent ID yet" in main(),main()[-400:])
     # someone edits the browser storage to point the kept proof at another member
     pg.evaluate("(()=>{const p=JSON.parse(localStorage.getItem('agentiou.proof'));p.wallet=%r;localStorage.setItem('agentiou.proof',JSON.stringify(p));localStorage.setItem('agentiou.me',%r)})()" % (BEN,BEN))

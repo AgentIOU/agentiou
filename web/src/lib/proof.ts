@@ -54,8 +54,10 @@ export async function checkPasted(a: Ask, pasted: string): Promise<CheckResult> 
   return { ok: false, why: 'wrong' }
 }
 /** Every piece of the pasted text that could be a signature: 128 hex characters (r and s), with or without 0x and a recovery byte.
- *  A copied code box can arrive broken over several lines, so pieces that are split only by spaces or line breaks are joined. */
+ *  A copied code box can arrive broken over several lines, so pieces that are split only by spaces or line breaks are joined.
+ *  Invisible characters (zero-width spaces, soft hyphens) are removed first: they can never be part of a signature. */
 export function signaturesIn(pasted: string): string[] {
+  pasted = pasted.replace(/[\u00AD\u180E\u200B-\u200F\u2060-\u2064\uFEFF]/g, '')   // invisible characters some apps put inside long codes when copying
   const out: string[] = []
   const add = (h: string) => { const x = h.toLowerCase(); if (!out.includes(x)) out.push(x) }
   for (const m of pasted.matchAll(/(?<![0-9a-fA-F])(?:0x)?([0-9a-fA-F]{128})(?:[0-9a-fA-F]{2})?(?![0-9a-fA-F])/g)) add(m[1])
