@@ -4,7 +4,7 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { ArrowRight, Eye, ShieldCheck, Ban, ArrowLeftRight, KeyRound, Check, ChevronDown, CircleHelp, CirclePlay, Wallet, X } from 'lucide-react'
 import { Tour } from '../components/Tour'
-import { CONTRACT, DEMO, LEVELS, ME, SEASON, amt, levelOf, score, short, viewOf } from '../lib/data'
+import { CONTRACT, DEMO, LEVELS, ME, SEASON, amt, levelOf, memberSince, score, short, viewOf } from '../lib/data'
 import { useStore } from '../lib/store'
 import { usePrefs } from '../lib/prefs'
 import { Link } from '../lib/router'
@@ -51,7 +51,7 @@ export default function Home() {
             <div className="relative flex items-end justify-center lg:justify-end">
               <div aria-hidden className="absolute right-0 top-1/2 -translate-y-1/2 w-[80%] aspect-square rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side,#FFB23F26,transparent)' }} />
               <Mascot pose="wave" float className="w-[30%] max-w-[190px] -mr-[4%] mb-[-2%] relative z-10" alt="The AgentIOU mascot, a small jelly agent with an LED face, waving" />
-              <IouCard className="w-[72%] max-w-[470px] relative" nick={me.nickname} address={me.address} no={me.no} level={lv} available={Math.max(0, limit - owed)} limit={limit} demo overdue={s.hasOverdue(ME)} restricted={s.restricted(ME)} back={[['On-time repays', String(me.onTime)], ['Late', String(me.late)], ['Defaults', String(me.defaults)], ['People dealt with', String(me.people)], ['Member since', new Date(me.joinedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })]]} />
+              <IouCard className="w-[72%] max-w-[470px] relative" nick={me.nickname} address={me.address} no={me.no} level={lv} available={Math.max(0, limit - owed)} limit={limit} demo overdue={s.hasOverdue(ME)} restricted={s.restricted(ME)} back={[['On-time repays', String(me.onTime)], ['Late', String(me.late)], ['Defaults', String(me.defaults)], ['People dealt with', String(me.people)], ['Member since', memberSince(me.joinedAt)]]} />
             </div>
           </div>
           <Strip lines={repaid.map((x) => `${s.name(x.debtor)} repaid ${amt(x)} ${viewOf(x) === 'Repaid' ? 'on time' : 'late'}`)} />

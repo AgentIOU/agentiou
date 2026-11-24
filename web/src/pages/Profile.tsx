@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BADGES, DEMO, saveMe, plain, DESIGNS, LEVELS, ME, SEASON, TIERS, dateShort, dueText, usd, isAddr, levelOf, nickError, score, viewOf, type User } from '../lib/data'
+import { BADGES, DEMO, saveMe, plain, DESIGNS, LEVELS, ME, SEASON, TIERS, dateShort, memberSince, dueText, usd, isAddr, levelOf, nickError, score, viewOf, type User } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
 import { usePrefs } from '../lib/prefs'
@@ -16,7 +16,7 @@ export function ProfileHead({ u, own }: { u: User; own?: boolean }) {
       <Avatar address={u.address} score={score(u)} level={lv} overdue={od} size={128} />
       <div className="mr-auto"><div className="flex flex-wrap items-center gap-3"><h1 className="text-[28px] md:text-[40px]">{u.nickname}</h1>{u.badges['IOU Verified'] && <Badge name="IOU Verified" size={34} />}{s.restricted(u.address) && <RestrictedTag />}{DEMO && <DemoChip />}</div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2"><AddressChip address={u.address} /><LevelChip level={lv} now /><span className="text-muted">Trust Score <b className="led text-chalk text-[20px]">{score(u)}</b> of 100 <InfoTip label="How the Trust Score works">Starts at 50. On-time repay +5, late −10, default −25, each new person you deal with +2 (up to +10). Always between 0 and 100.</InfoTip></span></div>
-        <p className="text-muted text-[14px] mt-2">Member No. {String(u.no).padStart(6, '0')}, since {dateShort(u.joinedAt)}</p></div>
+        <p className="text-muted text-[14px] mt-2">Member No. {String(u.no).padStart(6, '0')}, since {u.joinedAt > 0 ? dateShort(u.joinedAt) : '—'}</p></div>
       <div className="flex flex-wrap gap-3">
         {own ? (s.whyNotSend() ? <button type="button" className="btn btn-primary" disabled title={s.whyNotSend()}><Send size={16} aria-hidden />Send an IOU to a friend</button> : <Link to="new" className="btn btn-primary"><Send size={16} aria-hidden />Send an IOU to a friend</Link>) : u.address !== ME && <button type="button" className="btn btn-primary" disabled={s.restricted(u.address) || !!s.whyNotSend()} title={s.whyNotSend() || undefined} onClick={() => { s.setDraftTo(u.address); go('new') }}><Send size={16} aria-hidden />Send {u.nickname} an IOU</button>}
         <button type="button" className="btn btn-secondary" onClick={() => copy(new URL(href('u', u.address), location.href).href, 'Profile link copied')}><Share2 size={16} aria-hidden />{own ? 'Share my profile' : 'Share'}</button>
@@ -27,7 +27,7 @@ export function ProfileHead({ u, own }: { u: User; own?: boolean }) {
 export function Card({ u }: { u: User }) {
   const s = useStore(); const lv = levelOf(u), limit = LEVELS[lv - 1].limit
   return <IouCard nick={u.nickname} address={u.address} no={u.no} level={lv} available={Math.max(0, limit - s.owed(u.address))} limit={limit} demo={DEMO} overdue={s.hasOverdue(u.address)} restricted={s.restricted(u.address)}
-    back={[['On-time repays', String(u.onTime)], ['Late', String(u.late)], ['Defaults', String(u.defaults)], ['People dealt with', String(u.people)], ['Member since', new Date(u.joinedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })]]} />
+    back={[['On-time repays', String(u.onTime)], ['Late', String(u.late)], ['Defaults', String(u.defaults)], ['People dealt with', String(u.people)], ['Member since', memberSince(u.joinedAt)]]} />
 }
 export function BadgeBoard({ u }: { u: User }) {
   const [open, setOpen] = useState('')

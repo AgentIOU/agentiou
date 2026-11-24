@@ -55,6 +55,9 @@ try:
         go(n,600)
         if re.search(r"Demo data|demo ledger|In this demo|demo profile|Pre-deploy",pg.inner_text("body")): demo.append(n)
     ok("live site never says demo",not demo,demo); ok("footer says it is reading the chain","Reading BNB Smart Chain" in pg.inner_text("footer"))
+    go("home",1500); gc=pg.locator("[aria-label*='IOU Card']").first; gc.scroll_into_view_if_needed(); gc.click(); pg.wait_for_timeout(1200); gt=main()
+    ok("guest card back shows a dash for the join date, never Jan 1970","1970" not in gt and re.search(r"Member since\s*—",gt) is not None,gt[gt.find("Member since"):][:60])
+    ok("the page names a share image for X and the icons",pg.evaluate("[document.querySelector('meta[property=\"og:image\"]')?.content, document.querySelector('meta[name=\"twitter:image\"]')?.content, !!document.querySelector('link[rel=apple-touch-icon]'), !!document.querySelector('link[href$=\"favicon.ico\"]')]")==["https://agentiou.pages.dev/og.png","https://agentiou.pages.dev/og.png",True,True])
     go("me"); ok("guest: My IOUs asks for proof of the wallet first","Prove your wallet first" in main())
     node("join",BEN,"ben")   # another member joins first, so member numbers can be checked
     keys=lambda: sorted(k for k in pg.evaluate("Object.keys(localStorage)") if k.startswith("agentiou.") and k not in ("agentiou.sound","agentiou.reduce"))

@@ -154,6 +154,8 @@ export const short = (a: string) => a.slice(0, 6) + '…' + a.slice(-4)
 export const usd = (n: number) => '$' + n.toFixed(2)
 export const amt = (x: { amount: number; asset: Asset }) => `${+x.amount.toFixed(6)} ${x.asset}`
 export const dateShort = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+/** Month and year someone joined; a guest has no join date, so it shows a dash instead of Jan 1970. */
+export const memberSince = (t: number) => (t > 0 ? new Date(t).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—')
 export const dateUtc = (t: number) => new Date(t).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
 export function dueText(t: number, now = Date.now()) {
   const d = Math.round(Math.abs(t - now) / DAY), h = Math.round(Math.abs(t - now) / 3600_000)
