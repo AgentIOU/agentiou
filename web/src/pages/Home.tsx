@@ -143,11 +143,11 @@ function How() {
   const row = (label: string, v: React.ReactNode, on: boolean) => <div className="flex justify-between gap-4 border-b border-dotted border-[#23232b66] py-2.5"><span className="text-[#5b5d6b] italic">{label}</span>{on && <span className="font-semibold text-right led text-[17px]" style={{ animation: motionOff ? undefined : 'typein 500ms steps(14) both' }}>{v}</span>}</div>
   return (
     <section id="how" ref={ref} className="relative scroll-mt-0" style={{ height: motionOff ? undefined : '320vh' }} aria-labelledby="t-how">
-      <div className={motionOff ? 'band' : 'sticky top-0 min-h-[100svh] flex items-center py-20'}>
+      <div className={motionOff ? 'band' : 'sticky top-0 min-h-[100svh] flex items-center md:max-lg:items-start py-20 md:max-lg:pt-12'}>
         <div className="wrap grid gap-8 lg:gap-16 lg:grid-cols-2 items-center">
           <div className="order-2 lg:order-1"><h2 id="t-how" className="h2">How it works</h2>
             <ol className="mt-6 grid gap-1">{STEPS.map(([t, d], i) => <li key={t} className="flex gap-4 py-3 transition-opacity duration-300" style={{ opacity: motionOff || i === step ? 1 : 0.38 }} aria-current={i === step ? 'step' : undefined}><span className="led text-amber text-[28px] leading-none w-7 shrink-0">{i + 1}</span><div><h3 className="text-[20px]">{t}</h3><p className={`text-muted mt-1 ${motionOff || i === step ? '' : 'hidden lg:block'}`}>{d}</p></div></li>)}</ol></div>
-          <div className="order-1 lg:order-2 relative mx-auto w-full max-w-[460px]" aria-hidden>
+          <div className="order-1 lg:order-2 relative mx-auto w-full max-w-[460px] md:max-lg:[zoom:1.45]" aria-hidden>
             <div className="relative text-[#23232B]" style={{ background: '#F4F1E6', boxShadow: '0 30px 60px #0009', borderRadius: 6, transform: 'rotate(-1.5deg)', WebkitMask: 'radial-gradient(7px at 7px 50%,#0000 96%,#000) -7px 0 / 100% 22px', mask: 'radial-gradient(7px at 7px 50%,#0000 96%,#000) -7px 0 / 100% 22px' }}>
               <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 400 480"><path d={rosette(330, 400, 86, 14, 12, 18, 0, 0.5, 160)} stroke="#1f8a5f" strokeOpacity="0.16" strokeWidth="0.8" fill="none" /><rect x="22" y="12" width="366" height="456" rx="4" fill="none" stroke="#23232B" strokeOpacity="0.5" strokeWidth="1" /><rect x="27" y="17" width="356" height="446" rx="2" fill="none" stroke="#23232B" strokeOpacity="0.25" strokeWidth="3" strokeDasharray="1 3" /></svg>
               <div className="relative pl-12 pr-8 py-9">
