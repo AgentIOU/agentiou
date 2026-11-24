@@ -67,7 +67,8 @@ function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState(false)
   const copy = useCopy(); const box = useRef<HTMLDivElement>(null)
-  useEffect(() => { play('swish'); box.current?.focus(); const k = (e: KeyboardEvent) => e.key === 'Escape' && close(); document.addEventListener('keydown', k); const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.removeEventListener('keydown', k); document.body.style.overflow = o } }, [close])
+  useEffect(() => { play('swish'); box.current?.focus() }, [])   // once, when the card opens: never again while it waits
+  useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && close(); document.addEventListener('keydown', k); const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.removeEventListener('keydown', k); document.body.style.overflow = o } }, [close])
   useEffect(() => {
     if ((phase !== 'wait' && phase !== 'slow') || DEMO) return
     // live: nothing is assumed. The card moves on only when the contract shows the step: my record changed, or the step's own check passed.

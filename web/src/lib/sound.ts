@@ -1,6 +1,6 @@
 import { soundOn } from './prefs'
 
-// Every sound is made in the browser with the Web Audio API: no audio files. Off until the visitor turns it on.
+// Every sound is made in the browser with the Web Audio API: no audio files. On by default; the speaker button in the header turns it off.
 let ctx: AudioContext | null = null
 function ac() { if (!ctx) { try { ctx = new AudioContext() } catch { return null } } if (ctx.state === 'suspended') void ctx.resume(); return ctx }
 function tone(f: number, t0: number, d: number, type: OscillatorType = 'sine', g = 0.3, f2?: number) {

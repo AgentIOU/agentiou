@@ -10,7 +10,7 @@ export const usePrefs = () => useContext(Ctx)
 export let soundOn = false
 
 export function PrefsProvider({ children }: { children: ReactNode }) {
-  const [s, setS] = useState(() => ({ sound: read('sound', false), reduce: read('reduce', false) }))
+  const [s, setS] = useState(() => ({ sound: read('sound', true), reduce: read('reduce', false) }))
   const [sys, setSys] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches)
   useEffect(() => { const m = matchMedia('(prefers-reduced-motion: reduce)'); const f = () => setSys(m.matches); m.addEventListener('change', f); return () => m.removeEventListener('change', f) }, [])
   const motionOff = s.reduce || sys

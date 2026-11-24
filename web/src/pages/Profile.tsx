@@ -99,7 +99,7 @@ export function Me() {
         <div className="mt-5"><label className="label" htmlFor="nick">Nickname</label><div className="flex gap-3"><input id="nick" className="input" value={nick} onChange={(e) => setNick(e.target.value)} maxLength={20} aria-describedby="nick-h" /><button type="button" className="btn btn-secondary" disabled={!!bad || nick === me.nickname} onClick={() => f.setNick(nick)}>Save</button></div><p id="nick-h" className={`hint ${bad ? 'text-coral' : ''}`}>{bad || 'Not unique and not searchable. It always shows next to your short address.'}</p></div>
         {!DEMO && <div className="flex items-start justify-between gap-6 py-4 border-b border-rule mt-1"><div><p className="font-semibold">Wallet proved on this device</p><p className="hint mt-0.5 mono break-all">{ME}</p><p className="hint mt-0.5">It signed a message for this device, so the site shows it as yours here. Kept in your browser only: the address, this device's code and that signature. No key, no connection.</p></div><button type="button" className="btn btn-secondary btn-sm shrink-0" onClick={() => saveMe(null)}>Forget it</button></div>}
         <Toggle label="Reduce motion" on={p.reduce} set={(v) => p.set({ reduce: v })} hint="Stops the moving background, floating things and stamps." />
-        <Toggle label="Sound" on={p.sound} set={(v) => p.set({ sound: v })} hint="Off by default. Short, soft sounds made in your browser." />
+        <Toggle label="Sound" on={p.sound} set={(v) => p.set({ sound: v })} hint="On by default. Short, soft sounds made in your browser." />
         <p className="hint mt-5">Settings, your address and its proof stay on this device. No cookies, no account.</p>
       </section>
     </div>

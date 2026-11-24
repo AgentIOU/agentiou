@@ -16,7 +16,7 @@ U="http://127.0.0.1:4175/index.html#"
 chain=lambda who: json.loads(node("user",who))
 try:
   with sync_playwright() as p:
-    b=p.chromium.launch(executable_path="/usr/bin/google-chrome",args=["--no-sandbox"]); ctx=b.new_context(viewport={"width":390,"height":844}); pg=ctx.new_page(); errs=[]; hosts=set()
+    b=p.chromium.launch(executable_path="/usr/bin/google-chrome",args=["--no-sandbox"]); ctx=b.new_context(viewport={"width":390,"height":844}); ctx.add_init_script("window.__snd=0;for(const k of['createOscillator','createBufferSource']){const f=AudioContext.prototype[k];AudioContext.prototype[k]=function(){window.__snd++;return f.apply(this,arguments)}}"); pg=ctx.new_page(); errs=[]; hosts=set()
     pg.on("console",lambda m: m.type=="error" and errs.append(m.text[:200])); pg.on("pageerror",lambda e: errs.append(str(e)[:300])); pg.on("request",lambda r: hosts.add(r.url.split("/")[2]))
     go=lambda name,wait=900: (pg.evaluate(f"location.hash='{name}'"), pg.wait_for_timeout(wait))
     main=lambda: pg.inner_text("main")
@@ -136,11 +136,14 @@ try:
     # ---- G. the visitor says "confirmed" but never sent it
     go("mart"); pg.get_by_role("button",name="Borrow again").first.click(); pg.wait_for_timeout(400)
     pr=pg.locator("pre.code").inner_text(); late=(re.search(r"Call contract (0x[0-9a-fA-F]{40})",pr).group(1), re.search(r"^Calldata: (0x[0-9a-fA-F]+)$",pr,re.M).group(1), re.search(r"Value: ([\d.]+) BNB",pr).group(1))
-    pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(1500)
+    ok("sound is on for a first-time visitor",pg.evaluate("localStorage.getItem('agentiou.sound')") is None and pg.get_by_role("button",name="Turn sound off").count()>=1)
+    ok("opening the card made a sound",pg.evaluate("window.__snd")>0)
+    pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(1500); snd0=pg.evaluate("window.__snd")
     ok("while it waits, the visitor can go straight back to the prompt",pg.get_by_role("button",name=re.compile("back to the prompt")).count()==1)
     t0=time.time(); slow=False
     while time.time()-t0<70 and not slow: pg.wait_for_timeout(500); slow="can't see it on-chain yet" in pg.locator("[role=dialog]").inner_text()
     ok(f"nothing sent: the card does not pretend, it says it cannot see it (after {time.time()-t0+1.5:.0f}s)",slow and time.time()-t0<50)
+    ok("no sound at all while the card waits",pg.evaluate("window.__snd")==snd0,f"{pg.evaluate('window.__snd')-snd0} sounds")
     ok("nothing changed on-chain",chain(ANA)["owedCents"]==0)
     # the visitor was slow in the agent app: the call lands minutes later, and nobody presses anything on the card
     r=node("send",ANA,*late); t0=time.time(); fin=False
