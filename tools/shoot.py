@@ -2,12 +2,15 @@
 usage: python3 shoot.py <name>=<hash>[@scrollY][!mobile] ..."""
 import sys, subprocess, time, os
 from playwright.sync_api import sync_playwright
-ROOT = "/home/claude/agentiou/web/dist-preview"
+import os
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository folder
+CHROME = os.environ.get("CHROME", "/usr/bin/google-chrome")
+ROOT = BASE+"/web/dist-preview"
 srv = subprocess.Popen([sys.executable, "-m", "http.server", "4173", "--bind", "127.0.0.1"], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 time.sleep(0.8)
 try:
     with sync_playwright() as p:
-        b = p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox"])
+        b = p.chromium.launch(executable_path=CHROME, args=["--no-sandbox"])
         for spec in sys.argv[1:]:
             name, rest = spec.split("=", 1)
             mobile = rest.endswith("!mobile"); rest = rest.replace("!mobile", "")

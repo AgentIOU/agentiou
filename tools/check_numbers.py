@@ -1,9 +1,12 @@
 # Balance, Trust Score, level and XP must move by exactly the contract's amounts after each action.
 import subprocess, sys, time, re
 from playwright.sync_api import sync_playwright
+import os
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository folder
+CHROME = os.environ.get("CHROME", "/usr/bin/google-chrome")
 res=[]
 def ok(name, got, want): c = got==want; res.append(c); print(("PASS " if c else "FAIL ")+name+("" if c else f" :: got {got}, want {want}"))
-srv=subprocess.Popen([sys.executable,"-m","http.server","4174","--bind","127.0.0.1"],cwd="/home/claude/agentiou/web/dist-preview",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
+srv=subprocess.Popen([sys.executable,"-m","http.server","4174","--bind","127.0.0.1"],cwd=BASE+"/web/dist-preview",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
 U="http://127.0.0.1:4174/index.html?demo=member#"; G="http://127.0.0.1:4174/index.html#"   # U: the demo as a member; G: as a first-time guest
 def snap(pg):
     pg.evaluate("location.hash='tasks'"); pg.wait_for_timeout(500); t=pg.inner_text("main"); xp=int(re.search(r"([\d,]+)\s*XP",t).group(1).replace(",",""))
@@ -27,7 +30,7 @@ def repay(pg, who):
     pg.locator("li",has_text=who).filter(has=pg.get_by_role("button",name="Repay")).first.get_by_role("button",name="Repay").click(); confirm(pg)
 try:
   with sync_playwright() as p:
-    b=p.chromium.launch(executable_path="/usr/bin/google-chrome",args=["--no-sandbox"])
+    b=p.chromium.launch(executable_path=CHROME,args=["--no-sandbox"])
     # ---- A. normal account
     pg=b.new_page(viewport={"width":1280,"height":900}); pg.goto(U+"me"); pg.wait_for_timeout(1200); a=snap(pg); print("start",a)
     ok("start: balance is limit minus what I owe ($5 - $2.24)", a["avail"], 2.76)

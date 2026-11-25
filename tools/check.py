@@ -2,8 +2,11 @@
 Prints PASS/FAIL per check."""
 import subprocess, sys, time, re, glob, json
 from playwright.sync_api import sync_playwright
-ROOT="/home/claude/agentiou/web/dist-preview"; U="http://127.0.0.1:4173/index.html?demo=member#"; G="http://127.0.0.1:4173/index.html#"   # U: the demo as a member; G: as a first-time guest
-AXE=open("/home/claude/agentiou/web/node_modules/axe-core/axe.min.js").read()
+import os
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository folder
+CHROME = os.environ.get("CHROME", "/usr/bin/google-chrome")
+ROOT=BASE+"/web/dist-preview"; U="http://127.0.0.1:4173/index.html?demo=member#"; G="http://127.0.0.1:4173/index.html#"   # U: the demo as a member; G: as a first-time guest
+AXE=open(BASE+"/web/node_modules/axe-core/axe.min.js").read()
 res=[]
 def ok(name, cond, note=""): res.append((bool(cond), name, note)); print(("PASS " if cond else "FAIL ")+name+((" :: "+str(note)) if note and not cond else ""))
 srv=subprocess.Popen([sys.executable,"-m","http.server","4173","--bind","127.0.0.1"],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
@@ -11,7 +14,7 @@ ME="0xde30000000000000000000000000000000000142"; MIRA="0xde300000000000000000000
 PAGES=["home","start","me","mart","tasks","new","board","proof","about","legal","u-"+MIRA,"nowhere"]
 try:
   with sync_playwright() as p:
-    b=p.chromium.launch(executable_path="/usr/bin/google-chrome",args=["--no-sandbox"])
+    b=p.chromium.launch(executable_path=CHROME,args=["--no-sandbox"])
     # ---- 1. pages: load, no errors, no outside requests, no sideways scroll, one h1, accessibility
     for mobile in (False, True):
       ctx=b.new_context(viewport={"width":360,"height":740} if mobile else {"width":1440,"height":900},is_mobile=mobile,has_touch=mobile,reduced_motion="reduce")
@@ -202,16 +205,16 @@ try:
     ok("no script errors during flows",not errs,errs[:3]); b.close()
 finally: srv.terminate()
 # ---- 3. static rules on the source and the build
-src="".join(open(f).read() for f in glob.glob("/home/claude/agentiou/web/src/**/*.ts*",recursive=True))
+src="".join(open(f).read() for f in glob.glob(BASE+"/web/src/**/*.ts*",recursive=True))
 ok("no wallet connection code",not re.search(r"window\.ethereum|walletconnect|eth_requestAccounts|privateKey|mnemonic",src,re.I))
 ok("no network calls in the site code",not re.search(r"\bfetch\(|XMLHttpRequest|WebSocket\(|sendBeacon",src))
 ok("no raw HTML is ever written into the page",src.count("dangerouslySetInnerHTML")==0 and "innerHTML" not in src)
 ok("no eval or new Function",not re.search(r"\beval\(|new Function\(",src))
 ok("storage keys are settings only",set(re.findall(r"(?:read|write)\('(\w+)'",src))<= {"sound","reduce"} and src.count("localStorage.setItem(ME_KEY")==1,sorted(set(re.findall(r"(?:read|write)\('(\w+)'",src))))
-pub=json.load(open("/home/claude/agentiou/web/public/agentiou-abi.json")); ok("the public ABI for other apps has getUser, trustScore and levelOf",{"getUser","trustScore","levelOf"}<={x.get("name") for x in pub if x.get("type")=="function"})
+pub=json.load(open(BASE+"/web/public/agentiou-abi.json")); ok("the public ABI for other apps has getUser, trustScore and levelOf",{"getUser","trustScore","levelOf"}<={x.get("name") for x in pub if x.get("type")=="function"})
 js="".join(open(f).read() for f in glob.glob(ROOT+"/assets/*.js")); ok("build has no outside URLs to load (its own address appears only as text in the Open Trust API docs)",not re.findall(r"https?://(?!agentiou\.pages\.dev|x\.com/AgentIOU|github\.com/AgentIOU|bscscan\.com/address|bsc-dataseed1?\.bnbchain\.org|bsc-rpc\.publicnode\.com|www\.w3\.org|reactjs\.org|react\.dev|github\.com|viem\.sh|oxlib\.sh|abitype\.dev)[\w.-]+",js) ,sorted(set(re.findall(r"https?://(?!x\.com/AgentIOU|github\.com/AgentIOU|bscscan\.com/address|bsc-dataseed1?\.bnbchain\.org|bsc-rpc\.publicnode\.com|www\.w3\.org|reactjs\.org|react\.dev|github\.com|viem\.sh|oxlib\.sh|abitype\.dev)[\w.-]+",js)))[:6])
-hd=open("/home/claude/agentiou/web/public/_headers").read(); ok("security headers file",all(k in hd for k in ("Content-Security-Policy","frame-ancestors 'none'","nosniff","Referrer-Policy","Permissions-Policy")))
+hd=open(BASE+"/web/public/_headers").read(); ok("security headers file",all(k in hd for k in ("Content-Security-Policy","frame-ancestors 'none'","nosniff","Referrer-Policy","Permissions-Policy")))
 import subprocess as sp
 for script,want in (("check_abi.mjs","12 of 12 site calls match the contract"),("check_units.mjs","200013 of 200013 amounts exact")):
-    out=sp.run(["node","/home/claude/agentiou/tools/"+script],capture_output=True,text=True).stdout.strip(); ok(script+": "+want,want in out,out[-300:])
+    out=sp.run(["node",BASE+"/tools/"+script],capture_output=True,text=True).stdout.strip(); ok(script+": "+want,want in out,out[-300:])
 f=[r for r in res if not r[0]]; print(f"\n{len(res)-len(f)} of {len(res)} checks passed"); [print("FAILED:",n,note) for _,n,note in f]

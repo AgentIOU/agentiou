@@ -1,7 +1,10 @@
 """Extra checks: more screen widths, Android emulation, keyboard-only use, speed numbers."""
 import subprocess, sys, time, gzip, glob
 from playwright.sync_api import sync_playwright
-ROOT="/home/claude/agentiou/web/dist-preview"; U="http://127.0.0.1:4173/index.html?demo=member#"; G="http://127.0.0.1:4173/index.html#"   # U: the demo as a member; G: as a first-time guest
+import os
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository folder
+CHROME = os.environ.get("CHROME", "/usr/bin/google-chrome")
+ROOT=BASE+"/web/dist-preview"; U="http://127.0.0.1:4173/index.html?demo=member#"; G="http://127.0.0.1:4173/index.html#"   # U: the demo as a member; G: as a first-time guest
 MIRA="0xde300000000000000000000000000000000002b7"; ME="0xde30000000000000000000000000000000000142"
 PAGES=["home","start","me","mart","tasks","new","board","proof","about","legal","u-"+MIRA,"nowhere"]
 res=[]
@@ -9,7 +12,7 @@ def ok(n,c,note=""): res.append((bool(c),n,note)); print(("PASS " if c else "FAI
 srv=subprocess.Popen([sys.executable,"-m","http.server","4173","--bind","127.0.0.1"],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
 try:
   with sync_playwright() as p:
-    b=p.chromium.launch(executable_path="/usr/bin/google-chrome",args=["--no-sandbox"])
+    b=p.chromium.launch(executable_path=CHROME,args=["--no-sandbox"])
     for w,h in ((320,640),(412,915),(768,1024),(1024,768),(1920,1080)):
       ctx=b.new_context(viewport={"width":w,"height":h},reduced_motion="reduce"); bad=[]
       for pg_ in PAGES:

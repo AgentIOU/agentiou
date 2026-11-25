@@ -3,7 +3,11 @@ The site writes each prompt; this test sends exactly the call the prompt describ
 then checks that the site moves on only when the chain shows it, and that every number on screen equals the contract's."""
 import subprocess, sys, time, re, json, os, signal
 from playwright.sync_api import sync_playwright
-ROOT="/home/claude/agentiou"; C=ROOT+"/contracts"; res=[]
+import os
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository folder
+CHROME = os.environ.get("CHROME", "/usr/bin/google-chrome")
+WRANGLER = os.environ.get("WRANGLER", "npx --yes wrangler@4")   # Cloudflare's local runner for the API function
+ROOT=BASE; C=ROOT+"/contracts"; res=[]
 def ok(name, cond, note=""): res.append(bool(cond)); print(("PASS " if cond else "FAIL ")+name+((" :: "+str(note)[:400]) if note and not cond else "")); sys.stdout.flush()
 def node(*a): return subprocess.run(["node","live_chain.mjs",*map(str,a)],cwd=C,capture_output=True,text=True,timeout=120).stdout.strip().split("\n")[-1]
 subprocess.run("pkill -f 'anvil.*8547'",shell=True); time.sleep(0.5)
@@ -14,7 +18,7 @@ b_=subprocess.run("npx vite build --mode preview --outDir dist-live && rm -f dis
 srv=subprocess.Popen([sys.executable,"-m","http.server","4175","--bind","127.0.0.1"],cwd=ROOT+"/web/dist-live",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
 U="http://127.0.0.1:4175/index.html#"
 subprocess.run("pkill -f 'wrangler.*8791'",shell=True)
-wr=subprocess.Popen(f"CI=1 WRANGLER_SEND_METRICS=false npx --prefix /tmp/wr wrangler pages dev dist-live --port 8791 --ip 127.0.0.1 --binding RPC_URL=http://127.0.0.1:8547 --binding CONTRACT={A['contract']} --compatibility-date=2025-01-01",shell=True,cwd=ROOT+"/web",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+wr=subprocess.Popen(f"CI=1 WRANGLER_SEND_METRICS=false {WRANGLER} pages dev dist-live --port 8791 --ip 127.0.0.1 --binding RPC_URL=http://127.0.0.1:8547 --binding CONTRACT={A['contract']} --compatibility-date=2025-01-01",shell=True,cwd=ROOT+"/web",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
 import urllib.request, urllib.error
 def api(path,method="GET"):
     req=urllib.request.Request("http://127.0.0.1:8791"+path,method=method)
@@ -32,7 +36,7 @@ def api_same(who,label):
 chain=lambda who: json.loads(node("user",who))
 try:
   with sync_playwright() as p:
-    b=p.chromium.launch(executable_path="/usr/bin/google-chrome",args=["--no-sandbox"]); ctx=b.new_context(viewport={"width":390,"height":844}); ctx.add_init_script("window.__snd=0;for(const k of['createOscillator','createBufferSource']){const f=AudioContext.prototype[k];AudioContext.prototype[k]=function(){window.__snd++;return f.apply(this,arguments)}}"); pg=ctx.new_page(); errs=[]; hosts=set()
+    b=p.chromium.launch(executable_path=CHROME,args=["--no-sandbox"]); ctx=b.new_context(viewport={"width":390,"height":844}); ctx.add_init_script("window.__snd=0;for(const k of['createOscillator','createBufferSource']){const f=AudioContext.prototype[k];AudioContext.prototype[k]=function(){window.__snd++;return f.apply(this,arguments)}}"); pg=ctx.new_page(); errs=[]; hosts=set()
     pg.on("console",lambda m: m.type=="error" and errs.append(m.text[:200])); pg.on("pageerror",lambda e: errs.append(str(e)[:300])); pg.on("request",lambda r: hosts.add(r.url.split("/")[2]))
     go=lambda name,wait=900: (pg.evaluate(f"location.hash='{name}'"), pg.wait_for_timeout(wait))
     main=lambda: pg.inner_text("main")
