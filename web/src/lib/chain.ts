@@ -62,3 +62,9 @@ export async function loadAll(): Promise<Snapshot> {
 }
 /** Has my wallet approved the contract to move at least this much USDT? (The first of the two repay steps.) */
 export const usdtAllowanceAtLeast = async (raw: string) => (await client.readContract({ address: USDT as `0x${string}`, abi: EXTRA, functionName: 'allowance', args: [ME as `0x${string}`, C] })) >= BigInt(raw)
+/** Open Trust: one wallet's record, read straight from getUser at this moment. Works for any address; a non-member reads as not verified. */
+export async function readTrust(address: string): Promise<import('./trustShape').Trust> {
+  const { toTrust } = await import('./trustShape')
+  const a = getAddress(address)
+  return toTrust(a, await read<import('./trustShape').GetUserResult>('getUser', [a]))
+}

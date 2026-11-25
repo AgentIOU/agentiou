@@ -13,6 +13,22 @@ env=dict(os.environ,VITE_CONTRACT=A["contract"],VITE_MART=A["mart"],VITE_RPC="ht
 b_=subprocess.run("npx vite build --mode preview --outDir dist-live && rm -f dist-live/_headers",shell=True,cwd=ROOT+"/web",env=env,capture_output=True,text=True); assert "built in" in b_.stdout+b_.stderr, b_.stdout[-400:]+b_.stderr[-400:]
 srv=subprocess.Popen([sys.executable,"-m","http.server","4175","--bind","127.0.0.1"],cwd=ROOT+"/web/dist-live",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
 U="http://127.0.0.1:4175/index.html#"
+subprocess.run("pkill -f 'wrangler.*8791'",shell=True)
+wr=subprocess.Popen(f"CI=1 WRANGLER_SEND_METRICS=false npx --prefix /tmp/wr wrangler pages dev dist-live --port 8791 --ip 127.0.0.1 --binding RPC_URL=http://127.0.0.1:8547 --binding CONTRACT={A['contract']} --compatibility-date=2025-01-01",shell=True,cwd=ROOT+"/web",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+import urllib.request, urllib.error
+def api(path,method="GET"):
+    req=urllib.request.Request("http://127.0.0.1:8791"+path,method=method)
+    try:
+        with urllib.request.urlopen(req,timeout=20) as r: return r.status,dict(r.headers),r.read().decode()
+    except urllib.error.HTTPError as e: return e.code,dict(e.headers),e.read().decode()
+for _ in range(60):
+    try: api("/api/ping"); break
+    except Exception: time.sleep(1)
+def api_same(who,label):
+    c=chain(who); st,h,body=api("/api/trust/"+who); j=json.loads(body) if st==200 else {}
+    want=dict(verified=True,trustScore=c["score"],level=c["level"],limitUsd=c["limitCents"]/100,overdue=c["overdue"],restricted=c["restricted"],onTimeRepays=c["onTime"],late=c["late"])
+    got={k:j.get(k) for k in want}
+    ok(f"API {label}: the same numbers as the contract",st==200 and got==want and h.get("Access-Control-Allow-Origin")=="*",(st,got,want))
 chain=lambda who: json.loads(node("user",who))
 try:
   with sync_playwright() as p:
@@ -168,7 +184,7 @@ try:
     tb=[x for x in pg.get_by_role("button",name="Take on credit").all() if x.is_enabled()]; ok("next day the offers are open again",len(tb)>=1); tb[-1].click(); pg.wait_for_timeout(400); ok("take the 0.05 USDT loan",act(ANA)); done()
     node("call",BEN,"createIOU",json.dumps([ANA,0,"80000000000000n",5,"Bus fare"])); pg.reload(); pg.wait_for_timeout(3500); go("me",900)   # IOU 5: a friend's BNB IOU, so BNB repay is covered too
     pg.get_by_role("button",name="Accept").first.click(); pg.wait_for_timeout(400); ok("accept a friend's BNB IOU",act(ANA)); done()
-    node("warp",6*86400); pg.reload(); pg.wait_for_timeout(3500); c=same("three IOUs past due"); ok("the contract says Restricted and the site shows it",c["restricted"] and "Restricted" in main())
+    node("warp",6*86400); pg.reload(); pg.wait_for_timeout(3500); c=same("three IOUs past due"); ok("the contract says Restricted and the site shows it",c["restricted"] and "Restricted" in main()); api_same(ANA,"while Restricted"); t_api=time.time()
     go("mart"); ok("Restricted: nothing can be taken",all(x.is_disabled() for x in pg.get_by_role("button",name="Take on credit").all()))
     go("me"); n0=pg.get_by_role("button",name="Repay").count(); ok("Restricted: all three overdue IOUs offer Repay",n0==3,n0)
     li=pg.locator("li",has_text="BNB").filter(has=pg.get_by_role("button",name="Repay")).first; li.get_by_role("button",name="Repay").click(); pg.wait_for_timeout(400)
@@ -200,10 +216,25 @@ try:
     ok("leaderboard: higher points first",lis and ("ana" in lis[0])==(ca["score"]*10+ca["xp"]>=cb["score"]*10+cb["xp"]),lis)
     go("u-"+BEN); ok("another member's profile is readable","ben" in main() and "Member No. 000001" in main(),main()[:200])
     ok(f"a confirmed step shows up fast: {sorted(speed)[len(speed)//2]:.1f}s typical, {max(speed):.1f}s slowest of {len(speed)}",max(speed)<8,speed)
+    # ---- K. Open Trust: the page and the web API read the same record any lender would
+    time.sleep(max(0,31-(time.time()-t_api)))   # past the API's 30-second cache from the Restricted check
+    api_same(ANA,"after everything was repaid"); api_same(BEN,"for another member")
+    st,h,body=api("/api/trust/"+CAT.lower()); j=json.loads(body); ok("API: an address that never joined reads as not verified, every number 0",st==200 and j["verified"] is False and j["trustScore"]==0 and j["level"]==0 and j["restricted"] is False and j["address"]==CAT,(st,j))
+    st,h,body=api("/api/trust/0x123"); ok("API: a wrong address gets status 400 and a JSON error",st==400 and json.loads(body)["error"]=="invalid_address",(st,body[:120]))
+    st,h,body=api("/api/anything"); ok("API: any other path gets JSON 404, not the website",st==404 and json.loads(body)["error"]=="not_found",(st,body[:120]))
+    st,h,body=api("/api/trust/"+ANA,"OPTIONS"); ok("API: browsers on other sites may call it (CORS)",st==204 and h.get("Access-Control-Allow-Origin")=="*",(st,h))
+    go("trust",1200); ok("API and code stay folded until asked","/api/trust/" not in main() and pg.get_by_role("button",name="API for developers").get_attribute("aria-expanded")=="false"); pg.get_by_role("button",name="API for developers").click(); pg.wait_for_timeout(400); ok("Open Trust page opens, with the API and the contract read",all(x in main() for x in ("Open Trust","Trust Check for DeFi & CEX","/api/trust/","getUser(address)","never by nickname")),main()[:300])
+    pg.fill("#tw",ANA); pg.get_by_role("button",name="Check").click(); pg.wait_for_timeout(2500); t=main(); c=chain(ANA)
+    ok("Open Trust check shows the contract's score, level and flags",str(c["score"]) in t and f"Level {c['level']}, ${c['limitCents']//100} limit" in t and ("Not restricted" in t)==(not c["restricted"]) and ("No overdue IOUs" in t)==(not c["overdue"]) and f"/api/trust/{ANA}" in t,t[t.find("Agentic Wallet address"):][:400])
+    pg.fill("#tw",CAT); pg.get_by_role("button",name="Check").click(); pg.wait_for_timeout(2500); ok("Open Trust check: a wallet that never joined says so","Not IOU Verified" in main())
+    ok("footer links to Open Trust",pg.locator("footer").get_by_role("link",name=re.compile("Open Trust")).count()==1)
     c2=b.new_context(viewport={"width":390,"height":844}); p2=c2.new_page(); p2.goto(U+"home"); p2.wait_for_timeout(1500)
     p2.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr);localStorage.setItem('agentiou.device','ZZZZ-2222')}",kept); p2.reload(); p2.wait_for_timeout(4000)
     ok("the address and its proof copied to another device do not open the profile there",p2.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and p2.locator("header").get_by_role("link",name=re.compile("^Profile:")).count()==0); c2.close()
     ok("the page only ever talked to its own host and the chain",hosts<={"127.0.0.1:4175","127.0.0.1:8547"},hosts); ok("no script errors",not errs,errs[:3]); b.close()
 finally:
     srv.terminate(); anvil.terminate()
+    import os, signal as _sg
+    try: os.killpg(wr.pid,_sg.SIGTERM)
+    except Exception: pass
 print(f"\n{sum(res)} of {len(res)} live checks passed")

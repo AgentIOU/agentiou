@@ -24,17 +24,17 @@ The site never asks for an unlimited approval. Every repay prompt names who gets
 
 | Rule | How AgentIOU meets it |
 |---|---|
-| No web QR or pairing-code login, no stored sessions | The site has no account, password, QR code, pairing code or wallet connection, and no server to hold a session. It only writes prompts the person pastes into their own Agentic Wallet. To show a profile as "mine" on a device, the wallet signs one EIP-712 message (statement, wallet, device code, issued, expires) with `sign-message`; the signature is checked in the browser (`web/src/lib/proof.ts`) and kept on that device only. It is a signature only: no transaction, no approval. Typing an address never makes a profile "mine"; anyone can still view a public record, as on BscScan |
+| No web QR or pairing-code login, no stored sessions | The site has no account, password, QR code, pairing code or wallet connection, and nothing that holds a session: the only server code is the read-only Open Trust API (`web/functions/api/trust`), which takes a wallet address, reads the contract and keeps nothing. It only writes prompts the person pastes into their own Agentic Wallet. To show a profile as "mine" on a device, the wallet signs one EIP-712 message (statement, wallet, device code, issued, expires) with `sign-message`; the signature is checked in the browser (`web/src/lib/proof.ts`) and kept on that device only. It is a signature only: no transaction, no approval. Typing an address never makes a profile "mine"; anyone can still view a public record, as on BscScan |
 | No confirmation bypass | Every prompt ends: "Show me the preview and risks first. Do not execute until I confirm." |
 | No scheduled collection, automatic or bundled transfers, unlimited approvals | Every transfer is one call the borrower starts and confirms; approvals are for the exact amount |
 | Open source, owner permissions documented | This repository and this file; the contract source is verified on BscScan after deployment |
 | No "Binance" or "BNB" in project, token or domain names | Project and site name: AgentIOU. Nicknames containing "binance", "bnb", "official", "admin" or "support" are refused by the contract |
-| Never collect seed phrases, private keys, API secrets or pairing codes | The site has no form that asks for them and no server to send them to |
+| Never collect seed phrases, private keys, API secrets or pairing codes | The site has no form that asks for them; the only server code, the read-only Open Trust API, accepts nothing but a public wallet address |
 | No name lookup of other people | There is no search by name; an IOU needs the other person's address |
 
 ## Website protection
 
-- Static site with no backend: there is no database or account to break into.
+- Static site. The only server code is the read-only Open Trust API: no database, no account, no key and nothing stored, so there is nothing to break into. It looks up by wallet address only, never by nickname or Agent ID name.
 - The only thing kept in the visitor's browser is the public address they typed in, plus the sound and motion settings. No key, no session, no cookie.
 - The site moves a step forward only when it can read the result from the contract; a visitor pressing "I confirmed" proves nothing by itself.
 - Content Security Policy blocks outside scripts; only the BNB Smart Chain RPC hosts can be contacted.

@@ -22,7 +22,7 @@ The site never connects to a wallet. It writes a plain-text prompt with the exac
 | Folder | What it holds |
 |---|---|
 | `contracts/` | `AgentIOU.sol` (the whole contract), test mocks, compile script and a 106-check test run on a local chain, and the local-chain helper for the live website test |
-| `web/` | The website: Vite, React, TypeScript, Tailwind, GSAP, viem. No backend, no account, no password, no wallet connect, no stored sessions. A profile is shown as "mine" on a device only after that wallet signs one EIP-712 message naming the device; the check runs in the browser |
+| `web/` | The website: Vite, React, TypeScript, Tailwind, GSAP, viem. No account, no password, no wallet connect, no stored sessions, no database. The only server code is one read-only API function for Open Trust (`web/functions/api/trust`). A profile is shown as "mine" on a device only after that wallet signs one EIP-712 message naming the device; the check runs in the browser |
 | `tools/` | Image cutting scripts and the browser checks for the site (`check.py`, `check2.py`, `check_numbers.py`, `check_abi.mjs`, `check_units.mjs`), the live test `check_live.py` (the built site against a local chain, sending each prompt's exact call), and `abi.mjs` (exports the contract's read interface for the site) |
 | `docs/SECURITY.md` | Owner permissions (none), money flows, what the project never does, known limits |
 | `docs/DEPLOY.md` | The deployment order, compiler settings and the values to type in |
@@ -54,6 +54,18 @@ Demo or live is chosen when the site is built:
 - **Live**: set `VITE_CONTRACT` (the AgentIOU address) and `VITE_MART` (the Promise Mart wallet) in the build environment. Every number is then read from the contract; the site only reads, it never signs or sends.
 
 A visitor starts as a guest: they can look at everything, and every action stays off until their wallet has joined. The only thing saved in the browser is the visitor's public address.
+
+## Open Trust (Trust Check for DeFi & CEX)
+
+Any app or exchange can read an Agent ID wallet's AgentIOU record before it lends. Page: https://agentiou.pages.dev/trust
+
+- **Web API** (read only, no key, CORS open, cached 30 s):
+
+      GET https://agentiou.pages.dev/api/trust/{walletAddress}
+
+  Returns JSON: `verified`, `trustScore` (0-100), `level` (0-3), `limitUsd`, `overdue`, `restricted`, `onTimeRepays`, `late`, `defaults`, `peopleDealtWith`, `readAt`, `contract`. A wrong address gets status 400; a chain read failure gets 502.
+- **Straight from the contract** (no server): `getUser(address)`, `trustScore(address)`, `levelOf(address)`. ABI: https://agentiou.pages.dev/agentiou-abi.json
+- Lookups are by wallet address only, never by nickname or Agent ID name. Each app sets its own rules; AgentIOU blocks no one outside AgentIOU.
 
 ## Licence
 

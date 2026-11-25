@@ -16,8 +16,9 @@ import Mart from './pages/Mart'
 import Tasks from './pages/Tasks'
 import { Me, Public } from './pages/Profile'
 import { Board, About, Legal, NewIou, NotFound, ProofPage, Start } from './pages/More'
+import TrustPage from './pages/Trust'
 
-const TITLES: Record<string, string> = { home: "AgentIOU: pay later, can't disappear", start: 'Get IOU Verified', me: 'My IOUs', mart: 'Promise Mart', tasks: 'Task Hub', new: 'New IOU', board: 'Leaderboard', proof: 'Proof & Safety', about: 'About AgentIOU', legal: 'Terms, privacy and risks', u: 'Profile', notfound: 'Page not found' }
+const TITLES: Record<string, string> = { home: "AgentIOU: pay later, can't disappear", start: 'Get IOU Verified', me: 'My IOUs', mart: 'Promise Mart', tasks: 'Task Hub', new: 'New IOU', board: 'Leaderboard', proof: 'Proof & Safety', about: 'About AgentIOU', legal: 'Terms, privacy and risks', trust: 'Open Trust', u: 'Profile', notfound: 'Page not found' }
 function Shell() {
   const r = useRoute(); const { last, toast, joined, loaded, chainDown } = useStore()
   // live: My IOUs, New IOU and my own profile exist only once this device's address has joined
@@ -33,7 +34,7 @@ function Shell() {
         {!DEMO && chainDown && <p role="status" className="wrap pt-20 -mb-16 text-coral text-[14px] font-semibold">Can't reach BNB Smart Chain right now. Numbers may be out of date; the site keeps trying.</p>}
         {loaded && !joined && r.name !== 'start' && !needMe && <p role="note" className="wrap pt-[76px] -mb-[60px] relative z-[2]"><span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-rule bg-ledger/90 px-3.5 py-2 text-[14px]"><span className="pill pill-muted"><Eye size={14} aria-hidden />Guest</span><span className="text-muted">You can look at everything. Actions switch on once you get IOU Verified.</span><Link to="start" className="font-semibold underline underline-offset-4">Get IOU Verified</Link><Link to="home" scrollTo="faq" className="font-semibold underline underline-offset-4">FAQs</Link></span></p>}
         {needMe ? <div className="wrap pt-32 pb-24 flex flex-wrap items-center gap-8"><Mascot pose="wave" className="w-40" /><div><h1 className="h2">Get IOU Verified first</h1><p className="lead mt-3">{DEMO ? 'You are browsing as a guest. Your own IOUs and profile appear here once you join.' : HAS_ME ? 'This address has not joined AgentIOU yet. Joining takes one transaction.' : 'Your IOUs and profile appear here once you are IOU Verified. Five short steps, no wallet connection and no key.'}</p><Link to="start" className="btn btn-primary mt-6">Get IOU Verified</Link></div></div>
-          : r.name === 'home' ? <Home /> : r.name === 'start' ? <Start /> : r.name === 'me' ? <Me /> : r.name === 'mart' ? <Mart /> : r.name === 'tasks' ? <Tasks /> : r.name === 'new' ? <NewIou /> : r.name === 'board' ? <Board /> : r.name === 'proof' ? <ProofPage /> : r.name === 'about' ? <About /> : r.name === 'legal' ? <Legal /> : r.name === 'u' ? <Public address={r.param ?? ''} /> : <NotFound />}
+          : r.name === 'home' ? <Home /> : r.name === 'start' ? <Start /> : r.name === 'me' ? <Me /> : r.name === 'mart' ? <Mart /> : r.name === 'tasks' ? <Tasks /> : r.name === 'new' ? <NewIou /> : r.name === 'board' ? <Board /> : r.name === 'proof' ? <ProofPage /> : r.name === 'about' ? <About /> : r.name === 'legal' ? <Legal /> : r.name === 'trust' ? <TrustPage /> : r.name === 'u' ? <Public address={r.param ?? ''} /> : <NotFound />}
       </main>
       <div className="relative z-[1]"><Footer /></div>
       <TabBar route={r.name} /><Tray /><Toasts />
