@@ -6,3 +6,6 @@ const want = ['getUser', 'getUserIOUs', 'getRecentIOUs', 'getOffers', 'getUsers'
 const out = want.map((n) => { const f = abi.find((x) => x.type === 'function' && x.name === n); if (!f) throw new Error('missing ' + n); return f })
 writeFileSync(new URL('../web/src/data/abi.json', import.meta.url), JSON.stringify(out) + '\n')
 console.log(`wrote ${out.length} read functions to web/src/data/abi.json`)
+// the full interface, published for other apps (Open Trust): every function and event of the deployed contract
+writeFileSync(new URL('../web/public/agentiou-abi.json', import.meta.url), JSON.stringify(abi) + '\n')
+console.log(`wrote the full ABI (${abi.length} entries) to web/public/agentiou-abi.json`)

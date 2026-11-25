@@ -1,6 +1,6 @@
 """Full check of the built preview: every page loads, every flow works, the rules hold, nothing overflows, accessibility scan.
 Prints PASS/FAIL per check."""
-import subprocess, sys, time, re, glob
+import subprocess, sys, time, re, glob, json
 from playwright.sync_api import sync_playwright
 ROOT="/home/claude/agentiou/web/dist-preview"; U="http://127.0.0.1:4173/index.html?demo=member#"; G="http://127.0.0.1:4173/index.html#"   # U: the demo as a member; G: as a first-time guest
 AXE=open("/home/claude/agentiou/web/node_modules/axe-core/axe.min.js").read()
@@ -208,6 +208,7 @@ ok("no network calls in the site code",not re.search(r"\bfetch\(|XMLHttpRequest|
 ok("no raw HTML is ever written into the page",src.count("dangerouslySetInnerHTML")==0 and "innerHTML" not in src)
 ok("no eval or new Function",not re.search(r"\beval\(|new Function\(",src))
 ok("storage keys are settings only",set(re.findall(r"(?:read|write)\('(\w+)'",src))<= {"sound","reduce"} and src.count("localStorage.setItem(ME_KEY")==1,sorted(set(re.findall(r"(?:read|write)\('(\w+)'",src))))
+pub=json.load(open("/home/claude/agentiou/web/public/agentiou-abi.json")); ok("the public ABI for other apps has getUser, trustScore and levelOf",{"getUser","trustScore","levelOf"}<={x.get("name") for x in pub if x.get("type")=="function"})
 js="".join(open(f).read() for f in glob.glob(ROOT+"/assets/*.js")); ok("build has no outside URLs to load (its own address appears only as text in the Open Trust API docs)",not re.findall(r"https?://(?!agentiou\.pages\.dev|x\.com/AgentIOU|github\.com/AgentIOU|bscscan\.com/address|bsc-dataseed1?\.bnbchain\.org|bsc-rpc\.publicnode\.com|www\.w3\.org|reactjs\.org|react\.dev|github\.com|viem\.sh|oxlib\.sh|abitype\.dev)[\w.-]+",js) ,sorted(set(re.findall(r"https?://(?!x\.com/AgentIOU|github\.com/AgentIOU|bscscan\.com/address|bsc-dataseed1?\.bnbchain\.org|bsc-rpc\.publicnode\.com|www\.w3\.org|reactjs\.org|react\.dev|github\.com|viem\.sh|oxlib\.sh|abitype\.dev)[\w.-]+",js)))[:6])
 hd=open("/home/claude/agentiou/web/public/_headers").read(); ok("security headers file",all(k in hd for k in ("Content-Security-Policy","frame-ancestors 'none'","nosniff","Referrer-Policy","Permissions-Policy")))
 import subprocess as sp

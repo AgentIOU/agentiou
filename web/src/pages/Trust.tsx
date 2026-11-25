@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ChevronDown, Copy } from 'lucide-react'
 import { DEMO, LEVELS, isAddr, levelOf, score } from '../lib/data'
 import { useStore } from '../lib/store'
@@ -7,7 +7,7 @@ import { useCopy, DemoChip } from '../components/ui'
 import { AGENTIOU_MAINNET, SITE, type Trust } from '../lib/trustShape'
 
 /* /trust: Open Trust. Any lender, on-chain or off, can read an Agent ID wallet's AgentIOU record before it lends. Read only. */
-const EXAMPLE = '0x3b9F2c41E0d8a7B6f5C4D3e2F1a0B9c8D7e6a71C'
+const EXAMPLE = '0x54D9a0D1811D32bF68B523A7Aa293D3Ab4e8e325'   // made up for the example (valid checksum, nobody's wallet); the numbers below follow the contract's own formula: 50 + 5×5 on time + 2×3 people = 81
 const SOL = `interface IAgentIOU {
     // 0 to 100; 0 if the wallet is not a member
     function trustScore(address wallet) external view returns (uint8);
@@ -47,10 +47,12 @@ function Block({ title, code, copyText, what }: { title: string; code: string; c
 }
 
 function Result({ t }: { t: Trust }) {
-  if (!t.verified) return <div className="mt-5 pt-5 border-t border-dashed border-rule" role="status"><span className="pill pill-muted">Not IOU Verified</span><p className="text-muted mt-3">This wallet has not joined AgentIOU, so there is no repayment record to read. Every number reads as 0.</p></div>
+  const who = <p className="text-[13px] text-muted mb-3">Record for <span className="mono text-chalk break-all">{t.address}</span></p>
+  if (!t.verified) return <div className="mt-5 pt-5 border-t border-dashed border-rule" role="status">{who}<span className="pill pill-muted">Not IOU Verified</span><p className="text-muted mt-3">This wallet has not joined AgentIOU, so there is no repayment record to read. Every number reads as 0.</p></div>
   const cells: [string, number][] = [['On-time repays', t.onTimeRepays], ['Late', t.late], ['Defaults', t.defaults], ['People dealt with', t.peopleDealtWith]]
   return (
     <div className="mt-5 pt-5 border-t border-dashed border-rule" role="status">
+      {who}
       <p className="flex items-baseline gap-3"><span className="led text-amber text-[56px] leading-none">{String(t.trustScore)}</span><span className="text-muted">Trust Score, out of 100</span></p>
       <div className="flex flex-wrap gap-2 mt-4">
         <span className="pill pill-leaf">IOU Verified</span>
@@ -69,8 +71,10 @@ export default function TrustPage() {
   const [addr, setAddr] = useState(''); const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<Trust | null>(null); const [err, setErr] = useState(''); const [at, setAt] = useState(''); const [dev, setDev] = useState(false)
   const bad = addr.trim() !== '' && !isAddr(addr)
+  const req = useRef(0)   // each check gets a number; an answer that comes back after the address was changed is thrown away
   const check = async () => {
     const a = addr.trim(); if (!isAddr(a)) return
+    const id = ++req.current
     setBusy(true); setErr(''); setRes(null)
     try {
       if (DEMO) {
@@ -78,13 +82,13 @@ export default function TrustPage() {
         const lv = u ? levelOf(u) : 0
         setRes(u ? { address: u.address, verified: true, trustScore: score(u), level: lv, limitUsd: LEVELS[lv - 1].limit, overdue: s.hasOverdue(u.address), restricted: s.restricted(u.address), onTimeRepays: u.onTime, late: u.late, defaults: u.defaults, peopleDealtWith: u.people }
           : { address: a, verified: false, trustScore: 0, level: 0, limitUsd: 0, overdue: false, restricted: false, onTimeRepays: 0, late: 0, defaults: 0, peopleDealtWith: 0 })
-      } else setRes(await (await import('../lib/chain')).readTrust(a))
-    } catch { setErr("Can't reach BNB Smart Chain right now. Try again in a moment.") }
+      } else { const t = await (await import('../lib/chain')).readTrust(a); if (id !== req.current) return; setRes(t) }
+    } catch { if (id !== req.current) return; setErr("Can't reach BNB Smart Chain right now. Try again in a moment.") }
     setAt(new Date().toISOString()); setBusy(false)
   }
   const apiUrl = `${SITE}/api/trust/${res?.address ?? EXAMPLE}`
   const extra = { contract: AGENTIOU_MAINNET, chain: 'BNB Smart Chain (56)', docs: `${SITE}/trust` }
-  const sample = res ? { ...res, readAt: at, ...extra } : { address: EXAMPLE, verified: true, trustScore: 74, level: 2, limitUsd: 5, overdue: false, restricted: false, onTimeRepays: 5, late: 0, defaults: 0, peopleDealtWith: 3, readAt: '2026-11-25T10:45:00.000Z', ...extra }
+  const sample = res ? { ...res, readAt: at, ...extra } : { address: EXAMPLE, verified: true, trustScore: 81, level: 2, limitUsd: 5, overdue: false, restricted: false, onTimeRepays: 5, late: 0, defaults: 0, peopleDealtWith: 3, readAt: '2026-11-25T10:45:00.000Z', ...extra }
   return (
     <div className="wrap relative pt-28 pb-16">
       <div className="grid gap-10 gap-y-8 lg:grid-cols-[1.05fr_1fr] items-start">
@@ -96,7 +100,7 @@ export default function TrustPage() {
         <form className="panel p-5 min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2" onSubmit={(e) => { e.preventDefault(); void check() }} aria-labelledby="t-check">
           <h2 id="t-check" className="sr-only">Check a wallet</h2>
           <label className="label" htmlFor="tw">Agentic Wallet address</label>
-          <div className="flex gap-2.5"><input id="tw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => { setAddr(e.target.value); setRes(null); setErr('') }} autoComplete="off" spellCheck={false} aria-describedby="tw-h" /><button className="btn btn-primary" disabled={busy || !isAddr(addr)}>{busy ? 'Reading' : 'Check'}</button></div>
+          <div className="flex gap-2.5"><input id="tw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => { setAddr(e.target.value); req.current++; setRes(null); setErr(''); setBusy(false) }} autoComplete="off" spellCheck={false} aria-describedby="tw-h" /><button className="btn btn-primary" disabled={busy || !isAddr(addr)}>{busy ? 'Reading' : 'Check'}</button></div>
           <p id="tw-h" className={`hint ${bad ? 'text-coral' : ''}`}>{bad ? "This doesn't look like a BNB Smart Chain address." : 'By wallet address only. Nothing is saved.'}</p>
           {err && <p className="text-coral mt-4" role="alert">{err}</p>}
           {res && <Result t={res} />}

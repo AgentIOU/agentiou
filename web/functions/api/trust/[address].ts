@@ -22,8 +22,9 @@ const json = (body: unknown, status: number, cache = 'no-store') =>
 
 export async function onRequestGet({ request, params, env, waitUntil }: Ctx): Promise<Response> {
   const raw = String(Array.isArray(params.address) ? params.address[0] : params.address ?? '').trim()
-  if (!isAddress(raw, { strict: false })) {
-    return json({ error: 'invalid_address', message: 'Use a BNB Smart Chain wallet address: 0x followed by 40 hex characters. Lookups are by address only.' }, 400)
+  // all lowercase, or mixed case with a correct checksum; a mixed-case address whose checksum is wrong is most likely a typo, so it is refused
+  if (!isAddress(raw)) {
+    return json({ error: 'invalid_address', message: 'Use a BNB Smart Chain wallet address: 0x followed by 40 hex characters, all lowercase or with a correct checksum. Lookups are by address only.' }, 400)
   }
   const address = getAddress(raw.toLowerCase())
   const contract = env.CONTRACT && isAddress(env.CONTRACT) ? getAddress(env.CONTRACT) : AGENTIOU_MAINNET

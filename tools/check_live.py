@@ -221,11 +221,26 @@ try:
     api_same(ANA,"after everything was repaid"); api_same(BEN,"for another member")
     st,h,body=api("/api/trust/"+CAT.lower()); j=json.loads(body); ok("API: an address that never joined reads as not verified, every number 0",st==200 and j["verified"] is False and j["trustScore"]==0 and j["level"]==0 and j["restricted"] is False and j["address"]==CAT,(st,j))
     st,h,body=api("/api/trust/0x123"); ok("API: a wrong address gets status 400 and a JSON error",st==400 and json.loads(body)["error"]=="invalid_address",(st,body[:120]))
+    k=next(i for i,ch in enumerate(ANA) if i>1 and ch.isalpha()); typo=ANA[:k]+ANA[k].swapcase()+ANA[k+1:]
+    st,h,body=api("/api/trust/"+typo); ok("API: a mixed-case address with a wrong checksum (a typo) gets 400, not 'not verified'",st==400,(st,body[:120]))
+    st,h,body=api("/api/trust/"+ANA.lower()); ok("API: an all-lowercase address is accepted",st==200 and json.loads(body)["address"]==ANA,(st,body[:120]))
     st,h,body=api("/api/anything"); ok("API: any other path gets JSON 404, not the website",st==404 and json.loads(body)["error"]=="not_found",(st,body[:120]))
     st,h,body=api("/api/trust/"+ANA,"OPTIONS"); ok("API: browsers on other sites may call it (CORS)",st==204 and h.get("Access-Control-Allow-Origin")=="*",(st,h))
     go("trust",1200); ok("API and code stay folded until asked","/api/trust/" not in main() and pg.get_by_role("button",name="API for developers").get_attribute("aria-expanded")=="false"); pg.get_by_role("button",name="API for developers").click(); pg.wait_for_timeout(400); ok("Open Trust page opens, with the API and the contract read",all(x in main() for x in ("Open Trust","Trust Check for DeFi & CEX","/api/trust/","getUser(address)","never by nickname")),main()[:300])
+    held=[]; pg.route(re.compile(r".*127\.0\.0\.1:8547.*"),lambda r: held.append(r))   # hold the chain's answers back
+    pg.fill("#tw",ANA); pg.get_by_role("button",name="Check").click(); pg.wait_for_timeout(600); pg.fill("#tw",CAT); pg.wait_for_timeout(200)
+    n_held=len(held); free=lambda: [(lambda r: (lambda: r.continue_()))(r) for r in held]
+    for f in free():
+        try: f()
+        except Exception: pass
+    held.clear(); pg.unroute(re.compile(r".*127\.0\.0\.1:8547.*"))
+    for r in list(held):
+        try: r.continue_()
+        except Exception: pass
+    pg.wait_for_timeout(2500)
+    ok("Open Trust: an answer for an address that was changed meanwhile is thrown away",n_held>0 and "Trust Score, out of 100" not in pg.locator("form",has=pg.locator("#tw")).inner_text() and "Record for" not in main() and pg.get_by_role("button",name="Check").is_enabled(),(n_held,main()[main().find("Agentic Wallet address"):][:200]))
     pg.fill("#tw",ANA); pg.get_by_role("button",name="Check").click(); pg.wait_for_timeout(2500); t=main(); c=chain(ANA)
-    ok("Open Trust check shows the contract's score, level and flags",str(c["score"]) in t and f"Level {c['level']}, ${c['limitCents']//100} limit" in t and ("Not restricted" in t)==(not c["restricted"]) and ("No overdue IOUs" in t)==(not c["overdue"]) and f"/api/trust/{ANA}" in t,t[t.find("Agentic Wallet address"):][:400])
+    ok("Open Trust check shows the contract's score, level and flags",str(c["score"]) in t and f"Level {c['level']}, ${c['limitCents']//100} limit" in t and ("Not restricted" in t)==(not c["restricted"]) and ("No overdue IOUs" in t)==(not c["overdue"]) and f"/api/trust/{ANA}" in t and f"Record for {ANA}" in t,t[t.find("Agentic Wallet address"):][:400])
     pg.fill("#tw",CAT); pg.get_by_role("button",name="Check").click(); pg.wait_for_timeout(2500); ok("Open Trust check: a wallet that never joined says so","Not IOU Verified" in main())
     ok("footer links to Open Trust",pg.locator("footer").get_by_role("link",name=re.compile("Open Trust")).count()==1)
     c2=b.new_context(viewport={"width":390,"height":844}); p2=c2.new_page(); p2.goto(U+"home"); p2.wait_for_timeout(1500)
