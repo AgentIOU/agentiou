@@ -59,7 +59,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const repayDay = useRef({ day: -1, n: 0 })
   const mintRec = (m: User, design: number) => ({ ...m.stickers, [design]: { edition: 20 + ((design * 37 + seq.current) % 60), block: 52_600_000 + seq.current * 13, time: Date.now() } })
 
-  const NOT_YET = !HAS_ME ? 'Prove your wallet first' : 'Get IOU Verified first'
+  const NOT_YET = 'Get IOU Verified first'
   const whyNotBorrow = (usd: number) => !joined ? NOT_YET : isRestricted(ME) ? 'Restricted: repay your overdue IOUs first' : ious.filter((x) => x.debtor === ME && x.status === 'Active').length >= 10 ? 'You already have 10 active IOUs' : usd > room() + 1e-9 ? `Over your $${LEVELS[levelOf(me) - 1].limit} limit` : ''
   const demoTakes = useRef({ day: -1, n: 0 })
   const takesToday = DEMO ? (demoTakes.current.day === dayOf(Date.now()) ? demoTakes.current.n : 0) : me.takesToday ?? 0

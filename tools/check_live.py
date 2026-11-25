@@ -58,7 +58,7 @@ try:
     go("home",1500); gc=pg.locator("[aria-label*='IOU Card']").first; gc.scroll_into_view_if_needed(); gc.click(); pg.wait_for_timeout(1200); gt=main()
     ok("guest card back shows a dash for the join date, never Jan 1970","1970" not in gt and re.search(r"Member since\s*—",gt) is not None,gt[gt.find("Member since"):][:60])
     ok("the page names a share image for X and the icons",pg.evaluate("[document.querySelector('meta[property=\"og:image\"]')?.content, document.querySelector('meta[name=\"twitter:image\"]')?.content, !!document.querySelector('link[rel=apple-touch-icon]'), !!document.querySelector('link[href$=\"favicon.ico\"]')]")==["https://agentiou.pages.dev/og.png","https://agentiou.pages.dev/og.png",True,True])
-    go("me"); ok("guest: My IOUs asks for proof of the wallet first","Prove your wallet first" in main())
+    go("me"); ok("guest: My IOUs says to get IOU Verified first, and never says prove or connect a wallet","Get IOU Verified first" in main() and "Prove your wallet" not in main() and "no wallet connection" in main(),main()[:300])
     node("join",BEN,"ben")   # another member joins first, so member numbers can be checked
     keys=lambda: sorted(k for k in pg.evaluate("Object.keys(localStorage)") if k.startswith("agentiou.") and k not in ("agentiou.sound","agentiou.reduce"))
     guest=lambda: pg.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and pg.locator("header").get_by_role("link",name=re.compile("^Profile:")).count()==0
