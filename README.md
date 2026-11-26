@@ -130,7 +130,7 @@ docs/        Security notes, deployment steps and the Open Trust API guide
 | File in `tools/` | What it does |
 |---|---|
 | `check.py` | Full check of the built demo site: every page, every flow, the rules, layout, accessibility |
-| `check_town.py` | Promise Town, its pages and zoom, Harbour Run, Build your town, the looks, and that every card stays inside 320, 360 and 393px phones |
+| `check_town.py` | Promise Town, its pages and zoom, Harbour Run, Build your town, the looks; that every card and info note stays inside 320, 360 and 393px phones; and the desktop layout without the phone dock |
 | `check_devices.py` | More screen widths, Android emulation, keyboard-only use, speed |
 | `check_live.py` | The live site and the Open Trust API against a local chain that stands in for BNB Smart Chain, sending each prompt's exact call |
 | `check_numbers.py` | Balance, Trust Score, level and XP move by exactly the contract's amounts |
