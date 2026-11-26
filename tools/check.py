@@ -105,8 +105,8 @@ try:
     # home: tour, guide, wallet button, pause motion
     pg.goto(U+"home"); pg.wait_for_timeout(2600)
     pg.get_by_role("button",name="How it works").click(); pg.wait_for_timeout(300)
-    for i in range(4): pg.get_by_role("button",name="Next").click(); pg.wait_for_timeout(150)
-    ok("tour reaches step 5; a member gets the profile link","Step 5 of 5" in dlg() and pg.locator("[role=dialog]").get_by_role("link",name="Open my profile").count()==1); pg.keyboard.press("Escape"); pg.wait_for_timeout(200); ok("tour closes with Esc",pg.locator("[role=dialog]").count()==0)
+    for i in range(5): pg.get_by_role("button",name="Next").click(); pg.wait_for_timeout(150)
+    ok("tour reaches step 6; a member gets the profile link","Step 6 of 6" in dlg() and pg.locator("[role=dialog]").get_by_role("link",name="Open my profile").count()==1); pg.keyboard.press("Escape"); pg.wait_for_timeout(200); ok("tour closes with Esc",pg.locator("[role=dialog]").count()==0)
     ok("a member is not offered the Agent ID guide or the guest button",pg.get_by_role("button",name="No Agent ID yet?").count()==0 and pg.get_by_role("link",name="Browse as a guest").count()==0)
     gp=b.new_page(viewport={"width":390,"height":844}); gp.goto(G+"home"); gp.wait_for_timeout(1500); gp.get_by_role("button",name="No Agent ID yet?").click(); gp.wait_for_timeout(300); ok("Agent ID guide opens for a guest","How to get an Agent ID" in gp.locator("[role=dialog]").inner_text()); gp.keyboard.press("Escape")
     gl=gp.get_by_role("link",name="Browse as a guest").bounding_box(); ga=gp.locator(".guest-arrow").bounding_box(); ok("guest button fits a phone with its arrow inside",gl["x"]>=0 and gl["x"]+gl["width"]<=390 and ga["x"]+ga["width"]<=gl["x"]+gl["width"] and gl["height"]>=44,gl); gp.close()
@@ -157,14 +157,14 @@ try:
     # the guide tour must fit a phone: nothing in a scene is cut off and both buttons stay inside the card
     for w in (360,390):
         t=b.new_page(viewport={"width":w,"height":800}); t.goto(U+"home"); t.wait_for_timeout(1200); t.get_by_role("button",name="How it works").first.click(); t.wait_for_timeout(600); bad=[]
-        for n in range(5):
+        for n in range(6):
             t.wait_for_timeout(1400)
             bad+=t.evaluate("""(n)=>{const d=document.querySelector('[aria-label="How AgentIOU works"]'),D=d.getBoundingClientRect(),sc=d.querySelector('[aria-hidden].overflow-hidden'),S=sc.getBoundingClientRect(),o=[];
               for(const e of sc.firstElementChild.children){const r=e.getBoundingClientRect();if(r.left<S.left-1||r.right>S.right+1||r.top<S.top-1||r.bottom>S.bottom+1)o.push('slide '+(n+1)+' scene item cut')}
               for(const e of d.querySelectorAll('button,a')){const r=e.getBoundingClientRect();if(r.left<D.left||r.right>D.right)o.push('slide '+(n+1)+' button outside: '+e.textContent)}
               if(D.left<0||D.right>innerWidth+0.5||D.bottom>innerHeight+0.5)o.push('slide '+(n+1)+' card off screen');return o}""",n)
-            if n<4: t.get_by_role("button",name="Next").click()
-        ok(f"guide tour fits a {w}px phone on all 5 slides",not bad,bad[:4]); t.close()
+            if n<5: t.get_by_role("button",name="Next").click()
+        ok(f"guide tour fits a {w}px phone on all 6 slides",not bad,bad[:4]); t.close()
     # joining is once: before it the header offers the join button, after it the profile takes its place (phone and computer)
     for w in (390,1280):
         j=b.new_page(viewport={"width":w,"height":850}); j.goto(G+"home"); j.wait_for_timeout(1000); hd=j.locator("header")

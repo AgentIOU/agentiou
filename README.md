@@ -43,13 +43,27 @@ Built for the Binance Wallet × BNB Chain **Agent ID Hackathon** (Nov 18 to Dec 
 
 The site never connects to a wallet. For every action it writes a plain-text prompt with the exact contract call; the person pastes it into their own Binance Agentic Wallet (Binance AI Pro), which shows a preview and waits for their confirmation.
 
+## Promise Town, Harbour Run and Build your town
+
+The record, drawn. Nothing here adds state: the contract is unchanged and the site stores nothing for it.
+
+| Part of Task Hub | What it is | What it is drawn from |
+|---|---|---|
+| **Promise Town** | Members are mascots on the terrace of their level; open IOUs are boats tagged with the days left. Two views, My circle and Whole town, ten members a page. Press the town to zoom and move; press a mascot to see that member's town and record. | Levels, Trust Scores and the IOU list, read from the contract |
+| **Harbour Run** | A 40-second game opened by today's check-in. One rock ends the run. The score stays on the device and gives no XP, no rank and no reward. | The check-in day and streak |
+| **Build your town** | 28 parts, each with its own place, opened in a fixed order by vouchers already claimed: 2 Common, 1 Rare or 1 Legendary a part. Parts cannot be bought, sold or moved. | The contract's `claimed` counters |
+| **Card and mascot looks** | The highest stamp tier held sets the metal (Silver, Gold, Aurora); the shade changes every 100 XP. A look only: it never changes the Trust Score or the limit. | Stamps and XP |
+
+A Restricted account can still look at Promise Town, but cannot play Harbour Run or open Build your town until it repays.
+
 ## Two-minute tour for reviewers
 
 1. **Open [agentiou.pages.dev](https://agentiou.pages.dev)** and choose **Browse as a guest**: every page reads the live contract on BNB Smart Chain.
 2. **Promise Mart and the Leaderboard** show the shop's offers and every member's Trust Score, read from the contract.
-3. **Open Trust** ([/trust](https://agentiou.pages.dev/trust)): paste any wallet address and press **Check**, or open the API in a browser: `https://agentiou.pages.dev/api/trust/{walletAddress}`.
-4. **Proof & Safety** lists what the contract can and cannot do, with every address.
-5. **The contract** is verified on [BscScan](https://bscscan.com/address/0x75DE83b3CE69c8eE363BE702FD3cd02e9Ab7F3f8#code): no owner, no upgrade, no pause, no fee.
+3. **Task Hub** (the **Town** tab): Promise Town, drawn from the same record. Press the town to zoom, press a mascot to see that member's town.
+4. **Open Trust** ([/trust](https://agentiou.pages.dev/trust)): paste any wallet address and press **Check**, or open the API in a browser: `https://agentiou.pages.dev/api/trust/{walletAddress}`.
+5. **Proof & Safety** lists what the contract can and cannot do, with every address.
+6. **The contract** is verified on [BscScan](https://bscscan.com/address/0x75DE83b3CE69c8eE363BE702FD3cd02e9Ab7F3f8#code): no owner, no upgrade, no pause, no fee.
 
 ## Where to look in the code
 
@@ -65,6 +79,8 @@ The site never connects to a wallet. For every action it writes a plain-text pro
 | Proof of wallet ownership (EIP-712, checked in the browser) | [`web/src/lib/proof.ts`](web/src/lib/proof.ts) |
 | The prompts the site writes for the agent | [`web/src/lib/prompt.ts`](web/src/lib/prompt.ts) |
 | Everything the site reads from the chain | [`web/src/lib/chain.ts`](web/src/lib/chain.ts) |
+| Promise Town, its pages, the zoomable town page and Harbour Run | [`web/src/pages/Town.tsx`](web/src/pages/Town.tsx) |
+| Build your town, and the rule that turns claimed vouchers into parts (`townOf`) | [`web/src/pages/MyTown.tsx`](web/src/pages/MyTown.tsx), [`web/src/lib/data.ts`](web/src/lib/data.ts) |
 
 ## Safety
 
@@ -114,6 +130,7 @@ docs/        Security notes, deployment steps and the Open Trust API guide
 | File in `tools/` | What it does |
 |---|---|
 | `check.py` | Full check of the built demo site: every page, every flow, the rules, layout, accessibility |
+| `check_town.py` | Promise Town, its pages and zoom, Harbour Run, Build your town, the looks, and that every card stays inside 320, 360 and 393px phones |
 | `check_devices.py` | More screen widths, Android emulation, keyboard-only use, speed |
 | `check_live.py` | The live site and the Open Trust API against a local chain that stands in for BNB Smart Chain, sending each prompt's exact call |
 | `check_numbers.py` | Balance, Trust Score, level and XP move by exactly the contract's amounts |

@@ -8,7 +8,7 @@ import { CONTRACT, DEMO, LEVELS, ME, SEASON, amt, levelOf, memberSince, score, s
 import { useStore } from '../lib/store'
 import { usePrefs } from '../lib/prefs'
 import { Link } from '../lib/router'
-import { Floaters, Mascot } from '../components/fx'
+import { Floaters, Mascot, img } from '../components/fx'
 import { Avatar, Badge, CreditPass, IouCard, MartLogo, Money, PaidStamp, Seal, StickerCard, rosette } from '../components/art'
 import { LedSign } from '../components/LedSign'
 import { DemoChip } from '../components/ui'
@@ -20,9 +20,13 @@ export const FAQ: [string, string][] = [
   ['Can someone else open my profile as theirs?', 'No. Anyone can look at a public record, the same as on BscScan. But a device shows a wallet as its own only after that wallet signs a message naming that device. And every action is still a transaction that only your own wallet can confirm.'],
   ['Do you need my keys or seed phrase?', 'Never. The site has no wallet connection, no password and no account. To show a profile as yours it asks your wallet for one signature, which moves nothing. It writes out the exact contract call; your own Binance Agentic Wallet shows you a preview and nothing is sent until you confirm there.'],
   ['Is this a loan with interest?', 'It is a loan without interest or fees. Promise Mart lends you a few cents of its own USDT; you repay exactly that amount, straight to the shop. The contract never holds money, and the shop keeps nothing for itself.'],
-  ["What if someone doesn't repay?", 'One IOU past due: their level drops by one and their Trust Score falls right away. Two past due, or one more than 7 days late: the account is Restricted. It shows a red card and a Restricted label, and it can\'t borrow or send IOUs until it repays. Limits are small on purpose ($1, $5, $10) so nobody can be asked for much. The record stays on their Agent ID history. AgentIOU cannot force anyone to pay, so the person who gives credit carries that risk. Keep amounts small.'],
+  ["What if someone doesn't repay?", 'One IOU past due: their level drops by one and their Trust Score falls right away. Two past due, or one more than 7 days late: the account is Restricted. It shows a red card and a Restricted label, and it can\'t borrow, send IOUs, play Harbour Run or open Build your town until it repays. It can still look at Promise Town. Limits are small on purpose ($1, $5, $10) so nobody can be asked for much. The record stays on their Agent ID history. AgentIOU cannot force anyone to pay, so the person who gives credit carries that risk. Keep amounts small.'],
   ['Why do I need an Agent ID?', "A new wallet costs nothing, so a wallet alone can't be trusted with credit. An Agent ID can't be transferred, so your repayment history stays with you."],
   ['What is Developer Mode and why is it needed?', 'A setting in the Binance App that lets your Agentic Wallet call a contract directly. AgentIOU actions are contract calls, so it has to be on. It can only be turned on in the App.'],
+  ['What is Promise Town?', "Your record, drawn. Every member is a mascot standing on the terrace of their level, and every open IOU is a boat in the harbour with the days left on it. Press the town to zoom in, and press a mascot to see that member's town and record. It holds no new data: it is the same record the contract keeps."],
+  ['Does Harbour Run give XP or money?', "No. It is a 40-second game for fun: catch promise notes and steer round the rocks; one hit ends the run. Today's check-in opens it. The score stays on your device and counts for nothing: no XP, no rank, no reward."],
+  ['How do I build my town?', 'Claim the vouchers your XP has earned, on Task Hub. Two Common vouchers open one part; one Rare or one Legendary voucher opens one. There are 28 parts, each with its own place, and they open in a fixed order: press a lock to see what goes there. The same vouchers still mint stamps. Parts cannot be bought, sold or moved, and they are worth no money.'],
+  ['Why did my card and mascot change colour?', 'Your stamps set the look. Any Common stamp gives Silver, any Rare stamp Gold, any Legendary stamp Aurora; the highest tier you hold counts. The shade then changes every 100 XP. It is a look only: it never changes your Trust Score or your limit.'],
   ['Which tokens work?', 'BNB and USDT on BNB Smart Chain.'],
 ]
 const HERO_FLOAT = [
@@ -109,6 +113,12 @@ export default function Home() {
 
       <section id="faq" className="band pt-0 scroll-mt-20" aria-labelledby="t-faq"><div className="wrap max-w-[820px] mx-0"><h2 id="t-faq" className="h2">FAQs</h2><div className="mt-8 border-t border-rule">{FAQ.map(([q, a]) => <Q key={q} q={q} a={a} />)}</div></div></section>
 
+      <section className="band pt-0" aria-labelledby="h-town"><div className="wrap"><div className="panel p-6 md:p-10 grid gap-6 md:grid-cols-[1fr_minmax(0,420px)] items-center" style={{ borderRadius: 28 }}>
+        <div><h2 id="h-town" className="h2 max-w-[18ch]">Your record becomes a town.</h2>
+          <p className="lead mt-3">Every member is a mascot on the terrace of their level. Every open IOU is a boat in the harbour. The vouchers you claim open the parts of a town of your own.</p>
+          <p className="text-muted text-[14px] mt-3">It is the contract's record, drawn. The small harbour game is for fun and gives no XP.</p>
+          <Link to="tasks" className="btn btn-secondary mt-6">Open Promise Town</Link></div>
+        <img src={img('town')} alt="Promise Town: a small town on three terraces above a harbour" loading="lazy" className="w-full rounded-2xl" style={{ aspectRatio: '1.5517' }} /></div></div></section>
       <section className="band pt-0"><div className="wrap"><div className="panel p-8 md:p-12 flex flex-wrap items-center gap-8 justify-between" style={{ borderRadius: 28 }}><div><h2 className="h2 max-w-[16ch]">Make one small promise. Keep it.</h2><p className="lead mt-3">{s.joined ? 'You are IOU Verified. Pick a small promise and keep it.' : 'Five minutes to get verified. Your first voucher is waiting.'}</p><div className="flex flex-wrap gap-3 mt-7">{s.joined ? <><Link to="mart" className="btn btn-primary">Open Promise Mart</Link><Link to="me" className="btn btn-secondary">Open My IOUs</Link></> : <><Link to="start" className="btn btn-primary">Get IOU Verified</Link><Link to="mart" className="btn btn-secondary">Open Promise Mart</Link></>}</div></div><Mascot pose="jump" expr="success" className="w-40 md:w-52" /></div></div></section>
     </>
   )
