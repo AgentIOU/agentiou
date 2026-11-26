@@ -14,18 +14,6 @@
 
 Built for the Binance Wallet × BNB Chain **Agent ID Hackathon** (Nov 18 to Dec 9, 2026). Independent project, not affiliated with Binance. Not financial advice: nobody guarantees that an IOU is repaid.
 
-> [!NOTE]
-> **New: Promise Town**
->
-> | | |
-> |---|---|
-> | **Promise Town** | The record, drawn: members are mascots on the terrace of their level, open IOUs are boats with the days left. Zoom in, press a mascot, see their town. |
-> | **Harbour Run** | A 40-second game opened by today's check-in. For fun only: no XP, no rank, no reward. |
-> | **Build your town** | 28 parts opened by vouchers you already claimed. Nothing to buy, nothing to sell. |
-> | **Silver, Gold, Aurora** | Your stamps set the metal of your card and mascot. |
->
-> Same contract, no new state: all of it is drawn from what is already on-chain. [More below.](#promise-town-harbour-run-and-build-your-town)
-
 ---
 
 ## Why AgentIOU

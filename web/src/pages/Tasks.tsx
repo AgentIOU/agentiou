@@ -55,8 +55,8 @@ export default function Tasks() {
   return (
     <div className="glow" style={{ '--glow': 'radial-gradient(45% 22% at 88% 4%,#F2A7E038,transparent),radial-gradient(45% 22% at 0% 30%,#8C96FF38,transparent),radial-gradient(50% 20% at 95% 70%,#FFB23F26,transparent)' } as React.CSSProperties}>
       <Floaters items={[{ k: 'ticket', w: 96, style: { right: '4%', top: 96 }, desk: true }, { k: 'star', w: 50, style: { right: '15%', top: 250 }, far: true, desk: true }, { k: 'coin', w: 60, style: { left: '2%', top: 900 }, far: true, desk: true }]} />
-      <div className="wrap relative pt-28 pb-16 grid gap-14 [&>*]:min-w-0">
-        <div><div className="flex flex-wrap items-center gap-3"><h1 className="h2">Task Hub</h1><DemoChip /></div><p className="lead mt-3">Get XP for keeping your word, turn it into vouchers, and mint Season 1 stamps for free.</p>
+      <div className={`wrap relative ${s.joined ? 'pt-[76px]' : 'pt-28'} pb-16 grid gap-14 [&>*]:min-w-0`}>{/* a guest has a note in this top space; a member does not, so a member needs less of it */}
+        <div className="-mb-6"><div className="flex flex-wrap items-center gap-3"><h1 className="h2">Task Hub</h1><DemoChip /></div><p className="lead mt-3">Get XP for keeping your word, turn it into vouchers, and mint Season 1 stamps for free.</p>
           <p className="hint mt-4">Lending to someone? <Link to="trust" className="underline underline-offset-4 text-chalk">Check their record on Open Trust.</Link></p></div>
 
         <TownBox checked={checked} streak={cardDays} />
