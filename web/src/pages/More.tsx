@@ -179,7 +179,7 @@ const FACTS: [string, string, string][] = [
   ['Built on Agent ID', "Without an Agent ID you can't take credit. The whole credit history is tied to the Agent ID wallet; level, limit and badges all come from it; every action is run by the user's own agent.", 'The Agent ID check in the verified code, and the counters on this page.'],
   ['What it is for', 'Small tabs between shops, friends and freelancers. Money goes straight to the person owed. No fee, no interest. BNB or USDT.', 'Real IOUs and repayment records.'],
   ['What is live today', 'The website, the open-source contract with its tests, and the documentation are public.', 'The links on this page.'],
-  ['What is new here', "Agent ID as a credit identity that can't be reset; an agent-native prompt flow; a shop that lends its own money and keeps nothing.", 'Promise Mart and the prompt cards on this site.'],
+  ['What is new here', "Agent ID as a credit identity that can't be reset. Every action runs through your own agent. A shop that lends its own money at no interest. A record drawn as a town.", 'Promise Mart, the prompt cards, and Promise Town.'],
 ]
 export function About() {
   const s = useStore()
