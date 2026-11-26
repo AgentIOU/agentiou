@@ -176,6 +176,21 @@ try:
     pg.close()
     ctx2=b.new_context(viewport={"width":390,"height":844},reduced_motion="reduce"); pg=ctx2.new_page(); pg.goto(CR+"tasks"); pg.wait_for_timeout(1500); tw=town(pg); tw.get_by_role("button",name="Whole town").dispatch_event("click"); pg.wait_for_timeout(400); t0=tw.locator("[data-pager]").inner_text()
     pg.wait_for_timeout(5800); ok("with motion reduced it never turns by itself; the arrows still work",tw.locator("[data-pager]").inner_text()==t0 and "changes by itself" not in t0,t0); ctx2.close()
+    # ---- every info note opens fully inside the phone, wherever its button sits
+    for w in (320,360,393):
+      pw=b.new_page(viewport={"width":w,"height":800},device_scale_factor=2,is_mobile=True,has_touch=True); pw.goto(U+"tasks"); pw.wait_for_timeout(1300); out=[]; n=pw.locator("main button[aria-expanded]").count()
+      for i in range(n):
+        bt=pw.locator("main button[aria-expanded]").nth(i); bt.scroll_into_view_if_needed(); bt.click(); pw.wait_for_timeout(350); r=pw.locator("[role=note]").first.bounding_box()
+        if not r or r["x"]<0 or r["x"]+r["width"]>w: out.append((bt.get_attribute("aria-label"),r))
+        bt.click(); pw.wait_for_timeout(120)
+      ok(f"{w}px Task Hub: all {n} info notes open inside the screen",n>=3 and out==[],out); pw.close()
+    # ---- the dock is the phone's menu only: on a desktop the header has the menu and no dock covers the page
+    for w,want in ((1280,False),(1024,False),(1023,True),(390,True)):
+      pw=b.new_page(viewport={"width":w,"height":800}); pw.goto(U+"tasks"); pw.wait_for_timeout(1200)
+      ok(f"{w}px: the dock is {'shown' if want else 'hidden'}",pw.locator("nav[aria-label=App]").is_visible()==want and (want or pw.locator("header nav[aria-label=Main] a:visible").count()>=5)); 
+      if w==1280:
+        r=pw.locator("#t-open").locator("xpath=..").bounding_box(); ok("desktop: the whole town fits one screen, with the game and the builder beside it",r["height"]<=460 and r["y"]+r["height"]<=800 and pw.evaluate("(()=>{const t=document.querySelector('#t-open').parentElement.getBoundingClientRect(),b=document.querySelector('#t-build').getBoundingClientRect();return b.left>t.right-1&&b.top<t.bottom})()"),r)
+      pw.close()
     # ---- nothing may be wider than the phone. (main clips what sticks out, so scroll width cannot see it: measure the cards themselves.)
     for w in (320,360,393):
       for label,url in (("member",U),("guest",G),("busy member",U.replace("demo=member","demo=busy"))):

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode, useLayoutEffect } from 'react'
 import { AlertTriangle, Check, CheckCircle2, Clock, Copy, Info, ShieldAlert, X, CircleDot } from 'lucide-react'
 import { DEMO, LEVELS, ME, amt, dateShort, dateUtc, dueText, short, usd, viewOf, type Iou, type View } from '../lib/data'
 import { useStore, type TrayReq } from '../lib/store'
@@ -34,11 +34,14 @@ export function AddressChip({ address }: { address: string }) {
 }
 export function InfoTip({ label, children }: { label: string; children: ReactNode }) {
   const [open, setOpen] = useState(false); const ref = useRef<HTMLSpanElement>(null); const id = useId()
+  // the note opens centred under the button; near a screen edge it is pushed back inside, so no part of it is cut off
+  const tip = useRef<HTMLSpanElement>(null); const [dx, setDx] = useState(0)
+  useLayoutEffect(() => { if (!open || !tip.current) { setDx(0); return } const r = tip.current.getBoundingClientRect(), w = document.documentElement.clientWidth, left = r.left - dx, right = r.right - dx; setDx(right > w - 10 ? w - 10 - right : left < 10 ? 10 - left : 0) }, [open])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!open) return; const f = (e: Event) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }; const k = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false); document.addEventListener('pointerdown', f); document.addEventListener('keydown', k); return () => { document.removeEventListener('pointerdown', f); document.removeEventListener('keydown', k) } }, [open])
   return (
     <span ref={ref} className="relative inline-block align-middle">
       <button type="button" aria-label={label} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} className="w-6 h-6 rounded-full border border-rule inline-flex items-center justify-center text-muted hover:text-chalk cursor-pointer"><Info size={13} aria-hidden /></button>
-      {open && <span id={id} role="note" className="absolute z-30 left-1/2 -translate-x-1/2 top-8 w-[260px] max-w-[80vw] panel p-3 text-[14px] text-chalk font-normal block text-left" style={{ borderRadius: 12, animation: 'fadein 220ms' }}>{children}</span>}
+      {open && <span ref={tip} id={id} role="note" className="absolute z-30 left-1/2 top-8 w-[236px] sm:w-[260px] max-w-[80vw] panel p-3 text-[13px] sm:text-[14px] leading-snug text-chalk font-normal block text-left" style={{ borderRadius: 12, animation: 'fadein 220ms', transform: `translateX(calc(-50% + ${dx}px))` }}>{children}</span>}
     </span>
   )
 }

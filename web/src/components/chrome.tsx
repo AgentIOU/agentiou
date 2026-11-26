@@ -55,7 +55,7 @@ const TABS: [RouteName, string, typeof Home][] = [['home', 'Home', Home], ['mart
 export function TabBar({ route }: { route: RouteName }) {
   const { me, ious, joined } = useStore(); const dot = joined && claimable(me).some((n) => n > 0), waiting = joined && ious.some((x) => x.status === 'Pending' && x.debtor === ME)   // a guest has nothing waiting
   return (
-    <nav aria-label="App" className="lg:hidden fixed z-50 inset-x-2.5 dock" style={{ bottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
+    <nav aria-label="App" className="fixed z-50 inset-x-2.5 dock" style={{ bottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
       {TABS.map(([to, label, I]) => { const on = route === to, mark = (to === 'tasks' && dot) || (to === 'me' && waiting)
         return <Link key={label} to={to} aria-current={on ? 'page' : undefined} className={on ? 'dock-on' : 'dock-off'}><span className="relative"><I size={on ? 21 : 22} strokeWidth={on ? 2.3 : 2} aria-hidden />{mark && !on && <i className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-amber" style={{ boxShadow: '0 0 0 2px #1B1E45' }} aria-hidden />}</span>{label}{mark && on && <i className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber" style={{ boxShadow: '0 0 0 2.5px #1B1E45' }} aria-hidden />}{mark && <span className="sr-only">{to === 'me' ? ', something waits in your Inbox' : ', a voucher is ready'}</span>}</Link> })}
     </nav>

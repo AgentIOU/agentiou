@@ -142,6 +142,8 @@ export function TownBox({ checked, streak }: { checked: boolean; streak: number 
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2"><div><h2 id="t-town" className="text-[20px]">Promise Town</h2><p className="text-muted text-[14px]">Your record, drawn as a town. It follows what you already do below.</p></div>
         {!game && canCircle && <ViewPick view={view} set={setPick} />}</div>
       {game && !locked ? <HarbourRun streak={streak} close={() => setGame(false)} hint={next ? `Next to repay: ${s.name(next.creditor)}, ${dueText(next.dueAt)}` : 'Nothing to repay right now'} /> : <>
+        {/* on a wide screen the town keeps to the left and the game and the builder sit beside it, so the whole town fits one screen */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-8 lg:items-start"><div>
         <div className="relative mt-4 overflow-hidden" onPointerDown={() => { hold.current = Date.now() + 15000 }} style={{ borderRadius: 18, aspectRatio: '1.5517', containerType: 'inline-size', isolation: 'isolate', background: '#0E1024' }}>
           <div aria-hidden className="absolute inset-0"><Scene t={t} names={view === 'circle'} /></div>
           <button type="button" id="t-open" aria-haspopup="dialog" onClick={() => setPage(true)} aria-label={`Promise Town: ${t.placed.length} ${t.placed.length === 1 ? 'person' : 'people'}${drawn ? `, ${drawn} ${drawn === 1 ? 'boat' : 'boats'}` : ''}. Open the town to zoom in.`} className="absolute inset-0 w-full h-full cursor-pointer" style={{ zIndex: 500, borderRadius: 18 }}>
@@ -149,6 +151,7 @@ export function TownBox({ checked, streak }: { checked: boolean; streak: number 
         </div>
         <Pager t={t} go={go} auto={!motionOff} />
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[13px] text-muted">{view === 'circle' ? <span>You and the {circle.length - 1} {circle.length === 2 ? 'person' : 'people'} you have an IOU with.</span> : <>{[3, 2, 1].map((lv) => <span key={lv} className="rounded-full px-2.5 py-0.5" style={{ background: '#0E1024', boxShadow: 'inset 0 0 0 1px #2C3156' }}>Level {lv} · <b className="text-chalk">{count[lv]}</b></span>)}</>} <Link to="board" className="underline underline-offset-4 text-chalk">See everyone on the Leaderboard</Link></p>
+        </div><div>
         {/* the button sits under the row, not in it: beside the teaser it was wider than a phone and pushed the whole card off the right edge */}
         <div className="flex items-center gap-4 mt-4">
           {(!s.joined || !checked) && <div className="shrink-0 overflow-hidden" style={{ width: 96, aspectRatio: `${W} / ${H}`, borderRadius: 14, boxShadow: 'inset 0 0 0 1.5px #ffffff38, 0 8px 18px #0008' }} aria-hidden><Teaser /></div>}
@@ -158,7 +161,7 @@ export function TownBox({ checked, streak }: { checked: boolean; streak: number 
         </div>
         {gate && !s.joined ? <p className="mt-3 flex flex-wrap items-center gap-3" role="status"><span className="font-semibold">Get IOU Verified first.</span><Link to="start" className="btn btn-primary btn-sm">Get IOU Verified</Link></p>
           : <button type="button" className="btn btn-primary mt-3 max-w-full" disabled={(s.joined && !checked) || locked} onClick={() => (s.joined ? setGame(true) : setGate(true))}><Sailboat size={18} aria-hidden />Play Harbour Run</button>}
-        <TownBanner /></>}
+        <TownBanner /></div></div></>}
       {page && <TownPage t={t} set={setPick} go={go} close={shutPage} visit={setVisit} />}
       {guest && <TownSheet u={guest} close={shut} />}
     </section>

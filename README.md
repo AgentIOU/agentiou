@@ -87,7 +87,7 @@ A Restricted account can still look at Promise Town, but cannot play Harbour Run
 | Hackathon rule | AgentIOU |
 |---|---|
 | No QR or pairing-code login on a website | The site has no login at all. A visitor only pastes a public address. |
-| No login sessions stored on a server | No server stores anything: the only server code, the Open Trust API, reads the contract and keeps nothing. The browser keeps only the visitor's public address and sound and motion settings. |
+| No login sessions stored on a server | No server stores anything: the only server code, the Open Trust API, reads the contract and keeps nothing. The browser keeps only the visitor's public address, the proof that it is theirs, sound and motion settings and the best Harbour Run score. |
 | No prompt that skips the user's confirmation | Every prompt asks the agent for a preview first; nothing is sent until the user confirms in Binance AI Pro. |
 | No unauthorized transfers or unlimited approvals | Repaying USDT asks for an approval of the exact amount only. Money only moves when the user confirms. |
 | Owner permissions documented | There are none: no owner, no upgrade, no pause, no fee, and no way for anyone to take another person's funds. |
