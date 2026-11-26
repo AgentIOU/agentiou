@@ -41,7 +41,10 @@ try:
     ok("the wallet lookup box is gone; one line points to Open Trust",pg.locator("#see").count()==0 and pg.locator("main").get_by_role("link",name="Check their record on Open Trust.").count()==1)
     ok("Your XP shows three rings with the XP left",pg.locator("section:has(#t-xp) svg[role=img]").count()==3 and "50 XP to the next voucher" in pg.locator("section:has(#t-xp) svg[role=img]").first.get_attribute("aria-label"))
     ok("check-in card marks today with the boat",pg.locator("#t-daily ~ div ol li >> text=today").count()==1 and "Day 3 of 7" in t)
-    ok("What your stamps open: three rows, Gold marked as yours",all(k in t for k in ("What your stamps open","Any Common stamp","Any Rare stamp","Any Legendary stamp")) and "yours now" in pg.locator("li:has-text('Any Rare stamp')").inner_text() and "changes every 100 XP" in t)
+    op=pg.locator("[aria-labelledby=t-opens]"); steps=[x.replace("\n"," ") for x in op.locator("ol > li").all_inner_texts()]
+    ok("What your stamps open: three steps, Silver, Gold, Aurora, with Gold marked as yours",len(steps)==3 and steps[0].startswith("Silver Common stamp") and steps[1].startswith("Gold Rare stamp") and "yours now" in steps[1] and steps[2].startswith("Aurora Legendary stamp") and op.locator("li[aria-current]").count()==1,steps)
+    ok("it is short: one line under the steps, the rule behind the i","Your card and mascot are Gold. The shade changes every 100 XP." in op.inner_text() and op.get_by_role("button",name="How the metal is chosen").count()==1 and op.bounding_box()["height"]<250,op.bounding_box())
+    ok("each step shows a mascot, and the picture loaded",op.locator("ol li img").count()>=3 and pg.evaluate("[...document.querySelectorAll('[aria-labelledby=t-opens] ol img')].every(i=>i.complete&&i.naturalWidth>0)"))
     ok("no sideways scrolling on Task Hub",pg.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")<=0)
     # ---- the town's two views
     tw=town(pg); ok("town opens on My circle for a member who has dealt with people",tw.get_by_role("button",name="My circle").get_attribute("aria-pressed")=="true" and "you have an IOU with" in tw.inner_text())
@@ -143,6 +146,13 @@ try:
     ban=tw.locator("button#t-build"); ok("nor open Build your town",ban.is_disabled() and "Closed while Restricted" in ban.inner_text() and "Restricted" in ban.get_attribute("aria-label"),ban.inner_text())
     pg.locator("#t-open").click(); pg.wait_for_timeout(600); tp=pg.locator("[role=dialog][aria-label='Promise Town']")
     ok("but Promise Town still opens to look at",tp.count()==1 and tp.locator("button[aria-label*='(you)']").count()==1)
+    pg.close()
+    # ---- a member is never asked to get verified again: the home page's last panel and the footer offer what is open to them
+    pg=phone(); pg.goto(U+"home"); pg.wait_for_timeout(1500); last=pg.locator("main section").last; t=last.inner_text()
+    ok("home, member: the last panel opens the Mart and My IOUs, with no Get IOU Verified","You are IOU Verified" in t and last.get_by_role("link",name="Open Promise Mart").count()==1 and last.get_by_role("link",name="Open My IOUs").count()==1 and "Get IOU Verified" not in t,t[:160])
+    ok("home, member: nothing on the page or in the footer asks to get verified",pg.get_by_role("link",name="Get IOU Verified").count()==0 and pg.locator("footer").get_by_role("link",name="My IOUs").count()==1,pg.get_by_role("link",name="Get IOU Verified").count())
+    pg.close(); pg=phone(); pg.goto(G+"home"); pg.wait_for_timeout(1500); last=pg.locator("main section").last
+    ok("home, guest: the last panel still offers Get IOU Verified",last.get_by_role("link",name="Get IOU Verified").count()==1 and "Five minutes to get verified" in last.inner_text())
     pg.close()
     # ---- nothing may be wider than the phone. (main clips what sticks out, so scroll width cannot see it: measure the cards themselves.)
     for w in (320,360,393):

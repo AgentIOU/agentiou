@@ -8,6 +8,7 @@ import { StickerCard, Ticket } from '../components/art'
 import { DemoChip, InfoTip } from '../components/ui'
 import { Floaters, Mascot, type Pose } from '../components/fx'
 import { TownBox } from './Town'
+import { MascotMark } from '../components/art'
 
 interface Quest { key: string; pose: Pose; title: string; cap: string; xp: string; bg: string }
 const ONCE: Quest[] = [
@@ -91,9 +92,17 @@ export default function Tasks() {
             <button type="button" className="btn btn-primary btn-sm mt-4 w-full max-w-[150px]" disabled={can[i] < 1 || od || !s.joined} onClick={() => f.claim(i)}><TicketIcon size={15} aria-hidden />Claim<span className="sr-only sm:not-sr-only"> {t}</span></button></li>)}</ul></section>
 
         <section aria-labelledby="t-shelf"><div className="flex flex-wrap items-center gap-4"><h2 id="t-shelf" className="text-[20px]">Season 1 stamps</h2><Mascot pose="coin" className="w-14" /></div><p className="text-muted mt-1">One voucher mints any one stamp of its tier. You choose; it is never random. Each design once per wallet.</p>
-          <div className="panel p-4 mt-5 max-w-[620px]" aria-labelledby="t-opens"><h3 id="t-opens" className="text-[16px] font-semibold">What your stamps open</h3><p className="text-muted text-[14px] mt-1">A card and a mascot in that metal.</p>
-            <ul className="grid gap-2 mt-3">{TIERS.map((t, i) => { const lk = LOOKS[i + 1], on = mine.tier === i + 1; return <li key={t} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-[15px] ${on ? 'bg-ink ring-1 ring-amber/70' : 'bg-ink/60'}`}><span>Any <b>{t}</b> stamp</span><b className="whitespace-nowrap" style={{ color: ['#D8DAE8', '#F2C14E', '#C9A6FF'][i] }}>{LOOK_NAME[lk]}{on && <span className="text-[13px] font-semibold text-chalk/80"> · yours now</span>}</b></li> })}</ul>
-            <p className="text-muted text-[14px] mt-3">The highest tier you hold sets the metal. The stamp you minted last in that tier sets the mascot's pose. Its colour changes every {SHADE_XP} XP{mine.tier ? <>: yours is <b className="text-chalk">{SHADES[mine.look][mine.shade]}</b> now</> : ''}.</p></div>
+          <div className="panel p-4 mt-5 max-w-[620px]" aria-labelledby="t-opens">
+            <h3 id="t-opens" className="text-[16px] font-semibold flex items-center gap-1.5">What your stamps open <InfoTip label="How the metal is chosen">A card and a mascot in that metal: any Common stamp gives Silver, any Rare stamp Gold, any Legendary stamp Aurora. The highest tier you hold sets the metal. The stamp you minted last in that tier sets the mascot's pose. Its colour changes every {SHADE_XP} XP.</InfoTip></h3>
+            <div className="relative mt-3">
+              <span aria-hidden className="absolute h-[3px] rounded-full" style={{ left: '16.67%', right: '16.67%', top: 23, background: `linear-gradient(90deg,#D8DAE8,#F2C14E ${mine.tier >= 2 ? 50 : 0}%,${mine.tier >= 3 ? '#C9A6FF' : '#ffffff22'} ${mine.tier >= 2 ? 50 : 0}%)`, opacity: mine.tier >= 2 ? 1 : 0.5 }} />
+              <ol className="relative flex">{TIERS.map((t, i) => { const lk = LOOKS[i + 1], got = mine.tier >= i + 1, on = mine.tier === i + 1, ink = ['#D8DAE8', '#F2C14E', '#C9A6FF'][i], d = on ? 48 : 40
+                return <li key={t} className="flex-1 text-center" aria-current={on || undefined}>
+                  <span className="mx-auto rounded-full flex items-center justify-center" style={{ width: d, height: d, marginTop: on ? 0 : 4, background: got ? ['linear-gradient(135deg,#F4F5FA,#B9BDD2 55%,#E8EAF4)', 'linear-gradient(135deg,#FFE9A0,#E0A82E 55%,#FFD98A)', 'linear-gradient(135deg,#9FE8E0,#B9A6FF 50%,#FFB7D9)'][i] : '#ffffff12', boxShadow: on ? `0 0 0 3px #171A35, 0 0 0 4.5px ${ink}, 0 0 20px ${ink}88` : 'inset 0 0 0 1.5px #ffffff30' }}>
+                    <span aria-hidden className="block" style={{ width: d * 0.66, opacity: got ? 1 : 0.5 }}><MascotMark address={ME} pose={on ? mine.pose : (['wave', 'stamp', 'jump'] as const)[i]} look={lk} shade={on ? mine.shade : 0} width={0} fill /></span></span>
+                  <b className="block text-[14px] mt-1.5" style={{ color: got ? ink : '#8A8FB5' }}>{LOOK_NAME[lk]}</b><span className="block text-[11.5px] text-muted">{t} stamp</span>{on && <span className="inline-block text-[10.5px] font-extrabold rounded-full px-2 mt-1" style={{ background: ink, color: '#14163A' }}>yours now</span>}</li> })}</ol>
+            </div>
+            <p className="text-muted text-[13px] mt-2.5 text-center">{mine.tier ? <>Your card and mascot are <b className="text-chalk">{SHADES[mine.look][mine.shade]}</b>. The shade changes every {SHADE_XP} XP.</> : 'Mint a stamp and your card and mascot turn Silver.'}</p></div>
           {TIERS.map((t, ti) => <div key={t} className="mt-7"><h3 className="text-[16px] font-semibold flex items-center gap-3">{t}<span className="text-muted font-normal text-[14px]">{me.pocket[ti]} voucher{me.pocket[ti] === 1 ? '' : 's'} in pocket</span></h3>
             <ul className="grid grid-cols-3 gap-4 mt-3 max-w-[620px]">{SEASON.filter((d) => d.tier === t).map((d) => { const have = me.stickers[d.id]; return <li key={d.id} className="text-center"><StickerCard k={d.key} name={d.name} tier={t} mint={have} owner={ME} dim={!have} onFlip />
               {have ? <span className="pill pill-leaf mt-3">Minted</span> : <button type="button" className="btn btn-secondary btn-sm mt-3 w-full" disabled={me.pocket[ti] < 1 || od || !s.joined} onClick={() => f.mint(d.id)}><Sparkles size={15} aria-hidden />Mint</button>}</li> })}</ul></div>)}

@@ -62,13 +62,13 @@ export function TabBar({ route }: { route: RouteName }) {
   )
 }
 export function Footer() {
-  const { motionOff } = usePrefs()
+  const { motionOff } = usePrefs(); const { joined } = useStore()
   const l = 'text-muted hover:text-chalk hover:underline underline-offset-4'
   return (
     <footer className="relative border-t border-rule mt-10 pb-24 lg:pb-10 bg-ink">
       <div className="wrap pt-10 grid gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
         <div><Logo /><p className="text-muted mt-3 text-[13px] max-w-[44ch]">Independent project, not affiliated with Binance. Not financial advice.</p><p className="text-muted mt-2 text-[13px]">XP has no cash value. Vouchers and stickers can't be sold or transferred.</p></div>
-        <nav aria-label="Pages" className="grid gap-2 content-start"><Link to="start" className={l}>Get IOU Verified</Link><Link to="mart" className={l}>Promise Mart</Link><Link to="tasks" className={l}>Task Hub</Link><Link to="new" className={l}>New IOU</Link><Link to="board" className={l}>Leaderboard</Link><Link to="trust" className={l}>Open Trust: Trust Check for DeFi &amp; CEX</Link><Link to="home" scrollTo="faq" className={l}>FAQs</Link></nav>
+        <nav aria-label="Pages" className="grid gap-2 content-start">{joined ? <Link to="me" className={l}>My IOUs</Link> : <Link to="start" className={l}>Get IOU Verified</Link>}<Link to="mart" className={l}>Promise Mart</Link><Link to="tasks" className={l}>Task Hub</Link><Link to="new" className={l}>New IOU</Link><Link to="board" className={l}>Leaderboard</Link><Link to="trust" className={l}>Open Trust: Trust Check for DeFi &amp; CEX</Link><Link to="home" scrollTo="faq" className={l}>FAQs</Link></nav>
         <nav aria-label="Trust" className="grid gap-2 content-start"><Link to="proof" className={l}>Proof &amp; Safety</Link><Link to="about" className={l}>About AgentIOU</Link><Link to="legal" className={l}>Terms, privacy and risks</Link><a href="https://github.com/AgentIOU/agentiou" target="_blank" rel="noopener noreferrer" className={l}>Source code on GitHub</a>{CONTRACT ? <a href={`https://bscscan.com/address/${CONTRACT}#code`} target="_blank" rel="noopener noreferrer" className={l}>Contract on BscScan</a> : <span className="text-muted text-[14px]">The BscScan link appears here when the contract is deployed.</span>}</nav>
       </div>
       <div className="wrap mt-8 pt-6 border-t border-rule flex flex-wrap items-center gap-x-6 gap-y-3 text-[14px] text-muted">
