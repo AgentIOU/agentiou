@@ -21,26 +21,30 @@ const GLASS = { background: 'linear-gradient(180deg,#ffffff30,#ffffff12)', boxSh
 const dueTag = (x: Iou) => viewOf(x) === 'Overdue' ? 'late' : ((d) => (d <= 0 ? 'today' : `${d}d`))(Math.ceil((x.dueAt - Date.now()) / DAY))
 type Pick = 'circle' | 'town' | ''
 /** Who stands where and which boats are out, for one view of the town. */
-function useTown(pick: Pick) {
+const PER = 10   // mascots on one page of the town
+function useTown(pick: Pick, want = 0) {
   const s = useStore()
   const all = s.users.filter((u) => u.nickname !== 'promise-mart')
   // My circle: the people this address has an IOU with, newest first. Whole town: everyone the site has read, best record first.
   const met = new Map<string, number>()
   for (const x of s.ious) { if (x.status === 'Declined' || x.status === 'Cancelled') continue; const o = x.debtor === ME ? x.creditor : x.creditor === ME ? x.debtor : ''; if (o) met.set(o, Math.max(met.get(o) ?? 0, x.createdAt)) }
-  const circle = all.filter((u) => u.address === ME || met.has(u.address)).sort((a, b) => Number(b.address === ME) - Number(a.address === ME) || (met.get(b.address) ?? 0) - (met.get(a.address) ?? 0)).slice(0, 13)
+  const circle = all.filter((u) => u.address === ME || met.has(u.address)).sort((a, b) => Number(b.address === ME) - Number(a.address === ME) || (met.get(b.address) ?? 0) - (met.get(a.address) ?? 0))
   const canCircle = s.joined && circle.length > 1
   const view = pick || (canCircle ? 'circle' : 'town')
   const people = view === 'circle' ? circle : [...all].sort((a, b) => Number(b.address === ME) - Number(a.address === ME) || rankPoints(b) - rankPoints(a))
-  const cap = view === 'circle' ? 5 : 10, count: Record<number, number> = { 1: 0, 2: 0, 3: 0 }
+  // pages of ten: I stand on every page, so the rest go nine to a page. The more members, the more pages.
+  const me = people.find((u) => u.address === ME), rest = me ? people.filter((u) => u !== me) : people, each = me ? PER - 1 : PER
+  const pages = Math.max(1, Math.ceil(rest.length / each)), page = Math.min(Math.max(0, want), pages - 1), shown = [...(me ? [me] : []), ...rest.slice(page * each, page * each + each)]
+  const count: Record<number, number> = { 1: 0, 2: 0, 3: 0 }; for (const u of people) count[levelOf(u)]++
   const placed: { u: User; at: [number, number] }[] = []; const used: Record<number, number> = { 1: 0, 2: 0, 3: 0 }
-  for (const u of people) { const lv = levelOf(u), n = used[lv]; count[lv]++; if (n < cap) { placed.push({ u, at: SLOTS[lv][n] }); used[lv] = n + 1 } }
-  const crowded = view === 'town' && Math.max(used[1], used[2], used[3]) > 5, hidden = people.length - placed.length
+  for (const u of shown) { const lv = levelOf(u), n = used[lv]; placed.push({ u, at: SLOTS[lv][n] }); used[lv] = n + 1 }
+  const crowded = Math.max(used[1], used[2], used[3]) > 5
   // boats: in My circle my own open IOUs; in Whole town every open IOU on the contract, the same ones the home page counts as open promises
   const active = s.ious.filter((x) => x.status === 'Active').sort((a, b) => a.dueAt - b.dueAt), mine = s.joined ? active.filter((x) => x.debtor === ME || x.creditor === ME) : []
   const open = view === 'town' ? active : mine
   // the harbour grows with the boats: the first picture holds 3, the second 8, the third 14
   const stage = TOWN_STAGES[open.length <= TOWN_STAGES[0].boats.length ? 0 : open.length <= TOWN_STAGES[1].boats.length ? 1 : 2]
-  return { view, circle, canCircle, people, placed, crowded, hidden, count, open, mine, stage }
+  return { view, circle, canCircle, people, placed, crowded, count, open, mine, stage, page, pages }
 }
 type Town = ReturnType<typeof useTown>
 
@@ -66,12 +70,25 @@ function Scene({ t, press, names }: { t: Town; press?: (address: string) => void
     </div>
   )
 }
+/** Under the town: one page back, one page on, and which page this is. Shown only when there is more than one page. */
+function Pager({ t, go, auto }: { t: Town; go: (page: number) => void; auto?: boolean }) {
+  if (t.pages < 2) return null
+  const round = 'w-11 h-11 shrink-0 rounded-full inline-flex items-center justify-center text-chalk cursor-pointer'
+  return (
+    <div className="flex items-center gap-3 mt-2.5" data-pager>
+      <button type="button" aria-label="Previous town page" className={round} style={GLASS} onClick={() => go((t.page + t.pages - 1) % t.pages)}><ChevronLeft size={22} aria-hidden /></button>
+      <div className="flex-1 text-center min-w-0">{t.pages <= 8 && <div aria-hidden className="flex gap-1.5 justify-center items-center">{Array.from({ length: t.pages }, (_, i) => <i key={i} className="block h-[7px] rounded-full" style={{ width: i === t.page ? 18 : 7, background: i === t.page ? 'var(--holo)' : '#ffffff40', transition: 'width 200ms' }} />)}</div>}
+        <p className="text-[12.5px] text-muted mt-1">Town {t.page + 1} of {t.pages}{auto ? ' · changes by itself' : ''}</p></div>
+      <button type="button" aria-label="Next town page" className={round} style={GLASS} onClick={() => go((t.page + 1) % t.pages)}><ChevronRight size={22} aria-hidden /></button>
+    </div>
+  )
+}
 function ViewPick({ view, set }: { view: string; set: (p: Pick) => void }) {
   return <div className="inline-flex p-1 rounded-full" style={{ background: '#0E1024', boxShadow: 'inset 0 0 0 1px #2C3156' }}>{([['circle', 'My circle'], ['town', 'Whole town']] as const).map(([k, label]) => <button key={k} type="button" aria-pressed={view === k} onClick={() => set(k)} className={`h-9 px-4 rounded-full text-[14px] font-bold cursor-pointer ${view === k ? 'text-[#1E1B4B]' : 'text-muted hover:text-chalk'}`} style={view === k ? { background: 'var(--holo)', boxShadow: 'inset 0 0 0 1.5px #ffffffd9' } : undefined}>{label}</button>)}</div>
 }
 
 /** The town page: the whole town, big. Two fingers zoom, one finger moves; the buttons do the same for anyone who cannot pinch. A short summary under it. */
-function TownPage({ t, set, close, visit }: { t: Town; set: (p: Pick) => void; close: () => void; visit: (address: string) => void }) {
+function TownPage({ t, set, go, close, visit }: { t: Town; set: (p: Pick) => void; go: (page: number) => void; close: () => void; visit: (address: string) => void }) {
   const s = useStore(); const vp = useRef<HTMLDivElement>(null); const [v, setV] = useState({ z: 1, x: 0, y: 0 })
   const pts = useRef(new Map<number, { x: number; y: number }>()), gap = useRef(0), dragged = useRef(false), travel = useRef(0)
   const fit = useCallback((z: number, x: number, y: number) => { const el = vp.current; if (!el) return { z, x, y }
@@ -102,6 +119,7 @@ function TownPage({ t, set, close, visit }: { t: Town; set: (p: Pick) => void; c
           <button type="button" aria-label="Show the whole town" className={round} style={GLASS} disabled={v.z === 1} onClick={() => setV({ z: 1, x: 0, y: 0 })}><RotateCcw size={18} aria-hidden /></button></div>
         <span aria-live="polite" className="absolute left-2.5 bottom-2.5 rounded-full px-3 py-1 text-[12px] font-extrabold text-chalk pointer-events-none" style={{ ...GLASS, zIndex: 400 }}>{v.z.toFixed(1)}x</span>
       </div>
+      <Pager t={t} go={go} />
       <p className="text-[12.5px] text-muted mt-2">Two fingers zoom, one finger moves. Press a mascot to see their town.</p>
       <dl className="grid grid-cols-4 gap-2 mt-3">{facts.map(([n, k, c]) => <div key={k} className="rounded-2xl px-3 py-2" style={{ background: '#ffffff0d', boxShadow: 'inset 0 0 0 1px #ffffff22' }}><dd className="text-[19px] font-extrabold leading-tight" style={{ color: c }}>{n}</dd><dt className="text-[11.5px] leading-tight text-muted">{k}</dt></div>)}</dl>
     </Sheet>
@@ -111,7 +129,12 @@ function TownPage({ t, set, close, visit }: { t: Town; set: (p: Pick) => void; c
 export function TownBox({ checked, streak }: { checked: boolean; streak: number }) {
   const s = useStore(); const [game, setGame] = useState(false), [gate, setGate] = useState(false), [page, setPage] = useState(false)
   const [visit, setVisit] = useState(''); const guest = visit ? s.user(visit) : undefined; const shut = useCallback(() => setVisit(''), []), shutPage = useCallback(() => setPage(false), [])
-  const [pick, setPick] = useState<Pick>(''); const t = useTown(pick), { view, circle, canCircle, count, hidden, open } = t
+  const [pick, setPick0] = useState<Pick>(''), [pg, setPg] = useState(0); const t = useTown(pick, pg), { view, circle, canCircle, count, open } = t
+  const { motionOff } = usePrefs(); const hold = useRef(0)   // after a press the town stops changing by itself for a while, so what is being looked at stays
+  const setPick = useCallback((p: Pick) => { setPick0(p); setPg(0) }, []), go = useCallback((n: number) => { hold.current = Date.now() + 15000; setPg(n) }, [])
+  const many = t.pages > 1, still = motionOff || game || page || !!visit
+  useEffect(() => { if (!many || still) return; const id = setInterval(() => { if (!document.hidden && Date.now() > hold.current) setPg((n) => n + 1) }, 5000); return () => clearInterval(id) }, [many, still])
+  useEffect(() => { if (pg >= t.pages) setPg(0) }, [pg, t.pages])
   const next = t.mine.find((x) => x.debtor === ME), drawn = Math.min(open.length, t.stage.boats.length)
   const locked = s.joined && s.restricted(ME)   // Restricted: the town can be looked at, but no game and no building until the overdue IOUs are repaid
   return (
@@ -119,12 +142,13 @@ export function TownBox({ checked, streak }: { checked: boolean; streak: number 
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2"><div><h2 id="t-town" className="text-[20px]">Promise Town</h2><p className="text-muted text-[14px]">Your record, drawn as a town. It follows what you already do below.</p></div>
         {!game && canCircle && <ViewPick view={view} set={setPick} />}</div>
       {game && !locked ? <HarbourRun streak={streak} close={() => setGame(false)} hint={next ? `Next to repay: ${s.name(next.creditor)}, ${dueText(next.dueAt)}` : 'Nothing to repay right now'} /> : <>
-        <div className="relative mt-4 overflow-hidden" style={{ borderRadius: 18, aspectRatio: '1.5517', containerType: 'inline-size', isolation: 'isolate', background: '#0E1024' }}>
+        <div className="relative mt-4 overflow-hidden" onPointerDown={() => { hold.current = Date.now() + 15000 }} style={{ borderRadius: 18, aspectRatio: '1.5517', containerType: 'inline-size', isolation: 'isolate', background: '#0E1024' }}>
           <div aria-hidden className="absolute inset-0"><Scene t={t} names={view === 'circle'} /></div>
           <button type="button" id="t-open" aria-haspopup="dialog" onClick={() => setPage(true)} aria-label={`Promise Town: ${t.placed.length} ${t.placed.length === 1 ? 'person' : 'people'}${drawn ? `, ${drawn} ${drawn === 1 ? 'boat' : 'boats'}` : ''}. Open the town to zoom in.`} className="absolute inset-0 w-full h-full cursor-pointer" style={{ zIndex: 500, borderRadius: 18 }}>
             <span aria-hidden className="absolute right-2.5 top-2.5 w-9 h-9 rounded-full inline-flex items-center justify-center text-chalk" style={GLASS}><Maximize2 size={17} /></span></button>
         </div>
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[13px] text-muted">{view === 'circle' ? <span>You and the {circle.length - 1} {circle.length === 2 ? 'person' : 'people'} you have an IOU with.</span> : <>{[3, 2, 1].map((lv) => <span key={lv} className="rounded-full px-2.5 py-0.5" style={{ background: '#0E1024', boxShadow: 'inset 0 0 0 1px #2C3156' }}>Level {lv} · <b className="text-chalk">{count[lv]}</b></span>)}{hidden > 0 && <span>{hidden} more not drawn.</span>}</>} <Link to="board" className="underline underline-offset-4 text-chalk">See everyone on the Leaderboard</Link></p>
+        <Pager t={t} go={go} auto={!motionOff} />
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[13px] text-muted">{view === 'circle' ? <span>You and the {circle.length - 1} {circle.length === 2 ? 'person' : 'people'} you have an IOU with.</span> : <>{[3, 2, 1].map((lv) => <span key={lv} className="rounded-full px-2.5 py-0.5" style={{ background: '#0E1024', boxShadow: 'inset 0 0 0 1px #2C3156' }}>Level {lv} · <b className="text-chalk">{count[lv]}</b></span>)}</>} <Link to="board" className="underline underline-offset-4 text-chalk">See everyone on the Leaderboard</Link></p>
         {/* the button sits under the row, not in it: beside the teaser it was wider than a phone and pushed the whole card off the right edge */}
         <div className="flex items-center gap-4 mt-4">
           {(!s.joined || !checked) && <div className="shrink-0 overflow-hidden" style={{ width: 96, aspectRatio: `${W} / ${H}`, borderRadius: 14, boxShadow: 'inset 0 0 0 1.5px #ffffff38, 0 8px 18px #0008' }} aria-hidden><Teaser /></div>}
@@ -135,7 +159,7 @@ export function TownBox({ checked, streak }: { checked: boolean; streak: number 
         {gate && !s.joined ? <p className="mt-3 flex flex-wrap items-center gap-3" role="status"><span className="font-semibold">Get IOU Verified first.</span><Link to="start" className="btn btn-primary btn-sm">Get IOU Verified</Link></p>
           : <button type="button" className="btn btn-primary mt-3 max-w-full" disabled={(s.joined && !checked) || locked} onClick={() => (s.joined ? setGame(true) : setGate(true))}><Sailboat size={18} aria-hidden />Play Harbour Run</button>}
         <TownBanner /></>}
-      {page && <TownPage t={t} set={setPick} close={shutPage} visit={setVisit} />}
+      {page && <TownPage t={t} set={setPick} go={go} close={shutPage} visit={setVisit} />}
       {guest && <TownSheet u={guest} close={shut} />}
     </section>
   )

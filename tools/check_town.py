@@ -154,6 +154,28 @@ try:
     pg.close(); pg=phone(); pg.goto(G+"home"); pg.wait_for_timeout(1500); last=pg.locator("main section").last
     ok("home, guest: the last panel still offers Get IOU Verified",last.get_by_role("link",name="Get IOU Verified").count()==1 and "Five minutes to get verified" in last.inner_text())
     pg.close()
+    # ---- town pages: ten to a page, me on every page, arrows, and it turns by itself every 5 seconds
+    CR=U.replace("demo=member","demo=crowd")
+    pg=phone(); pg.goto(U+"tasks"); pg.wait_for_timeout(1500); ok("a small town has one page and no arrows",town(pg).locator("[data-pager]").count()==0); pg.close()
+    pg=phone(); pg.goto(CR+"tasks"); pg.wait_for_timeout(1500); tw=town(pg); tw.get_by_role("button",name="Whole town").click(); pg.wait_for_timeout(300); pager=tw.locator("[data-pager]")
+    who=lambda: pg.evaluate("[...document.querySelectorAll('section:has(#t-town) [data-mascot] [role=img], section:has(#t-town) [data-mascot] img')].length")
+    ok("34 members: Whole town has 4 pages of ten",pager.count()==1 and "Town 1 of 4" in pager.inner_text() and tw.locator("[data-mascot]").count()==10 and tw.locator("[data-mascot] >> text=you").count()==1,pager.inner_text())
+    lab1=tw.locator("#t-open").get_attribute("aria-label"); tw.get_by_role("button",name="Next town page").click(); pg.wait_for_timeout(300)
+    ok("the arrow turns the page, and I am still on it","Town 2 of 4" in pager.inner_text() and tw.locator("[data-mascot]").count()==10 and tw.locator("[data-mascot] >> text=you").count()==1,pager.inner_text())
+    tw.get_by_role("button",name="Previous town page").click(); tw.get_by_role("button",name="Previous town page").click(); pg.wait_for_timeout(300)
+    ok("back from the first page goes to the last, which holds who is left: me and 6","Town 4 of 4" in pager.inner_text() and tw.locator("[data-mascot]").count()==7,(pager.inner_text(),tw.locator("[data-mascot]").count()))
+    pg.wait_for_timeout(6500); ok("after a press it holds still for a while","Town 4 of 4" in pager.inner_text(),pager.inner_text())
+    r=pager.bounding_box(); ok("the arrows are big enough to press and stay inside the screen",r["x"]>=0 and r["x"]+r["width"]<=390 and pg.evaluate("[...document.querySelectorAll('[data-pager] button')].every(b=>{const r=b.getBoundingClientRect();return r.width>=44&&r.height>=44})"))
+    pg.close()
+    pg=phone(); pg.goto(CR+"tasks"); pg.wait_for_timeout(1500); tw=town(pg); tw.get_by_role("button",name="Whole town").dispatch_event("click"); pg.wait_for_timeout(400); t0=tw.locator("[data-pager]").inner_text()
+    pg.wait_for_timeout(5600); t1=tw.locator("[data-pager]").inner_text(); pg.wait_for_timeout(5200); t2=tw.locator("[data-pager]").inner_text()
+    ok("left alone it turns by itself every 5 seconds","Town 1 of 4" in t0 and "Town 2 of 4" in t1 and "Town 3 of 4" in t2 and "changes by itself" in t0,(t0,t1,t2))
+    pg.locator("#t-open").dispatch_event("click"); pg.wait_for_timeout(600); tp=pg.locator("[role=dialog][aria-label='Promise Town']"); p0=tp.locator("[data-pager]").inner_text()
+    pg.wait_for_timeout(5800); ok("the town page has the same arrows and never turns by itself",tp.locator("[data-pager]").count()==1 and tp.locator("[data-pager]").inner_text()==p0 and "changes by itself" not in p0,(p0,tp.locator("[data-pager]").inner_text()))
+    tp.get_by_role("button",name="Next town page").click(); pg.wait_for_timeout(300); ok("its arrow turns the page there too",tp.locator("[data-pager]").inner_text()!=p0 and tp.locator("button[aria-label*='(you)']").count()==1)
+    pg.close()
+    ctx2=b.new_context(viewport={"width":390,"height":844},reduced_motion="reduce"); pg=ctx2.new_page(); pg.goto(CR+"tasks"); pg.wait_for_timeout(1500); tw=town(pg); tw.get_by_role("button",name="Whole town").dispatch_event("click"); pg.wait_for_timeout(400); t0=tw.locator("[data-pager]").inner_text()
+    pg.wait_for_timeout(5800); ok("with motion reduced it never turns by itself; the arrows still work",tw.locator("[data-pager]").inner_text()==t0 and "changes by itself" not in t0,t0); ctx2.close()
     # ---- nothing may be wider than the phone. (main clips what sticks out, so scroll width cannot see it: measure the cards themselves.)
     for w in (320,360,393):
       for label,url in (("member",U),("guest",G),("busy member",U.replace("demo=member","demo=busy"))):

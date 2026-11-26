@@ -107,6 +107,8 @@ export const seedUsers = (): User[] => [
   u(MART, 'promise-mart', 1, 0, 0), u(MIRA, 'mira', 12, 11, 5), u(SAM, 'sam', 57, 3, 2), u(RAFI, 'rafi', 31, 6, 3, 1), u(LINA, 'lina', 88, 1, 1),
   u(OMAR, 'omar', 71, 2, 2, 1),
   u(addr(0x6f2), 'kojo', 19, 9, 4), u(addr(0x7a8), 'ines', 23, 12, 6), u(addr(0x8b4), 'dev-han', 64, 2, 1),
+  // ?demo=crowd: 25 more members, to see the town turn its pages (tests use it; nothing links to it)
+  ...(MODE === 'crowd' ? Array.from({ length: 25 }, (_, k) => u(addr(0x9000 + k), `m${String(k + 1).padStart(2, '0')}`, 100 + k, (k * 5) % 13, 1 + (k % 4))) : []),
 ]
 /** "1 day", "2 days": a term or a count of days in words. */
 export const dayWord = (n: number) => (n === 1 ? '1 day' : `${n} days`)
