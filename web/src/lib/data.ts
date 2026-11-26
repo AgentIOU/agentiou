@@ -97,7 +97,7 @@ export const ME: string = DEMO ? addr(0x142) : proven && savedMe ? savedMe : '0x
 export const MART: string = DEMO ? addr(0xa11) : env.VITE_MART && isAddress(env.VITE_MART) ? getAddress(env.VITE_MART) : '0x0000000000000000000000000000000000000000'
 export const MIRA = addr(0x2b7), SAM = addr(0x3c9), RAFI = addr(0x4d1), LINA = addr(0x5e3), OMAR = addr(0x9c5)
 const T0 = Date.now()
-const BUSY = DEMO && typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === 'busy'
+const MODE = DEMO && typeof location !== 'undefined' ? new URLSearchParams(location.search).get('demo') : '', BUSY = MODE === 'busy'
 const u = (address: string, nickname: string, no: number, onTime: number, people: number, late = 0, extra: Partial<User> = {}): User => ({
   address, nickname, no, joinedAt: T0 - (160 - no) * DAY * 0.2 - 3 * DAY, onTime, late, defaults: 0, people, xp: 50 + onTime * 30, claimed: [Math.floor((50 + onTime * 30) / 50), Math.floor((50 + onTime * 30) / 150), Math.floor((50 + onTime * 30) / 300)], pocket: [0, 0, 0], stickers: {}, badges: onTime >= 0 && nickname !== 'promise-mart' ? { 'IOU Verified': T0 - 20 * DAY, ...(onTime > 0 ? { 'First Promise': T0 - 12 * DAY } : {}), ...(onTime >= 3 ? { Trusted: T0 - 8 * DAY } : {}), ...(onTime >= 10 && people >= 3 ? { 'Highly Trusted': T0 - 3 * DAY } : {}) } : {}, checkDays: 0, lastCheck: 0, ...extra })
 export const seedUsers = (): User[] => [
@@ -128,6 +128,8 @@ export const seedIous = (): Iou[] => [
   i(8, ME, LINA, 'USDT', 0.5, -2, 4, 'Active', 'Print shop'),
   i(9, MIRA, OMAR, 'USDT', 0.5, -9, -2, 'Active', 'Groceries'),
   i(10, RAFI, OMAR, 'USDT', 0.3, -6, -1, 'Active', 'Data pack'),
+  // ?demo=restricted: a member with two IOUs past due, so the account is Restricted (tests use it; nothing links to it)
+  ...(MODE === 'restricted' ? [i(21, addr(0x6f2), ME, 'USDT', 0.2, -6, -2, 'Active', 'Snacks'), i(22, addr(0x7a8), ME, 'USDT', 0.3, -5, -1, 'Active', 'Bus card')] : []),
   // ?demo=busy: a member with many open IOUs, to see the harbour at its biggest (tests use it; nothing links to it)
   ...(BUSY ? [i(11, addr(0x6f2), ME, 'USDT', 0.2, -1, 1, 'Active', 'Snacks'), i(12, ME, addr(0x7a8), 'USDT', 0.4, -1, 2, 'Active', 'Stickers'), i(13, addr(0x7a8), ME, 'USDT', 0.3, -2, 3, 'Active', 'Bus card'), i(14, ME, SAM, 'USDT', 0.6, -1, 6, 'Active', 'Coffee'),
     i(15, ME, addr(0x8b4), 'USDT', 0.2, -3, 7, 'Active', 'Pens'), i(16, addr(0x6f2), ME, 'USDT', 0.1, -1, 8, 'Active', 'Gum'), i(17, ME, OMAR, 'USDT', 0.5, -2, 9, 'Active', 'Charger'), i(18, SAM, ME, 'USDT', 0.2, -1, 10, 'Active', 'Tea')] : []),

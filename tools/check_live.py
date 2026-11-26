@@ -60,7 +60,7 @@ try:
         r=send_prompt(frm); t=time.time(); c=confirm(expect); speed.append(time.time()-t); return r=="success" and c
     done=lambda: (pg.get_by_role("button",name="Done").click(), pg.wait_for_timeout(300))
     def site():
-        go("tasks",700); t=main(); xp=int(re.search(r"([\d,]+)\s*XP",t).group(1).replace(",",""))
+        go("tasks",700); xp=int(re.sub(r"\D","",pg.locator("section:has(#t-xp) p.led").first.inner_text().split("+")[0]))   # the big number on the Your XP card
         go("me",700); t=main(); lab=pg.locator("[aria-label*='IOU Card']").first.get_attribute("aria-label")
         return dict(score=int(re.search(r"Trust Score (\d+)",t).group(1)), level=int(re.search(r"\bL(\d)\b",t).group(1)), limit=int(re.search(r"of \$(\d+) limit",lab).group(1)), avail=float(re.search(r"Available \$([\d.]+)",lab).group(1)), xp=xp, restricted="Restricted account" in lab)
     def same(label):

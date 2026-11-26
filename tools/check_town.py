@@ -46,10 +46,12 @@ try:
     # ---- the town's two views
     tw=town(pg); ok("town opens on My circle for a member who has dealt with people",tw.get_by_role("button",name="My circle").get_attribute("aria-pressed")=="true" and "you have an IOU with" in tw.inner_text())
     names=tw.locator("[data-mascot]").count(); ok("My circle draws me and the people I have an IOU with, with names",2<=names<=13 and tw.locator("[data-mascot] >> text=you").count()==1 and tw.locator("[data-mascot] >> text=mira").count()==1,names)
+    RE=__import__("re"); src=lambda: tw.locator("#t-open").locator("xpath=..").locator("img").first.get_attribute("src")
+    tags=[x.strip() for x in tw.locator("[data-boat]").all_inner_texts()]; ok("My circle: boats are my own open IOUs, tagged with the days left only",len(tags)==3 and all(RE.fullmatch(r"\d+d|today",x) for x in tags) and "town.webp" in src(),tags)
     tw.get_by_role("button",name="Whole town").click(); pg.wait_for_timeout(400); tt=tw.inner_text()
     ok("Whole town counts each level and links to the Leaderboard",all(k in tt for k in ("Level 3 ·","Level 2 ·","Level 1 ·")) and tw.get_by_role("link",name="See everyone on the Leaderboard").count()==1,tt[:200])
     ok("Whole town never draws more than ten per level, and names only me",tw.locator("[data-mascot]").count()<=30 and tw.locator("[data-mascot] >> text=you").count()==1 and tw.locator("[data-mascot] >> text=mira").count()==0)
-    tags=[x.strip() for x in tw.locator("[data-boat]").all_inner_texts()]; ok("boats are my open IOUs, tagged with the days left only",len(tags)==3 and all(__import__("re").fullmatch(r"\d+d|today|late",x) for x in tags) and "town.webp" in tw.locator("#t-open").locator("xpath=..").locator("img").first.get_attribute("src"),tags)
+    tags=[x.strip() for x in tw.locator("[data-boat]").all_inner_texts()]; ok("Whole town: every open IOU is a boat (5, two of them late), and the harbour is one size bigger",len(tags)==5 and tags.count("late")==2 and "town-2.webp" in src(),tags)
     # ---- Harbour Run: the ticket is today's check-in
     play=tw.get_by_role("button",name="Play Harbour Run"); ok("before today's check-in the game is closed and the teaser plays",play.is_disabled() and tw.locator("canvas").count()==1 and "Check in today" in tt)
     pg.get_by_role("button",name="Check in").click(); pg.wait_for_timeout(700); pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(5200); pg.keyboard.press("Escape"); pg.wait_for_timeout(700)
@@ -81,7 +83,12 @@ try:
     ok("the town behind the banner is decoration only",ban.locator("[role=img]").count()==0 and ban.locator("[aria-hidden=true] img[src*='/town/']").count()==5)
     ban.click(); pg.wait_for_timeout(600); dlg=pg.locator("[role=dialog][aria-modal=true]"); plot=dlg.locator("[role=img]").first
     lab=plot.get_attribute("aria-label") if dlg.count() else ""; ok("a press opens the whole town: Tree and Fountain are open",dlg.count()==1 and dlg.get_attribute("aria-label")=="Your town" and lab=="Your town: 2 of 28 parts open: Tree, Fountain.",lab)
-    ok("every closed part shows a lock at its place: 26",plot.locator("svg.lucide-lock").count()==26,plot.locator("svg.lucide-lock").count())
+    ok("every closed part shows a lock at its place: 26",dlg.locator("button[aria-label^='Locked:']").count()==26,dlg.locator("button[aria-label^='Locked:']").count())
+    ok("before a lock is pressed the line under the town says what to do","Press a lock to see what goes there." in dlg.inner_text())
+    lk=dlg.locator("button[aria-label='Locked: Windmill, Rare']"); lk.dispatch_event("click"); pg.wait_for_timeout(300)
+    ok("pressing a lock names the part that goes there and its place in the order","Windmill goes here. Rare part 7 of 11" in dlg.locator("[role=status]").inner_text() and lk.get_attribute("aria-pressed")=="true",dlg.locator("[role=status]").inner_text())
+    ok("and draws that part faintly at its place",plot.locator("img[src*='/town/']").count()==6 and pg.evaluate("[...document.querySelectorAll('[role=dialog] [role=img] img')].filter(i=>i.style.opacity==='0.5').length")==1)
+    lk.dispatch_event("click"); pg.wait_for_timeout(200); ok("pressing it again puts it away",plot.locator("img[src*='/town/']").count()==5 and lk.get_attribute("aria-pressed")=="false")
     ok("the pictures drawn are the ground, the home, two trees and the fountain",plot.locator("img[src*='/town/']").count()==5 and pg.evaluate("[...document.querySelectorAll('[role=dialog] [role=img] img')].every(i=>i.complete&&i.naturalWidth>0)"),plot.locator("img[src*='/town/']").count())
     rows=dlg.locator("li").all_inner_texts(); ok("each tier names the next part and what it takes",len(rows)==3 and "Street lamps" in rows[0] and "Claim 2 vouchers on this page" in rows[0] and "Market stall" in rows[1] and "Lighthouse" in rows[2],rows)
     ok("the rule is stated, and that parts cannot be bought or sold","2 Common vouchers open one part" in dlg.inner_text() and "cannot be bought, sold or moved" in dlg.inner_text())
@@ -96,6 +103,8 @@ try:
     t=tp.inner_text(); ok("under it there is a short summary only",all(k in t for k in ("people","to pay","to receive","next due")) and tp.locator("dl > div").count()==4 and tp.locator("li").count()==0,t[-160:])
     ok("the summary counts my open IOUs: 2 to pay, 1 to receive, next in 2 days",[x.split("\n")[0] for x in tp.locator("dl > div").all_inner_texts()]==["5","2","1","2d"],tp.locator("dl > div").all_inner_texts())
     tp.get_by_role("button",name="Whole town",exact=True).click(); pg.wait_for_timeout(400); n0=tp.locator("button[aria-label*='level'] >> text=mira").count()
+    ok("Whole town's summary is the whole record: 9 people, 5 open promises, 4 repaid on time, 2 late now",[x.replace("\n"," ") for x in tp.locator("dl > div").all_inner_texts()]==["9 people","5 open promises","4 repaid on time","2 late now"],tp.locator("dl > div").all_inner_texts())
+    ok("a boat of two other members says who owes whom",tp.locator("[data-boat][aria-label^='omar owes']").count()==2)
     zin=tp.get_by_role("button",name="Zoom in",exact=True); zin.click(); zin.click(); pg.wait_for_timeout(400)
     ok("Zoom in makes it bigger, and names show once it is zoomed",vp.get_attribute("data-zoom")=="1.96" and n0==0 and tp.locator("button[aria-label*='level'] >> text=mira").count()==1,vp.get_attribute("data-zoom"))
     tr0=pg.evaluate("document.querySelector('[data-zoom] > div').style.transform"); pg.mouse.move(v["x"]+150,v["y"]+150); pg.mouse.down(); pg.mouse.move(v["x"]+90,v["y"]+110,steps=5); pg.mouse.up(); pg.wait_for_timeout(200)
@@ -125,9 +134,26 @@ try:
     pg=phone(); pg.goto(G+"tasks"); pg.wait_for_timeout(1500); ban=pg.locator("button#t-build")
     ok("a guest's banner offers a finished town to look at",ban.get_attribute("aria-label")=="Build your town: see a finished town." and "See a finished town" in ban.inner_text())
     ban.click(); pg.wait_for_timeout(700); dlg=pg.locator("[role=dialog][aria-modal=true]"); plot=dlg.locator("[role=img]").first
-    ok("a guest sees a finished town as the sample, and the way in",dlg.get_attribute("aria-label")=="A finished town" and plot.get_attribute("aria-label").startswith("A finished town") and plot.locator("svg.lucide-lock").count()==0 and dlg.get_by_role("link",name="Get IOU Verified").count()==1 and dlg.locator("li").count()==0,plot.get_attribute("aria-label"))
+    ok("a guest sees a finished town as the sample, and the way in",dlg.get_attribute("aria-label")=="A finished town" and plot.get_attribute("aria-label").startswith("A finished town") and dlg.locator("button[aria-label^='Locked:']").count()==0 and dlg.get_by_role("link",name="Get IOU Verified").count()==1 and dlg.locator("li").count()==0,plot.get_attribute("aria-label"))
     ok("all the town pictures load",plot.locator("img[src*='/town/']").count()==35 and pg.evaluate("[...document.querySelectorAll('[role=dialog] [role=img] img')].every(i=>i.complete&&i.naturalWidth>0)"))
     pg.close()
+    # ---- Restricted (two IOUs past due): the town can be looked at, but no game and no building
+    pg=phone(); pg.goto(U.replace("demo=member","demo=restricted")+"tasks"); pg.wait_for_timeout(1700); tw=town(pg)
+    ok("a Restricted member cannot start Harbour Run, and is told why",tw.get_by_role("button",name="Play Harbour Run").is_disabled() and "Closed while your account is Restricted" in tw.inner_text())
+    ban=tw.locator("button#t-build"); ok("nor open Build your town",ban.is_disabled() and "Closed while Restricted" in ban.inner_text() and "Restricted" in ban.get_attribute("aria-label"),ban.inner_text())
+    pg.locator("#t-open").click(); pg.wait_for_timeout(600); tp=pg.locator("[role=dialog][aria-label='Promise Town']")
+    ok("but Promise Town still opens to look at",tp.count()==1 and tp.locator("button[aria-label*='(you)']").count()==1)
+    pg.close()
+    # ---- nothing may be wider than the phone. (main clips what sticks out, so scroll width cannot see it: measure the cards themselves.)
+    for w in (320,360,393):
+      for label,url in (("member",U),("guest",G),("busy member",U.replace("demo=member","demo=busy"))):
+        pw=b.new_page(viewport={"width":w,"height":800},device_scale_factor=2,is_mobile=True,has_touch=True); pw.goto(url+"tasks"); pw.wait_for_timeout(1300)
+        bad_=pw.evaluate("(()=>{const W=innerWidth;return [...document.querySelectorAll('main section, main .panel, main h1, main p, main button, main a')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>W+0.5||r.left<-0.5)}).map(e=>(e.id||e.getAttribute('aria-labelledby')||e.tagName)+':'+Math.round(e.getBoundingClientRect().right)).slice(0,4)})()")
+        ok(f"{w}px Task Hub as {label}: every card, line and button stays inside the screen",bad_==[],bad_); pw.close()
+    for name in ("home","me","mart","board"):
+      pw=b.new_page(viewport={"width":360,"height":800},device_scale_factor=2,is_mobile=True,has_touch=True); pw.goto(U+name); pw.wait_for_timeout(1200)
+      bad_=pw.evaluate("(()=>{const W=innerWidth;return [...document.querySelectorAll('main section, main .panel, main h1, main button')].filter(e=>{const r=e.getBoundingClientRect();const s=getComputedStyle(e);return r.width>0&&s.position!=='absolute'&&(r.right>W+0.5||r.left<-0.5)}).map(e=>(e.id||e.getAttribute('aria-labelledby')||e.tagName)+':'+Math.round(e.getBoundingClientRect().right)).slice(0,4)})()")
+      ok(f"360px {name}: cards and buttons stay inside the screen",bad_==[],bad_); pw.close()
     # ---- small phone and reduced motion
     ctx=b.new_context(viewport={"width":320,"height":640},reduced_motion="reduce"); pg=ctx.new_page(); pg.on("pageerror",lambda e:errs.append(str(e)))
     for name in ("tasks","me","board","home"):

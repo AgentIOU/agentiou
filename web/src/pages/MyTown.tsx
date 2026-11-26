@@ -16,13 +16,22 @@ const SIZE = [0, 1, 2].map((t) => TOWN_PARTS.filter((p) => p.tier === t).length)
 
 export function TownPlot({ u, sample, bare }: { u: User; /** a finished town, shown to visitors who have none yet */ sample?: boolean; /** the pictures only, as a backdrop: no locks, no mascot, nothing announced */ bare?: boolean }) {
   const s = useStore(); const open = sample ? new Set(TOWN_PARTS.map((_, i) => i)) : townOf(u).open; const st = styleOf(u), od = s.hasOverdue(u.address)
-  const names = TOWN_PARTS.filter((_, i) => open.has(i)).map((p) => p.name)
+  const [sel, setSel] = useState(-1)   // the lock that was pressed: its part is drawn faintly at its place and named under the picture
+  const names = TOWN_PARTS.filter((_, i) => open.has(i)).map((p) => p.name), part = sel >= 0 && !open.has(sel) ? TOWN_PARTS[sel] : undefined, locks = !bare && open.size < TOWN_PARTS.length
+  const frame = { borderRadius: bare ? 0 : 18, aspectRatio: String(TOWN_RATIO), containerType: 'inline-size', isolation: 'isolate', background: 'radial-gradient(60% 50% at 50% 38%,#3A2F7A,#151845 60%,#0E1024)' } as const
+  const art = <>
+    {TOWN_ART.filter((a) => a.p < 0 || open.has(a.p) || a.p === (part ? sel : -9)).map((a) => <img key={a.f} src={img(`town/${a.f}`)} alt="" draggable={false} className="absolute max-w-none" style={{ left: `${a.x}%`, top: `${a.y}%`, width: `${a.w}%`, zIndex: a.z, opacity: a.p >= 0 && !open.has(a.p) ? 0.5 : undefined }} />)}
+    {!bare && <span aria-hidden className="absolute town-hop" style={{ left: `${TOWN_ME[0]}%`, top: `${TOWN_ME[1]}%`, width: '5.6cqw', transform: 'translate(-50%,-100%)', zIndex: TOWN_ME_Z, filter: 'drop-shadow(0 .5cqw .4cqw #0009)' }}><MascotMark address={u.address} pose={od ? 'rest' : st.pose} look={st.look} shade={st.shade} asleep={od} width={0} fill /></span>}</>
+  if (bare) return <div aria-hidden className="relative overflow-hidden" style={frame}>{art}</div>
   return (
-    <div role={bare ? undefined : 'img'} aria-hidden={bare || undefined} aria-label={bare ? undefined : sample ? `A finished town: all ${TOWN_PARTS.length} parts, from a tree to a castle tower.` : `${u.address === ME ? 'Your town' : `${u.nickname}'s town`}: ${open.size} of ${TOWN_PARTS.length} parts open${names.length ? `: ${names.join(', ')}` : ''}.`} className="relative overflow-hidden"
-      style={{ borderRadius: bare ? 0 : 18, aspectRatio: String(TOWN_RATIO), containerType: 'inline-size', isolation: 'isolate', background: 'radial-gradient(60% 50% at 50% 38%,#3A2F7A,#151845 60%,#0E1024)' }}>
-      {TOWN_ART.filter((a) => a.p < 0 || open.has(a.p)).map((a) => <img key={a.f} src={img(`town/${a.f}`)} alt="" draggable={false} className="absolute max-w-none" style={{ left: `${a.x}%`, top: `${a.y}%`, width: `${a.w}%`, zIndex: a.z }} />)}
-      {!bare && TOWN_PARTS.map((p, i) => open.has(i) ? null : <span key={i} aria-hidden className="absolute flex items-center justify-center" style={{ left: `${p.at[0]}%`, top: `${p.at[1]}%`, width: '5cqw', height: '2.5cqw', transform: 'translate(-50%,-50%)', borderRadius: '50%', background: '#0E102480', border: `1px dashed ${INK[p.tier]}`, color: INK[p.tier], zIndex: 150 }}><Lock style={{ width: '1.7cqw', height: '1.7cqw' }} strokeWidth={3} /></span>)}
-      {!bare && <span aria-hidden className="absolute town-hop" style={{ left: `${TOWN_ME[0]}%`, top: `${TOWN_ME[1]}%`, width: '5.6cqw', transform: 'translate(-50%,-100%)', zIndex: TOWN_ME_Z, filter: 'drop-shadow(0 .5cqw .4cqw #0009)' }}><MascotMark address={u.address} pose={od ? 'rest' : st.pose} look={st.look} shade={st.shade} asleep={od} width={0} fill /></span>}
+    <div>
+      <div className="relative overflow-hidden" style={frame}>
+        {/* the picture is one image to a screen reader; the locks are real buttons beside it, in the same stack, so a building in front still covers a lock behind it */}
+        <div role="img" aria-label={sample ? `A finished town: all ${TOWN_PARTS.length} parts, from a tree to a castle tower.` : `${u.address === ME ? 'Your town' : `${u.nickname}'s town`}: ${open.size} of ${TOWN_PARTS.length} parts open${names.length ? `: ${names.join(', ')}` : ''}.`} className="absolute inset-0">{art}</div>
+        {TOWN_PARTS.map((p, i) => open.has(i) ? null : <button key={i} type="button" aria-pressed={sel === i} aria-label={`Locked: ${p.name}, ${TIERS[p.tier]}`} onClick={() => setSel(sel === i ? -1 : i)} className="absolute flex items-center justify-center cursor-pointer" style={{ left: `${p.at[0]}%`, top: `${p.at[1]}%`, width: '8cqw', height: '6cqw', transform: 'translate(-50%,-50%)', zIndex: sel === i ? 2000 : 150 }}>
+          <span className="flex items-center justify-center" style={{ width: '5cqw', height: '2.5cqw', borderRadius: '50%', background: sel === i ? INK[p.tier] : '#0E102480', border: `1px ${sel === i ? 'solid' : 'dashed'} ${INK[p.tier]}`, color: sel === i ? '#14163A' : INK[p.tier] }}><Lock aria-hidden style={{ width: '1.7cqw', height: '1.7cqw' }} strokeWidth={3} /></span></button>)}
+      </div>
+      {locks && <p role="status" className="text-[13.5px] mt-2 min-h-[2.6em]" style={{ color: part ? '#F0F1F7' : undefined }}>{part ? <><b style={{ color: INK[part.tier] }}>{part.name}</b> goes here. {TIERS[part.tier]} part {TOWN_PARTS.slice(0, sel + 1).filter((p) => p.tier === part.tier).length} of {SIZE[part.tier]}; parts open in this order.</> : <span className="text-muted">Press a lock to see what goes there.</span>}</p>}
     </div>
   )
 }
@@ -47,20 +56,21 @@ const PILL = { background: '#0E1024', boxShadow: 'inset 0 0 0 1px #2C3156' }
 /** Task Hub, under Harbour Run: the member's town as one small row. A press opens the whole town. */
 export function TownBanner() {
   const s = useStore(); const [open, setOpen] = useState(false); const shut = useCallback(() => setOpen(false), [])
+  const locked = s.joined && s.restricted(ME)   // Restricted: no building until the overdue IOUs are repaid
   const me = s.me, got = townOf(me).open, have = [0, 1, 2].map((t) => TOWN_PARTS.filter((p, i) => p.tier === t && got.has(i)).length)
   return <>
-    <button type="button" id="t-build" aria-haspopup="dialog" onClick={() => setOpen(true)} aria-label={s.joined ? `Build your town: ${count(me)} open. Open your town.` : 'Build your town: see a finished town.'}
-      className="relative block w-full max-w-[560px] mt-4 text-left overflow-hidden cursor-pointer" style={{ borderRadius: 20, boxShadow: 'inset 0 0 0 1px #ffffff2e', background: '#14163A' }}>
+    <button type="button" id="t-build" aria-haspopup="dialog" disabled={locked} onClick={() => setOpen(true)} aria-label={locked ? 'Build your town: closed while your account is Restricted. Repay your overdue IOUs to open it.' : s.joined ? `Build your town: ${count(me)} open. Open your town.` : 'Build your town: see a finished town.'}
+      className={`relative block w-full max-w-[560px] mt-4 text-left overflow-hidden ${locked ? 'cursor-not-allowed' : 'cursor-pointer'}`} style={{ borderRadius: 20, boxShadow: 'inset 0 0 0 1px #ffffff2e', background: '#14163A', filter: locked ? 'saturate(.35)' : undefined }}>
       <span aria-hidden className="absolute inset-x-0 top-1/2 block" style={{ transform: 'translateY(-50%) scale(1.12)' }}><TownPlot u={me} sample={!s.joined} bare /></span>
       <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(90deg,#14163AF2 0%,#14163AD0 46%,#14163A40 100%)', zIndex: 1 }} />
       <span className="relative flex items-center gap-3 px-4 py-3.5" style={{ zIndex: 2 }}>
         <span className="min-w-0 flex-1"><span className="block text-[17px] font-extrabold text-chalk">Build your town</span>
-          <span className="block text-[13.5px]" style={{ color: '#D5D7EA' }}>{s.joined ? `${count(me)} open` : 'See a finished town'}</span>
-          {s.joined && <span className="flex gap-2 mt-5 max-w-[200px]">{have.map((n, t) => <span key={t} className="flex-1"><span className="block h-1.5 rounded-full overflow-hidden" style={{ background: '#ffffff26' }}><i className="block h-full rounded-full" style={{ width: `${(n / SIZE[t]) * 100}%`, background: INK[t] }} /></span><span className="block text-[11.5px] mt-1" style={{ color: '#C9CCE2' }}>{n}/{SIZE[t]}</span></span>)}</span>}</span>
-        <span className="shrink-0 w-10 h-10 rounded-full inline-flex items-center justify-center" style={{ background: 'var(--holo)', boxShadow: 'inset 0 0 0 1.5px #ffffffd9, 0 6px 18px #F2A7E055', color: '#1E1B4B' }}><ChevronRight size={22} aria-hidden /></span>
+          <span className="block text-[13.5px]" style={{ color: '#D5D7EA' }}>{locked ? 'Closed while Restricted. Repay your overdue IOUs.' : s.joined ? `${count(me)} open` : 'See a finished town'}</span>
+          {s.joined && !locked && <span className="flex gap-2 mt-5 max-w-[200px]">{have.map((n, t) => <span key={t} className="flex-1"><span className="block h-1.5 rounded-full overflow-hidden" style={{ background: '#ffffff26' }}><i className="block h-full rounded-full" style={{ width: `${(n / SIZE[t]) * 100}%`, background: INK[t] }} /></span><span className="block text-[11.5px] mt-1" style={{ color: '#C9CCE2' }}>{n}/{SIZE[t]}</span></span>)}</span>}</span>
+        <span className="shrink-0 w-10 h-10 rounded-full inline-flex items-center justify-center" style={{ background: 'var(--holo)', boxShadow: 'inset 0 0 0 1.5px #ffffffd9, 0 6px 18px #F2A7E055', color: '#1E1B4B' }}>{locked ? <Lock size={18} aria-hidden /> : <ChevronRight size={22} aria-hidden />}</span>
       </span>
     </button>
-    {open && <MyTownSheet close={shut} />}
+    {open && !locked && <MyTownSheet close={shut} />}
   </>
 }
 /** The whole town, opened from the banner: every part at its place, and what opens the next one. A visitor sees a finished town. */

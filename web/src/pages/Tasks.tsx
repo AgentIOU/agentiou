@@ -23,11 +23,22 @@ const REPEAT: Quest[] = [
 ]
 function QuestCard({ q, done }: { q: Quest; done?: boolean }) {
   return (
-    <li className="quest flex items-center gap-4 p-4 pr-5" style={{ background: `linear-gradient(120deg, ${q.bg}, ${q.bg}cc)` }}>
-      <Mascot pose={q.pose} className="w-[68px] shrink-0" />
-      <div className="min-w-0 flex-1"><h3 className="text-[17px] leading-snug">{q.title}</h3><p className="text-[14px] text-chalk/70 mt-0.5">{q.cap}</p></div>
-      <div className="text-right shrink-0"><p className="led text-amber text-[24px] leading-none">{q.xp}</p><p className="text-[12px] text-chalk/70 mt-1">XP</p>{done && <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-leaf mt-1"><Check size={13} aria-hidden />Done before</span>}</div>
+    <li className="quest flex items-center gap-3 py-2 pl-2.5 pr-4" style={{ background: `linear-gradient(120deg, ${q.bg}, ${q.bg}cc)`, borderRadius: 16 }}>
+      <Mascot pose={q.pose} className="w-10 shrink-0" />
+      <div className="min-w-0 flex-1"><h3 className="text-[15px] leading-tight">{q.title}</h3><p className="text-[12.5px] text-chalk/70 mt-0.5">{q.cap}{done && <span className="inline-flex items-center gap-1 font-semibold text-leaf ml-2"><Check size={12} aria-hidden />Done before</span>}</p></div>
+      <p className="shrink-0 whitespace-nowrap"><span className="led text-amber text-[20px] leading-none">{q.xp}</span><span className="text-[11px] text-chalk/70 ml-1">XP</span></p>
     </li>
+  )
+}
+/** One-time and Every time in one box: two tabs, one list at a time. */
+function Quests({ done }: { done: Record<string, boolean | undefined> }) {
+  const [tab, setTab] = useState<'rep' | 'once'>('rep'); const list = tab === 'rep' ? REPEAT : ONCE
+  return (
+    <section aria-labelledby="t-ways"><h2 id="t-ways" className="text-[20px]">Ways to get XP</h2>
+      <div className="inline-flex p-1 rounded-full mt-3" style={{ background: '#0E1024', boxShadow: 'inset 0 0 0 1px #2C3156' }}>{([['rep', 'Every time'], ['once', 'One-time']] as const).map(([k, label]) => <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={`h-9 px-4 rounded-full text-[14px] font-bold cursor-pointer ${tab === k ? 'text-[#1E1B4B]' : 'text-muted hover:text-chalk'}`} style={tab === k ? { background: 'var(--holo)', boxShadow: 'inset 0 0 0 1.5px #ffffffd9' } : undefined}>{label}</button>)}</div>
+      <ul className="grid gap-2 mt-3 md:grid-cols-2" aria-label={tab === 'rep' ? 'Every time' : 'One-time'}>{list.map((q) => <QuestCard key={q.key} q={q} done={done[q.key]} />)}</ul>
+      {tab === 'rep' && <p className="text-muted text-[14px] mt-3">A late repay gives 0 XP. Repay XP is added inside the repay itself, with no extra transaction.</p>}
+    </section>
   )
 }
 export default function Tasks() {
@@ -43,7 +54,7 @@ export default function Tasks() {
   return (
     <div className="glow" style={{ '--glow': 'radial-gradient(45% 22% at 88% 4%,#F2A7E038,transparent),radial-gradient(45% 22% at 0% 30%,#8C96FF38,transparent),radial-gradient(50% 20% at 95% 70%,#FFB23F26,transparent)' } as React.CSSProperties}>
       <Floaters items={[{ k: 'ticket', w: 96, style: { right: '4%', top: 96 }, desk: true }, { k: 'star', w: 50, style: { right: '15%', top: 250 }, far: true, desk: true }, { k: 'coin', w: 60, style: { left: '2%', top: 900 }, far: true, desk: true }]} />
-      <div className="wrap relative pt-28 pb-16 grid gap-14">
+      <div className="wrap relative pt-28 pb-16 grid gap-14 [&>*]:min-w-0">
         <div><div className="flex flex-wrap items-center gap-3"><h1 className="h2">Task Hub</h1><DemoChip /></div><p className="lead mt-3">Get XP for keeping your word, turn it into vouchers, and mint Season 1 stamps for free.</p>
           <p className="hint mt-4">Lending to someone? <Link to="trust" className="underline underline-offset-4 text-chalk">Check their record on Open Trust.</Link></p></div>
 
@@ -53,13 +64,13 @@ export default function Tasks() {
           <div className="flex items-center justify-between gap-4">
             <div><h2 id="t-xp" className="text-[14px] font-bold text-chalk/80 flex items-center gap-1.5">Your XP <InfoTip label="About XP">XP only goes up. It never changes your Trust Score or your limit. XP has no cash value. Vouchers and stamps can't be sold or transferred.</InfoTip></h2>
               <p className="relative led text-[44px] md:text-[64px] leading-none text-chalk mt-1 inline-block" aria-live="polite">{me.xp}{gain > 0 && <span className="absolute left-full top-0 ml-3 text-amber text-[24px] whitespace-nowrap" style={{ animation: 'xpfly 1.4s var(--ease-out) both' }}>+{gain}</span>}</p></div>
-            <ul className="flex gap-3 md:gap-7">{TIERS.map((t, i) => <li key={t} className="text-center">
+            <ul className="flex gap-1.5 min-[360px]:gap-3 md:gap-7">{TIERS.map((t, i) => <li key={t} className="text-center">
               <svg role="img" aria-label={`${t}: ${next[i]} XP to the next voucher, one every ${TIER_XP[i]} XP`} viewBox="0 0 54 54" className="w-[54px] h-[54px] md:w-[68px] md:h-[68px] mx-auto">
                 <defs><linearGradient id={`xp-ring-${i}`} x1="0" x2="1" y2="1"><stop offset="0" stopColor="#9FA8FF" /><stop offset=".5" stopColor="#F2A7E0" /><stop offset="1" stopColor="#FFC46B" /></linearGradient></defs>
                 <circle cx="27" cy="27" r="22" fill="none" stroke="#0E102480" strokeWidth="6" />
                 <circle cx="27" cy="27" r="22" fill="none" stroke={i === 2 ? `url(#xp-ring-${i})` : i === 1 ? '#FFB23F' : '#AEB5FF'} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${((TIER_XP[i] - next[i]) / TIER_XP[i]) * 138.2} 138.2`} transform="rotate(-90 27 27)" style={{ transition: 'stroke-dasharray 700ms' }} />
                 <text x="27" y="32" textAnchor="middle" fontFamily="Doto" fontWeight="800" fontSize="15" fill="#fff">{next[i]}</text></svg>
-              <p className="text-[12px] md:text-[14px] font-bold mt-0.5" aria-hidden>{t}</p></li>)}</ul>
+              <p className="text-[11px] min-[360px]:text-[12px] md:text-[14px] font-bold mt-0.5" aria-hidden>{t}</p></li>)}</ul>
           </div>
           <p className="text-[13px] text-chalk/70 mt-2">The number in each ring is the XP left to the next voucher: Common every {TIER_XP[0]}, Rare every {TIER_XP[1]}, Legendary every {TIER_XP[2]}.</p></section>
 
@@ -72,9 +83,7 @@ export default function Tasks() {
             <div className="flex flex-wrap items-center justify-between gap-3 mt-3"><p className="text-[14px] text-chalk/80">{checked ? `Day ${cardDays} of 7 is done.` : `Day ${cardDays + 1} of 7.`} Day 7 adds +20.</p><button type="button" className="btn btn-primary" disabled={checked || !s.joined} onClick={f.checkIn}><Sailboat size={18} aria-hidden />{checked ? 'Come back tomorrow' : 'Check in'}</button></div>
           </div></section>
 
-        <section aria-labelledby="t-once"><h2 id="t-once" className="text-[20px]">One-time</h2><ul className="grid gap-4 mt-4 md:grid-cols-2 xl:grid-cols-3">{ONCE.map((q) => <QuestCard key={q.key} q={q} done={done[q.key]} />)}</ul></section>
-        <section aria-labelledby="t-rep"><h2 id="t-rep" className="text-[20px]">Every time</h2><ul className="grid gap-4 mt-4 md:grid-cols-2">{REPEAT.map((q) => <QuestCard key={q.key} q={q} done={done[q.key]} />)}</ul>
-          <p className="text-muted text-[14px] mt-3">A late repay gives 0 XP. Repay XP is added inside the repay itself, with no extra transaction.</p></section>
+        <Quests done={done} />
 
         <section aria-labelledby="t-claim"><h2 id="t-claim" className="text-[20px]">Vouchers</h2><p className="text-muted mt-1">Claiming is one transaction through your agent. In your pocket: {me.pocket.map((n, i) => `${n} ${TIERS[i]}`).join(', ')}.</p>
           {od && <p className="text-coral mt-3 font-semibold">You have an overdue IOU. Repay it to unlock vouchers and minting.</p>}
