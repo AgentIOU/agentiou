@@ -36,7 +36,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [chainState, setChainState] = useState<{ loaded: boolean; down: boolean; holds: boolean | null; credit: number; shop: number; print: string }>({ loaded: DEMO, down: false, holds: null, credit: 0, shop: DEMO ? Infinity : 0, print: '' })
   // a visitor starts as a guest: free to look at everything, with every action switched off until they join.
   // (tests open the demo as an existing member with ?demo=member)
-  const [demoJoined, setJoined] = useState(() => DEMO && new URLSearchParams(location.search).get('demo') === 'member')   // joining happens once; after it the header shows the profile instead of the join button
+  const [demoJoined, setJoined] = useState(() => DEMO && ['member', 'busy'].includes(new URLSearchParams(location.search).get('demo') ?? ''))   // joining happens once; after it the header shows the profile instead of the join button
+  // the clickable preview build carries a Guest / Member switch (App.tsx); it tells the demo which one to be. Never in the real site: the flag is off there.
+  useEffect(() => { if (import.meta.env.VITE_PREVIEW_SWITCH !== '1' || !DEMO) return; const on = (e: Event) => setJoined(!!(e as CustomEvent).detail); addEventListener('agentiou-preview', on); return () => removeEventListener('agentiou-preview', on) }, [])
   const [tray, setTray] = useState<TrayReq | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [last, setLast] = useState<Store['last']>({})

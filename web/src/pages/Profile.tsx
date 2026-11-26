@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BADGES, DEMO, saveMe, plain, DESIGNS, LEVELS, ME, SEASON, TIERS, dateShort, memberSince, dueText, usd, isAddr, levelOf, nickError, score, viewOf, type User } from '../lib/data'
+import { BADGES, DEMO, saveMe, plain, DESIGNS, LEVELS, ME, SEASON, TIERS, dateShort, memberSince, dueText, usd, isAddr, levelOf, nickError, score, styleOf, viewOf, type User } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
 import { usePrefs } from '../lib/prefs'
@@ -7,13 +7,13 @@ import { Link, go, href } from '../lib/router'
 import { Avatar, Badge, Founder, IouCard, Proof, StickerCard, Ticket } from '../components/art'
 import { AddressChip, DemoChip, Empty, InfoTip, IouLine, LevelChip, RestrictedTag, Risk, useCopy } from '../components/ui'
 import { Mascot } from '../components/fx'
-import { Mail, Send, Share2 } from 'lucide-react'
+import { Check, Coins, Eye, Mail, Send, Share2, X } from 'lucide-react'
 
 export function ProfileHead({ u, own }: { u: User; own?: boolean }) {
   const s = useStore(); const copy = useCopy(); const lv = levelOf(u), od = s.hasOverdue(u.address)
   return (
     <div className="flex flex-wrap items-center gap-5">
-      <Avatar address={u.address} score={score(u)} level={lv} overdue={od} size={128} />
+      <Avatar address={u.address} score={score(u)} level={lv} style={styleOf(u)} overdue={od} size={128} />
       <div className="mr-auto"><div className="flex flex-wrap items-center gap-3"><h1 className="text-[28px] md:text-[40px]">{u.nickname}</h1>{u.badges['IOU Verified'] && <Badge name="IOU Verified" size={34} />}{s.restricted(u.address) && <RestrictedTag />}{DEMO && <DemoChip />}</div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2"><AddressChip address={u.address} /><LevelChip level={lv} now /><span className="text-muted">Trust Score <b className="led text-chalk text-[20px]">{score(u)}</b> of 100 <InfoTip label="How the Trust Score works">Starts at 50. On-time repay +5, late −10, default −25, each new person you deal with +2 (up to +10). Always between 0 and 100.</InfoTip></span></div>
         <p className="text-muted text-[14px] mt-2">Member No. {String(u.no).padStart(6, '0')}, since {u.joinedAt > 0 ? dateShort(u.joinedAt) : '—'}</p></div>
@@ -26,7 +26,7 @@ export function ProfileHead({ u, own }: { u: User; own?: boolean }) {
 }
 export function Card({ u }: { u: User }) {
   const s = useStore(); const lv = levelOf(u), limit = LEVELS[lv - 1].limit
-  return <IouCard nick={u.nickname} address={u.address} no={u.no} level={lv} available={Math.max(0, limit - s.owed(u.address))} limit={limit} demo={DEMO} overdue={s.hasOverdue(u.address)} restricted={s.restricted(u.address)}
+  return <IouCard nick={u.nickname} address={u.address} no={u.no} level={lv} available={Math.max(0, limit - s.owed(u.address))} limit={limit} demo={DEMO} look={styleOf(u).look} overdue={s.hasOverdue(u.address)} restricted={s.restricted(u.address)}
     back={[['On-time repays', String(u.onTime)], ['Late', String(u.late)], ['Defaults', String(u.defaults)], ['People dealt with', String(u.people)], ['Member since', memberSince(u.joinedAt)]]} />
 }
 export function BadgeBoard({ u }: { u: User }) {
@@ -80,17 +80,17 @@ export function Me() {
       {s.credit > 0 && <div className="panel p-4 flex flex-wrap items-center justify-between gap-3 border-amber"><p><b className="money">{s.credit} BNB</b> is waiting for you. A repayment could not be delivered to your wallet, so the contract is keeping it under your address.</p><button type="button" className="btn btn-primary btn-sm" onClick={() => f.withdraw(s.credit)}>Collect it</button></div>}
       {DEMO && !s.hasOverdue(ME) && owe.length >= 2 && <div className="panel p-4 flex flex-wrap items-center justify-between gap-3 border-dashed"><p className="max-w-[60ch]"><b>Demo only.</b> Want to see what Restricted looks like, and how repaying lifts it? This makes two of your demo IOUs overdue.</p><button type="button" className="btn btn-secondary btn-sm" onClick={() => { s.act.demoOverdue(); window.scrollTo({ top: 0 }) }}>Show me Restricted</button></div>}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,470px)_1fr] items-start">
-        <div><Card u={me} /><p className="text-muted text-[14px] mt-3">Press the card to turn it over.</p></div>
+        <div><Card u={me} /><p className="text-muted text-[14px] mt-3">Press the card to turn it over. <Link to="u" param={ME} className="inline-flex items-center gap-1 underline underline-offset-4 text-chalk"><Eye size={14} aria-hidden />See how others see you</Link></p></div>
         <section aria-labelledby="t-inbox"><h2 id="t-inbox" className="text-[20px] flex items-center gap-2"><Mail size={19} aria-hidden />Inbox{inbox.length > 0 && <><i className="w-2 h-2 rounded-full bg-amber" aria-hidden /><span className="sr-only">{inbox.length} new</span></>}</h2>
           {inbox.length === 0 ? <p className="text-muted mt-3">No requests right now.</p> : <ul className="grid gap-3 mt-3">{inbox.map((x) => <li key={x.id} className="panel p-4" style={{ borderRadius: '4px 16px 16px 16px' }}>
             <p><b>{s.name(x.creditor)}</b> says you owe <b className="money">{x.amount} {x.asset}</b></p><p className="text-muted text-[15px] mt-1">For: {plain(x.memo) || 'no note'}. Due {dateShort(x.dueAt)}.</p>
-            <div className="flex gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" disabled={!!(Date.now() >= x.dueAt ? 'x' : s.whyNotBorrow(x.usd))} onClick={() => f.accept(x)}>Accept</button><button type="button" className="btn btn-secondary btn-sm" onClick={() => f.decline(x)}>Decline</button></div>{(Date.now() >= x.dueAt || s.whyNotBorrow(x.usd)) && <p className="text-coral text-[14px] mt-2 font-semibold">{Date.now() >= x.dueAt ? 'This request has passed its due date and can only be declined.' : s.whyNotBorrow(x.usd)}</p>}</li>)}</ul>}
+            <div className="flex gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" disabled={!!(Date.now() >= x.dueAt ? 'x' : s.whyNotBorrow(x.usd))} onClick={() => f.accept(x)}><Check size={15} aria-hidden />Accept</button><button type="button" className="btn btn-secondary btn-sm" onClick={() => f.decline(x)}><X size={15} aria-hidden />Decline</button></div>{(Date.now() >= x.dueAt || s.whyNotBorrow(x.usd)) && <p className="text-coral text-[14px] mt-2 font-semibold">{Date.now() >= x.dueAt ? 'This request has passed its due date and can only be declined.' : s.whyNotBorrow(x.usd)}</p>}</li>)}</ul>}
           <Risk>Accept only what you really owe. An accepted IOU counts toward your limit.</Risk>
         </section>
       </div>
       <section aria-labelledby="t-open"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="t-open" className="text-[20px]">Open IOUs</h2>{s.whyNotSend() ? <button type="button" className="btn btn-secondary btn-sm" disabled title={s.whyNotSend()}>New IOU</button> : <Link to="new" className="btn btn-secondary btn-sm">New IOU</Link>}</div>
         <dl className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">{[['You owe', `${owe.length} active`, usd(owe.reduce((n, x) => n + x.usd, 0)), owe.some((x) => viewOf(x) === 'Overdue') ? 'text-coral' : ''], ['Next due', owe.length ? dateShort(owe[0].dueAt) : 'Nothing due', owe.length ? dueText(owe[0].dueAt) : '', ''], ['Owed to you', `${owed.length} active`, usd(owed.reduce((n, x) => n + x.usd, 0)), ''], ['Waiting for accept', `${inbox.length} for you`, `${open.filter((x) => x.status === 'Pending').length} you sent`, '']].map(([k, a, b, cl]) => <div key={k} className="panel p-4"><dt className="text-muted text-[14px]">{k}</dt><dd className={`font-extrabold text-[20px] mt-1 ${cl}`}>{a}</dd><dd className="text-muted text-[14px]">{b}</dd></div>)}</dl>
-        {open.length === 0 ? <Empty text="Your IOU list is empty. Take your first promise at Promise Mart." cta="Open Promise Mart" to="mart" /> : <ul className="ledger mt-4">{open.map((x) => <IouLine key={x.id} x={x} action={x.debtor === ME && x.status === 'Active' ? <button type="button" className="btn btn-primary btn-sm" onClick={() => f.repay(x)}>Repay</button> : x.status === 'Pending' ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => f.cancel(x)}>Cancel</button> : <span className="text-muted text-[14px]">They repay you</span>} />)}</ul>}
+        {open.length === 0 ? <Empty text="Your IOU list is empty. Take your first promise at Promise Mart." cta="Open Promise Mart" to="mart" /> : <ul className="ledger mt-4">{open.map((x) => <IouLine key={x.id} x={x} action={x.debtor === ME && x.status === 'Active' ? <button type="button" className="btn btn-primary btn-sm" onClick={() => f.repay(x)}><Coins size={15} aria-hidden />Repay</button> : x.status === 'Pending' ? <button type="button" className="btn btn-secondary btn-sm" onClick={() => f.cancel(x)}>Cancel</button> : <span className="text-muted text-[14px]">They repay you</span>} />)}</ul>}
         <Risk />
       </section>
       <section aria-labelledby="t-past"><h2 id="t-past" className="text-[20px]">History</h2><p className="text-muted mt-1">{past.filter((x) => viewOf(x) === 'Repaid').length} repaid on time, {past.filter((x) => viewOf(x) === 'Repaid late').length} late, {past.filter((x) => x.status === 'Declined' || x.status === 'Cancelled').length} declined or cancelled. Press Details on any line for the full record.</p>{past.length === 0 ? <p className="text-muted mt-3">Nothing repaid yet.</p> : <ul className="ledger mt-4">{past.map((x) => <IouLine key={x.id} x={x} action={<span className="text-muted text-[14px]">{x.repaidAt ? dateShort(x.repaidAt) : ''}</span>} />)}</ul>}</section>

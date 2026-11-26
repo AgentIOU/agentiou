@@ -4,7 +4,7 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { ArrowRight, Eye, ShieldCheck, Ban, ArrowLeftRight, KeyRound, Check, ChevronDown, CircleHelp, CirclePlay, Wallet, X } from 'lucide-react'
 import { Tour } from '../components/Tour'
-import { CONTRACT, DEMO, LEVELS, ME, SEASON, amt, levelOf, memberSince, score, short, viewOf } from '../lib/data'
+import { CONTRACT, DEMO, LEVELS, ME, SEASON, amt, levelOf, memberSince, score, short, styleOf, viewOf } from '../lib/data'
 import { useStore } from '../lib/store'
 import { usePrefs } from '../lib/prefs'
 import { Link } from '../lib/router'
@@ -51,7 +51,7 @@ export default function Home() {
             <div className="relative flex items-end justify-center lg:justify-end">
               <div aria-hidden className="absolute right-0 top-1/2 -translate-y-1/2 w-[80%] aspect-square rounded-full pointer-events-none" style={{ background: 'radial-gradient(closest-side,#FFB23F26,transparent)' }} />
               <Mascot pose="wave" float className="w-[30%] max-w-[190px] -mr-[4%] mb-[-2%] relative z-10" alt="The AgentIOU mascot, a small jelly agent with an LED face, waving" />
-              <IouCard className="w-[72%] max-w-[470px] relative" nick={me.nickname} address={me.address} no={me.no} level={lv} available={Math.max(0, limit - owed)} limit={limit} demo overdue={s.hasOverdue(ME)} restricted={s.restricted(ME)} back={[['On-time repays', String(me.onTime)], ['Late', String(me.late)], ['Defaults', String(me.defaults)], ['People dealt with', String(me.people)], ['Member since', memberSince(me.joinedAt)]]} />
+              <IouCard className="w-[72%] max-w-[470px] relative" nick={me.nickname} address={me.address} no={me.no} level={lv} available={Math.max(0, limit - owed)} limit={limit} demo look={styleOf(me).look} overdue={s.hasOverdue(ME)} restricted={s.restricted(ME)} back={[['On-time repays', String(me.onTime)], ['Late', String(me.late)], ['Defaults', String(me.defaults)], ['People dealt with', String(me.people)], ['Member since', memberSince(me.joinedAt)]]} />
             </div>
           </div>
           <Strip lines={repaid.map((x) => `${s.name(x.debtor)} repaid ${amt(x)} ${viewOf(x) === 'Repaid' ? 'on time' : 'late'}`)} />
@@ -75,7 +75,7 @@ export default function Home() {
           <div className="relative h-[300px] md:h-[340px]" role="img" aria-label="Six throwaway wallet addresses fade out on the left; lines lead from them to a single Agent ID profile on the right.">
             {['0x9f3a…1c07', '0x41be…77d2', '0xc08d…e5a9', '0x7a12…03bf', '0x2e6c…9d40', '0xb5f1…6a8e'].map((a, i) => <span key={a} aria-hidden className="absolute mono text-[13px] md:text-[14px] border border-dashed border-rule rounded-lg px-3 py-1.5 text-muted" style={{ left: `${[0, 9, 2, 12, 4, 10][i]}%`, top: `${6 + i * 15}%`, opacity: 0.5 + i * 0.09, transform: `rotate(${[-4, 3, -2, 4, -3, 2][i]}deg)`, textDecoration: i < 4 ? 'line-through' : undefined }}>{a}</span>)}
             <svg aria-hidden className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">{[12, 27, 42, 57, 72, 87].map((y) => <path key={y} d={`M38 ${y} C 55 ${y}, 52 50, 68 50`} stroke="#8C96FF" strokeOpacity="0.8" strokeWidth="1.2" strokeDasharray="3 5" fill="none" vectorEffect="non-scaling-stroke" />)}</svg>
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 text-center"><Avatar address={ME} score={score(me)} level={lv} size={176} /><p className="font-extrabold mt-2">One Agent ID</p><p className="text-muted text-[14px]">One record that stays</p></div>
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 text-center"><Avatar address={ME} score={score(me)} level={lv} style={styleOf(me)} size={176} /><p className="font-extrabold mt-2">One Agent ID</p><p className="text-muted text-[14px]">One record that stays</p></div>
           </div>
         </div>
       </section>

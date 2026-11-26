@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Home, ShoppingBag, ListChecks, BookOpen, User as UserIcon, Volume2, VolumeX } from 'lucide-react'
-import { Link, type RouteName } from '../lib/router'
+import { Home, ShoppingBag, Building2, BookOpen, Volume2, VolumeX } from 'lucide-react'
+import { Link, go, href, type RouteName } from '../lib/router'
 import { usePrefs } from '../lib/prefs'
 import { play } from '../lib/sound'
 import { useStore } from '../lib/store'
-import { CONTRACT, DEMO, ME, claimable, levelOf, score } from '../lib/data'
+import { CONTRACT, DEMO, ME, claimable, levelOf, score, styleOf } from '../lib/data'
 import { Avatar, Logo } from './art'
 import { img } from './fx'
 
@@ -28,18 +28,36 @@ export function Header({ route }: { route: RouteName }) {
           <Link to="me" className={nav} aria-current={route === 'me' ? 'page' : undefined}>My IOUs</Link>
         </nav>
         <button type="button" aria-pressed={sound} aria-label={sound ? 'Turn sound off' : 'Turn sound on'} onClick={() => { set({ sound: !sound }); if (!sound) play('on', true) }} className="w-11 h-11 inline-flex items-center justify-center rounded-full text-muted hover:text-chalk cursor-pointer">{sound ? <Volume2 size={19} /> : <VolumeX size={19} />}</button>
-        {joined ? <Link to="u" param={ME} aria-label={`Profile: ${me.nickname}`} title="Profile" aria-current={route === 'u' ? 'page' : undefined} className="inline-flex items-center gap-2 rounded-full border border-rule pl-1 pr-1 sm:pr-3 h-11 font-semibold text-[15px] hover:bg-ledger aria-[current=page]:border-amber"><Avatar address={ME} score={score(me)} level={levelOf(me)} overdue={hasOverdue(ME)} size={34} mini /><span className="hidden sm:inline">{me.nickname}</span></Link>
+        {joined ? <ProfileChip route={route} />
           : <Link to="start" className="btn btn-primary btn-sm md:min-h-[44px] md:px-5 md:text-[16px]">Get IOU Verified</Link>}
       </div>
     </header>
   )
 }
-const TABS: [RouteName, string, typeof Home, string?][] = [['home', 'Home', Home], ['mart', 'Mart', ShoppingBag], ['tasks', 'Tasks', ListChecks], ['me', 'My IOUs', BookOpen], ['u', 'Profile', UserIcon, ME]]
-export function TabBar({ route }: { route: RouteName }) {
-  const { me } = useStore(); const dot = claimable(me).some((n) => n > 0)
+/* The corner button: only the mascot until it is pressed. A press opens it to show the name, then goes to My IOUs.
+   It stays open while that page is showing. An amber dot means something waits in the Inbox; who sent it is on the page itself. */
+function ProfileChip({ route }: { route: RouteName }) {
+  const { me, ious, hasOverdue } = useStore(); const { motionOff } = usePrefs()
+  const [open, setOpen] = useState(false)
+  const here = route === 'me', wide = here || open
+  const waiting = ious.filter((x) => x.status === 'Pending' && x.debtor === ME).length
+  useEffect(() => { if (!open) return; const t = setTimeout(() => { go('me'); setOpen(false) }, motionOff ? 0 : 420); return () => clearTimeout(t) }, [open, motionOff])
   return (
-    <nav aria-label="App" className="lg:hidden fixed bottom-0 inset-x-0 z-50 h-16 frost border-x-0 border-b-0 grid grid-cols-5" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      {TABS.map(([to, label, I, param]) => <Link key={label} to={to} param={param} aria-current={route === to ? 'page' : undefined} className="relative flex flex-col items-center justify-center gap-0.5 text-[12px] font-semibold text-muted aria-[current=page]:text-amber"><I size={20} aria-hidden />{label}{to === 'tasks' && dot && <i className="absolute top-2 left-[58%] w-2 h-2 rounded-full bg-amber" />}</Link>)}
+    <a href={href('me')} aria-label={`My profile: ${me.nickname}${waiting ? `. ${waiting} waiting in your Inbox` : ''}`} title="My profile" aria-current={here ? 'page' : undefined} data-open={wide || undefined}
+      onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); if (!here) setOpen(true) }} className="chip-me">
+      <Avatar address={ME} score={score(me)} level={levelOf(me)} style={styleOf(me)} overdue={hasOverdue(ME)} size={40} mini />
+      <span className="chip-me-text" aria-hidden><span className="block text-[10.5px] font-bold text-muted leading-tight">My profile</span><b className="block text-[14px] leading-tight truncate max-w-[110px]">{me.nickname}</b></span>
+      {waiting > 0 && <i className="absolute -right-0.5 -top-0.5 w-3 h-3 rounded-full bg-amber" style={{ boxShadow: '0 0 0 2.5px #0E1024' }} aria-hidden />}
+    </a>
+  )
+}
+const TABS: [RouteName, string, typeof Home][] = [['home', 'Home', Home], ['mart', 'Mart', ShoppingBag], ['tasks', 'Town', Building2], ['me', 'My IOUs', BookOpen]]
+export function TabBar({ route }: { route: RouteName }) {
+  const { me, ious, joined } = useStore(); const dot = joined && claimable(me).some((n) => n > 0), waiting = joined && ious.some((x) => x.status === 'Pending' && x.debtor === ME)   // a guest has nothing waiting
+  return (
+    <nav aria-label="App" className="lg:hidden fixed z-50 inset-x-2.5 dock" style={{ bottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
+      {TABS.map(([to, label, I]) => { const on = route === to, mark = (to === 'tasks' && dot) || (to === 'me' && waiting)
+        return <Link key={label} to={to} aria-current={on ? 'page' : undefined} className={on ? 'dock-on' : 'dock-off'}><span className="relative"><I size={on ? 21 : 22} strokeWidth={on ? 2.3 : 2} aria-hidden />{mark && !on && <i className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-amber" style={{ boxShadow: '0 0 0 2px #1B1E45' }} aria-hidden />}</span>{label}{mark && on && <i className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber" style={{ boxShadow: '0 0 0 2.5px #1B1E45' }} aria-hidden />}{mark && <span className="sr-only">{to === 'me' ? ', something waits in your Inbox' : ', a voucher is ready'}</span>}</Link> })}
     </nav>
   )
 }

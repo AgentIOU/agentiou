@@ -9,7 +9,7 @@ def ok(name, got, want): c = got==want; res.append(c); print(("PASS " if c else 
 srv=subprocess.Popen([sys.executable,"-m","http.server","4174","--bind","127.0.0.1"],cwd=BASE+"/web/dist-preview",stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
 U="http://127.0.0.1:4174/index.html?demo=member#"; G="http://127.0.0.1:4174/index.html#"   # U: the demo as a member; G: as a first-time guest
 def snap(pg):
-    pg.evaluate("location.hash='tasks'"); pg.wait_for_timeout(500); t=pg.inner_text("main"); xp=int(re.search(r"([\d,]+)\s*XP",t).group(1).replace(",",""))
+    pg.evaluate("location.hash='tasks'"); pg.wait_for_timeout(500); xp=int(re.sub(r"\D","",pg.locator("section:has(#t-xp) p.led").first.inner_text().split("+")[0]))   # the big number on the Your XP card
     pg.evaluate("location.hash='me'"); pg.wait_for_timeout(500); t=pg.inner_text("main")
     lab=pg.locator("[aria-label*='IOU Card']").first.get_attribute("aria-label")
     g=lambda k: int(re.search(k+r"\n(\d+)",t).group(1))

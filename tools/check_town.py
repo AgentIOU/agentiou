@@ -1,0 +1,140 @@
+"""Checks for the looks and Promise Town: glass dock, corner profile button, card metals, mascot avatars, the town's two views, Harbour Run, the guest view, and Build your own town with the panel a mascot opens."""
+import subprocess, sys, time, os
+from playwright.sync_api import sync_playwright
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository folder
+CHROME = os.environ.get("CHROME", "/usr/bin/google-chrome")
+ROOT=BASE+"/web/dist-preview"; U="http://127.0.0.1:4176/index.html?demo=member#"; G="http://127.0.0.1:4176/index.html#"   # U: the demo as a member; G: as a first-time guest
+res=[]
+def ok(n,c,note=""): res.append((bool(c),n,note)); print(("PASS " if c else "FAIL ")+n+((" :: "+str(note)) if note and not c else ""))
+srv=subprocess.Popen([sys.executable,"-m","http.server","4176","--bind","127.0.0.1"],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(0.8)
+try:
+  with sync_playwright() as p:
+    b=p.chromium.launch(executable_path=CHROME,args=["--no-sandbox"]); errs=[]
+    def phone(w=390):
+      pg=b.new_page(viewport={"width":w,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
+      pg.on("pageerror",lambda e:errs.append(str(e))); pg.on("console",lambda m:errs.append(m.text) if m.type=="error" else None); return pg
+    town=lambda pg: pg.locator("section:has(#t-town)")
+    # ---- the dock and the corner button
+    pg=phone(); pg.goto(U+"home"); pg.wait_for_timeout(1500); dock=pg.locator("nav[aria-label=App]")
+    ok("dock has four tabs: Home, Mart, Town, My IOUs",[a.strip().split("\n")[0] for a in dock.locator("a").all_inner_texts()]==["Home","Mart","Town","My IOUs"],dock.locator("a").all_inner_texts())
+    r=dock.bounding_box(); ok("dock floats inside the screen",r["x"]>=0 and r["x"]+r["width"]<=390 and r["y"]+r["height"]<=844,r)
+    ok("every dock tab is at least 44px to tap",pg.evaluate("[...document.querySelectorAll('nav[aria-label=App] a')].every(e=>{const r=e.getBoundingClientRect();return r.height>=44&&r.width>=44})"))
+    chip=pg.locator("a.chip-me"); ok("corner button starts closed: the mascot only",chip.count()==1 and chip.get_attribute("data-open") is None and chip.bounding_box()["width"]<60,chip.bounding_box())
+    ok("corner button says what it is and that the Inbox has something",chip.get_attribute("aria-label").startswith("My profile: tuku") and "waiting in your Inbox" in chip.get_attribute("aria-label"),chip.get_attribute("aria-label"))
+    chip.click(); pg.wait_for_timeout(150); ok("a press opens it to show the name",chip.get_attribute("data-open") is not None and "tuku" in chip.inner_text(),chip.inner_text())
+    pg.wait_for_timeout(1100); ok("then it goes to My IOUs and stays open there","Open IOUs" in pg.inner_text("main") and chip.get_attribute("data-open") is not None and chip.get_attribute("aria-current")=="page")
+    dock.get_by_role("link",name="Town").tap(); pg.wait_for_timeout(900); ok("Town tab opens Task Hub, and the corner button closes again","Task Hub" in pg.inner_text("main") and chip.get_attribute("data-open") is None)
+    # ---- card metal and avatar from the stamps (the demo member holds Hello and Stamped: Common and Rare)
+    pg.goto(U+"me"); pg.wait_for_timeout(1300); card=pg.locator("button[aria-label^='IOU Card for']")
+    ok("the card takes the metal of the highest stamp held: Gold",card.get_attribute("data-look")=="gold" and "Gold card" in card.get_attribute("aria-label"),card.get_attribute("aria-label"))
+    av=pg.locator("main [role=img][data-look]").first; ok("the avatar is the mascot in that metal and in the pose of the last stamp of that tier",av.get_attribute("data-look")=="gold" and av.get_attribute("data-pose")=="stamp",(av.get_attribute("data-look"),av.get_attribute("data-pose")))
+    ok("the avatar still tells the Trust Score and level in words","Trust Score 74 of 100, level 2" in av.get_attribute("aria-label"),av.get_attribute("aria-label"))
+    ok("My IOUs links to the public view","See how others see you" in pg.inner_text("main"))
+    pg.get_by_role("button",name="Show me Restricted").click(); pg.wait_for_timeout(900); card=pg.locator("button[aria-label^='IOU Card for']")
+    ok("a Restricted card is red, never metal",card.get_attribute("data-look")=="classic" and "Restricted" in card.get_attribute("aria-label"),card.get_attribute("aria-label"))
+    ok("an overdue member's mascot is asleep",pg.locator("main [role=img][data-look]").first.get_attribute("data-pose")=="rest")
+    pg.goto(U+"board"); pg.wait_for_timeout(1200); n=pg.locator("ol.ledger li").count(); ok("every Leaderboard row has a mascot avatar",n>0 and pg.locator("ol.ledger li [role=img][data-pose]").count()==n,n)
+    pg.close()
+    # ---- Task Hub: what changed and what stayed
+    pg=phone(); pg.goto(U+"tasks"); pg.wait_for_timeout(1500); t=pg.inner_text("main")
+    ok("Task Hub keeps its title and sections",all(k in t for k in ("Task Hub","Your XP","Daily check-in","One-time","Every time","Vouchers","Season 1 stamps")))
+    ok("the wallet lookup box is gone; one line points to Open Trust",pg.locator("#see").count()==0 and pg.locator("main").get_by_role("link",name="Check their record on Open Trust.").count()==1)
+    ok("Your XP shows three rings with the XP left",pg.locator("section:has(#t-xp) svg[role=img]").count()==3 and "50 XP to the next voucher" in pg.locator("section:has(#t-xp) svg[role=img]").first.get_attribute("aria-label"))
+    ok("check-in card marks today with the boat",pg.locator("#t-daily ~ div ol li >> text=today").count()==1 and "Day 3 of 7" in t)
+    ok("What your stamps open: three rows, Gold marked as yours",all(k in t for k in ("What your stamps open","Any Common stamp","Any Rare stamp","Any Legendary stamp")) and "yours now" in pg.locator("li:has-text('Any Rare stamp')").inner_text() and "changes every 100 XP" in t)
+    ok("no sideways scrolling on Task Hub",pg.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")<=0)
+    # ---- the town's two views
+    tw=town(pg); ok("town opens on My circle for a member who has dealt with people",tw.get_by_role("button",name="My circle").get_attribute("aria-pressed")=="true" and "you have an IOU with" in tw.inner_text())
+    names=tw.locator("[data-mascot]").count(); ok("My circle draws me and the people I have an IOU with, with names",2<=names<=13 and tw.locator("[data-mascot] >> text=you").count()==1 and tw.locator("[data-mascot] >> text=mira").count()==1,names)
+    tw.get_by_role("button",name="Whole town").click(); pg.wait_for_timeout(400); tt=tw.inner_text()
+    ok("Whole town counts each level and links to the Leaderboard",all(k in tt for k in ("Level 3 ·","Level 2 ·","Level 1 ·")) and tw.get_by_role("link",name="See everyone on the Leaderboard").count()==1,tt[:200])
+    ok("Whole town never draws more than ten per level, and names only me",tw.locator("[data-mascot]").count()<=30 and tw.locator("[data-mascot] >> text=you").count()==1 and tw.locator("[data-mascot] >> text=mira").count()==0)
+    tags=[x.strip() for x in tw.locator("[data-boat]").all_inner_texts()]; ok("boats are my open IOUs, tagged with the days left only",len(tags)==3 and all(__import__("re").fullmatch(r"\d+d|today|late",x) for x in tags) and "town.webp" in tw.locator("#t-open").locator("xpath=..").locator("img").first.get_attribute("src"),tags)
+    # ---- Harbour Run: the ticket is today's check-in
+    play=tw.get_by_role("button",name="Play Harbour Run"); ok("before today's check-in the game is closed and the teaser plays",play.is_disabled() and tw.locator("canvas").count()==1 and "Check in today" in tt)
+    pg.get_by_role("button",name="Check in").click(); pg.wait_for_timeout(700); pg.get_by_role("button",name="I confirmed in my agent").click(); pg.wait_for_timeout(5200); pg.keyboard.press("Escape"); pg.wait_for_timeout(700)
+    ok("after the check-in the game opens",not play.is_disabled()); play.scroll_into_view_if_needed(); play.click(); pg.wait_for_timeout(500)
+    ok("the boat comes from the check-in streak (3 days in a row: Sailboat)","Sailboat" in tw.inner_text() and "gives no XP" in tw.inner_text(),tw.inner_text()[:200])
+    ok("the start card says one hit ends the run","one hit ends the run" in tw.inner_text())
+    tw.get_by_role("button",name="Start").click(); pg.wait_for_timeout(400); pg.keyboard.down("ArrowRight"); pg.wait_for_timeout(1700); pg.keyboard.up("ArrowRight"); h1=tw.inner_text()
+    ok("the run counts down and has two steer buttons","0:3" in h1 and tw.get_by_role("button",name="Steer left").count()==1 and tw.get_by_role("button",name="Steer right").count()==1,h1[:80])
+    lit=pg.evaluate("(()=>{const c=document.querySelector('canvas[role=img]');const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=0;i<d.length;i+=4000)if(d[i]+d[i+1]+d[i+2]>0)n++;return n})()"); ok("the game is really drawn",lit>50,lit)
+    over=tw.get_by_role("button",name=__import__("re").compile("^(Retry|Sail again)$"))
+    try: over.wait_for(timeout=46000); ended=True
+    except Exception: ended=False
+    h2=tw.inner_text(); crashed="You hit a rock" in h2
+    ok("the run ends at a rock or at 40 seconds, and says which",ended and "Notes caught" in h2 and ((crashed and tw.get_by_role("button",name="Retry").count()==1) or (not crashed and tw.get_by_role("button",name="Sail again").count()==1)),h2[:120])
+    tw.get_by_role("button",name="Close").click(); pg.wait_for_timeout(400); ok("Close brings the town back",tw.locator("#t-open").count()==1)
+    pg.close()
+    # ---- a guest: sees the town and the teaser, is asked to get verified before playing
+    pg=phone(); pg.goto(G+"tasks"); pg.wait_for_timeout(1800); tw=town(pg)
+    ok("a guest sees Whole town and the playing teaser, no My circle",tw.get_by_role("button",name="My circle").count()==0 and tw.locator("canvas").count()==1 and "Open to members" in tw.inner_text())
+    ok("a guest's dock shows no dots",pg.locator("nav[aria-label=App] i").count()==0)
+    tw.get_by_role("button",name="Play Harbour Run").click(); pg.wait_for_timeout(400)
+    ok("pressing Play as a guest asks to get IOU Verified first","Get IOU Verified first." in tw.inner_text() and tw.get_by_role("link",name="Get IOU Verified").count()==1 and tw.locator("canvas[role=img]").count()==0)
+    pg.close()
+    # ---- Build your own town: one small row under Harbour Run; a press opens the whole town. Parts come from claimed vouchers (2 Common, 1 Rare, 1 Legendary a part)
+    pg=phone(); pg.goto(U+"tasks"); pg.wait_for_timeout(1600); tw=town(pg); ban=tw.locator("button#t-build")
+    ok("the town banner sits in Promise Town, under Harbour Run",ban.count()==1 and pg.evaluate("(()=>{const b=document.querySelector('#t-build').getBoundingClientRect(),h=[...document.querySelectorAll('section:has(#t-town) h3')].find(e=>e.textContent.includes('Harbour Run')).getBoundingClientRect();return b.top>h.bottom})()"))
+    r=ban.bounding_box(); ok("it is a small row, not a big picture, and stays inside the screen",r["height"]<=150 and r["x"]>=0 and r["x"]+r["width"]<=390,r)
+    ok("it says how far the town is: the demo member claimed 2 Common and 1 Rare voucher, so 2 of 28",ban.get_attribute("aria-label")=="Build your town: 2 of 28 parts open. Open your town." and "2 of 28 parts open" in ban.inner_text() and all(k in ban.inner_text() for k in ("1/10","1/11","0/7")),ban.inner_text())
+    ok("the town behind the banner is decoration only",ban.locator("[role=img]").count()==0 and ban.locator("[aria-hidden=true] img[src*='/town/']").count()==5)
+    ban.click(); pg.wait_for_timeout(600); dlg=pg.locator("[role=dialog][aria-modal=true]"); plot=dlg.locator("[role=img]").first
+    lab=plot.get_attribute("aria-label") if dlg.count() else ""; ok("a press opens the whole town: Tree and Fountain are open",dlg.count()==1 and dlg.get_attribute("aria-label")=="Your town" and lab=="Your town: 2 of 28 parts open: Tree, Fountain.",lab)
+    ok("every closed part shows a lock at its place: 26",plot.locator("svg.lucide-lock").count()==26,plot.locator("svg.lucide-lock").count())
+    ok("the pictures drawn are the ground, the home, two trees and the fountain",plot.locator("img[src*='/town/']").count()==5 and pg.evaluate("[...document.querySelectorAll('[role=dialog] [role=img] img')].every(i=>i.complete&&i.naturalWidth>0)"),plot.locator("img[src*='/town/']").count())
+    rows=dlg.locator("li").all_inner_texts(); ok("each tier names the next part and what it takes",len(rows)==3 and "Street lamps" in rows[0] and "Claim 2 vouchers on this page" in rows[0] and "Market stall" in rows[1] and "Lighthouse" in rows[2],rows)
+    ok("the rule is stated, and that parts cannot be bought or sold","2 Common vouchers open one part" in dlg.inner_text() and "cannot be bought, sold or moved" in dlg.inner_text())
+    r=dlg.bounding_box(); bb=dlg.get_by_role("button",name="Close").bounding_box(); ok("the panel fits the phone and its button is not under the dock",r["x"]>=0 and r["x"]+r["width"]<=390 and bb["y"]+bb["height"]<=844 and pg.evaluate("(()=>{const b=[...document.querySelectorAll('[role=dialog] button')].pop().getBoundingClientRect();const e=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);return !!e.closest('[role=dialog]')})()"),(r,bb))
+    ok("focus moves into the panel",pg.evaluate("document.activeElement.getAttribute('role')")=="dialog")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300); ok("Escape closes it and focus returns to the banner",pg.locator("[role=dialog]").count()==0 and pg.evaluate("document.activeElement.id")=="t-build")
+    # the town page: press the town, zoom, read the summary; a mascot opens that member's town and record
+    op=pg.locator("#t-open"); ok("the town in Task Hub is one button that says what it opens",op.get_attribute("aria-label")=="Promise Town: 5 people, 3 boats. Open the town to zoom in.",op.get_attribute("aria-label"))
+    op.click(); pg.wait_for_timeout(700); tp=pg.locator("[role=dialog][aria-label='Promise Town']"); vp=tp.locator("[data-zoom]")
+    ok("pressing it opens the town page at the whole town",tp.count()==1 and vp.get_attribute("data-zoom")=="1.00" and tp.get_by_role("button",name="Zoom out",exact=True).is_disabled())
+    r=tp.bounding_box(); v=vp.bounding_box(); ok("the page and its picture fit the phone",r["x"]>=0 and r["x"]+r["width"]<=390 and r["y"]>=0 and v["width"]<=390 and v["height"]>=250,(r,v))
+    t=tp.inner_text(); ok("under it there is a short summary only",all(k in t for k in ("people","to pay","to receive","next due")) and tp.locator("dl > div").count()==4 and tp.locator("li").count()==0,t[-160:])
+    ok("the summary counts my open IOUs: 2 to pay, 1 to receive, next in 2 days",[x.split("\n")[0] for x in tp.locator("dl > div").all_inner_texts()]==["5","2","1","2d"],tp.locator("dl > div").all_inner_texts())
+    tp.get_by_role("button",name="Whole town",exact=True).click(); pg.wait_for_timeout(400); n0=tp.locator("button[aria-label*='level'] >> text=mira").count()
+    zin=tp.get_by_role("button",name="Zoom in",exact=True); zin.click(); zin.click(); pg.wait_for_timeout(400)
+    ok("Zoom in makes it bigger, and names show once it is zoomed",vp.get_attribute("data-zoom")=="1.96" and n0==0 and tp.locator("button[aria-label*='level'] >> text=mira").count()==1,vp.get_attribute("data-zoom"))
+    tr0=pg.evaluate("document.querySelector('[data-zoom] > div').style.transform"); pg.mouse.move(v["x"]+150,v["y"]+150); pg.mouse.down(); pg.mouse.move(v["x"]+90,v["y"]+110,steps=5); pg.mouse.up(); pg.wait_for_timeout(200)
+    tr1=pg.evaluate("document.querySelector('[data-zoom] > div').style.transform"); ok("dragging moves the town",tr0!=tr1 and "translate(-60px" in tr1,(tr0,tr1))
+    c=pg.context.new_cdp_session(pg); cx,cy=v["x"]+v["width"]/2,v["y"]+v["height"]/2
+    c.send("Input.dispatchTouchEvent",{"type":"touchStart","touchPoints":[{"x":cx-40,"y":cy,"id":1},{"x":cx+40,"y":cy,"id":2}]})
+    for d in (55,70,85): c.send("Input.dispatchTouchEvent",{"type":"touchMove","touchPoints":[{"x":cx-d,"y":cy,"id":1},{"x":cx+d,"y":cy,"id":2}]})
+    c.send("Input.dispatchTouchEvent",{"type":"touchEnd","touchPoints":[]}); pg.wait_for_timeout(300)
+    ok("two fingers moving apart zoom in",float(vp.get_attribute("data-zoom"))>2.5,vp.get_attribute("data-zoom"))
+    tp.get_by_role("button",name="Show the whole town").click(); pg.wait_for_timeout(300); ok("one button shows the whole town again",vp.get_attribute("data-zoom")=="1.00" and pg.evaluate("document.querySelector('[data-zoom] > div').style.transform")=="translate(0px, 0px) scale(1)")
+    ok("Whole town never draws more than ten per level on the page",tp.locator("button[aria-label*='level']").count()<=30 and tp.locator("button[aria-label*='(you)']").count()==1)
+    m=tp.locator("button[aria-haspopup=dialog][aria-label*='level']:not([aria-label*='(you)'])").first; who=m.get_attribute("aria-label").split(",")[0]
+    m.click(force=True); pg.wait_for_timeout(600); dlg=pg.locator(f"[role=dialog][aria-label=\"{who}'s town\"]")
+    ok("pressing a mascot opens that member's town",dlg.count()==1 and dlg.locator("[role=img]").first.get_attribute("aria-label").startswith(f"{who}'s town:"),who)
+    t=dlg.inner_text(); ok("the panel gives their record too",all(k in t for k in ("Trust Score","Level","XP","Paid on time","Paid late","of 28 parts")) and dlg.get_by_role("link",name="Open full profile").count()==1,t[:200])
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300); ok("Escape closes only the panel on top",dlg.count()==0 and tp.count()==1)
+    m.click(force=True); pg.wait_for_timeout(500); pg.locator("[role=dialog]").get_by_role("link",name="Open full profile").click(); pg.wait_for_timeout(900); ok("Open full profile goes to that member's public profile","#u-" in pg.url and who in pg.inner_text("main") and pg.locator("[role=dialog]").count()==0,pg.url)
+    pg.goto(U+"tasks"); pg.wait_for_timeout(1200); pg.locator("#t-open").click(); pg.wait_for_timeout(500); pg.locator("[role=dialog] button[aria-label*='(you)']").click(force=True); pg.wait_for_timeout(500); ok("my own mascot opens my own town",pg.locator("[role=dialog][aria-label='Your town']").count()==1)
+    pg.close()
+    # more boats, more water: a member with 11 open IOUs gets the biggest harbour, and everything is drawn smaller in the same box
+    pg=phone(); pg.goto(U.replace("demo=member","demo=busy")+"tasks"); pg.wait_for_timeout(1700); tw=town(pg); box=tw.locator("#t-open").locator("xpath=..")
+    ok("11 open IOUs: 11 boats on the biggest harbour",tw.locator("[data-boat]").count()==11 and "town-3.webp" in box.locator("img").first.get_attribute("src") and "11 boats" in tw.locator("#t-open").get_attribute("aria-label"),tw.locator("#t-open").get_attribute("aria-label"))
+    ok("the box keeps its size and every boat stays inside it",pg.evaluate("(()=>{const b=document.querySelector('#t-open').parentElement.getBoundingClientRect();return Math.abs(b.width/b.height-1.5517)<0.02&&[...document.querySelectorAll('section:has(#t-town) [data-boat]')].every(e=>{const r=e.getBoundingClientRect();return r.left>=b.left-1&&r.right<=b.right+1&&r.top>=b.top-1&&r.bottom<=b.bottom+1})})()"))
+    ok("boats do not sit on top of each other",pg.evaluate("(()=>{const r=[...document.querySelectorAll('section:has(#t-town) [data-boat] svg')].map(e=>e.getBoundingClientRect());for(let i=0;i<r.length;i++)for(let j=i+1;j<r.length;j++){const a=r[i],b=r[j];const ox=Math.min(a.right,b.right)-Math.max(a.left,b.left),oy=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);if(ox>a.width*.5&&oy>a.height*.5)return false}return true})()"))
+    ok("the picture loaded",pg.evaluate("(()=>{const i=document.querySelector('#t-open').parentElement.querySelector('img');return i.complete&&i.naturalWidth>1000})()"))
+    pg.close()
+    pg=phone(); pg.goto(G+"tasks"); pg.wait_for_timeout(1500); ban=pg.locator("button#t-build")
+    ok("a guest's banner offers a finished town to look at",ban.get_attribute("aria-label")=="Build your town: see a finished town." and "See a finished town" in ban.inner_text())
+    ban.click(); pg.wait_for_timeout(700); dlg=pg.locator("[role=dialog][aria-modal=true]"); plot=dlg.locator("[role=img]").first
+    ok("a guest sees a finished town as the sample, and the way in",dlg.get_attribute("aria-label")=="A finished town" and plot.get_attribute("aria-label").startswith("A finished town") and plot.locator("svg.lucide-lock").count()==0 and dlg.get_by_role("link",name="Get IOU Verified").count()==1 and dlg.locator("li").count()==0,plot.get_attribute("aria-label"))
+    ok("all the town pictures load",plot.locator("img[src*='/town/']").count()==35 and pg.evaluate("[...document.querySelectorAll('[role=dialog] [role=img] img')].every(i=>i.complete&&i.naturalWidth>0)"))
+    pg.close()
+    # ---- small phone and reduced motion
+    ctx=b.new_context(viewport={"width":320,"height":640},reduced_motion="reduce"); pg=ctx.new_page(); pg.on("pageerror",lambda e:errs.append(str(e)))
+    for name in ("tasks","me","board","home"):
+      pg.goto(U+name); pg.wait_for_timeout(1000); ok(f"320px {name}: nothing sticks out sideways",pg.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")<=0)
+    pg.goto(U+"tasks"); pg.wait_for_timeout(900); ok("with motion reduced the town stands still",pg.evaluate("getComputedStyle(document.querySelector('.town-hop')).animationName")=="none")
+    ok("no script errors anywhere in these checks",errs==[],errs[:3])
+    b.close()
+finally: srv.terminate()
+bad=[r for r in res if not r[0]]
+print(f"\n{len(res)-len(bad)} of {len(res)} town checks passed"); sys.exit(1 if bad else 0)

@@ -1,6 +1,6 @@
 import { memo, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import badgeArt from '../data/badges.json'
-import { LEVELS, assets, dateShort, dateUtc, short, type Mint, type Tier, DEMO } from '../lib/data'
+import { LEVELS, assets, dateShort, dateUtc, short, type Look, type Mint, type Style, type Tier, DEMO } from '../lib/data'
 import { img } from './fx'
 import { Lock } from 'lucide-react'
 
@@ -36,11 +36,26 @@ export const ArtDefs = memo(function ArtDefs() {
           <path d={rosette(0, 0, 34, 8, 12, 12, 0.1, 0.5, 160)} stroke="url(#holo)" strokeOpacity="0.6" strokeWidth="0.55" />
           <circle r="8" stroke="#fff" strokeOpacity="0.75" strokeWidth="0.9" />
         </symbol>
+        <symbol id="flower-ink" viewBox="-205 -205 410 410" fill="none" stroke="currentColor">
+          <path d={rosette(0, 0, 186, 13, 22, 30)} strokeOpacity="0.26" strokeWidth="0.55" />
+          <path d={rosette(0, 0, 148, 20, 14, 26, 0.2, 0.5)} strokeOpacity="0.36" strokeWidth="0.6" />
+          <path d={[0, 1, 2, 3, 4, 5, 6].map((i) => spiro(7, 4, 2.7, 13.5, (i * Math.PI) / 14)).join('')} strokeOpacity="0.5" strokeWidth="0.6" />
+          <path d={rosette(0, 0, 34, 8, 12, 12, 0.1, 0.5, 160)} strokeOpacity="0.5" strokeWidth="0.55" />
+          <circle r="8" strokeOpacity="0.9" strokeWidth="1.1" />
+        </symbol>
       </defs>
     </svg>
   )
 })
 export const Flower = ({ className = '', style }: { className?: string; style?: CSSProperties }) => <svg aria-hidden viewBox="-205 -205 410 410" className={className} style={style}><use href="#flower" x="-205" y="-205" width="410" height="410" /></svg>
+/* the same flower cut into metal: a dark line with a light edge beside it */
+const FlowerInk = ({ style, ink }: { style?: CSSProperties; ink: string }) => <svg aria-hidden viewBox="-205 -205 410 410" className="absolute" style={style}><use href="#flower-ink" x="-203.6" y="-203.2" width="410" height="410" color="#ffffff" opacity="0.6" /><use href="#flower-ink" x="-205" y="-205" width="410" height="410" color={ink} /></svg>
+/* card metals: opened by the highest tier of stamp the address holds */
+const METAL: Record<Exclude<Look, 'classic'>, { bg: string; back: string; ink: string; soft: string; emb: string }> = {
+  silver: { bg: 'repeating-linear-gradient(90deg,#ffffff00 0 1px,#ffffff16 1px 2px,#00000010 2px 3px), linear-gradient(115deg,#8E949E 0%,#EDF0F4 18%,#B4BAC4 34%,#F8FAFC 50%,#9AA1AC 66%,#E3E7EC 82%,#7F8690 100%)', back: 'linear-gradient(115deg,#4B515C,#7F8690)', ink: '#2B303A', soft: '#434956', emb: '0 1px 0 #ffffffcc' },
+  gold: { bg: 'radial-gradient(70% 90% at 28% 12%,#FFFBE0cc 0%,#ffffff00 55%), linear-gradient(120deg,#C9962E 0%,#F2CC62 22%,#FFE9A0 42%,#F6D576 58%,#DDAE3E 78%,#B8842A 100%)', back: 'linear-gradient(115deg,#6B4308,#A9741A)', ink: '#2A1800', soft: '#4A3204', emb: '0 1px 0 #fff3c4b0' },
+  aurora: { bg: 'radial-gradient(60% 80% at 20% 10%,#ffffffaa,#ffffff00 60%), linear-gradient(115deg,#B9B2FF 0%,#F7A6D9 18%,#FFE3A8 34%,#9EE6C8 50%,#8CC8FF 66%,#C9A6FF 82%,#F7A6D9 100%)', back: 'linear-gradient(115deg,#4A3F9E,#A45F9A)', ink: '#1E1B4B', soft: '#3B3780', emb: '0 1px 0 #ffffffcc' },
+}
 const waves = (n: number, w: number, gap: number, amp: number) => Array.from({ length: n }, (_, i) => Array.from({ length: w / 10 + 1 }, (_, j) => `${j ? 'L' : 'M'}${j * 10} ${(40 + i * gap + amp * Math.sin((j * 10) / 38 + i * 0.5)).toFixed(1)}`).join('')).join('')
 
 export function Seal({ size = 28, text = true }: { size?: number; text?: boolean }) {
@@ -64,40 +79,41 @@ export function Led({ children, className = '' }: { children: string; className?
 }
 
 /* IOU Card: a promise note at credit-card proportions. Tap to turn it over. */
-export function IouCard({ nick, address, no, level, available, limit, back, overdue, restricted, demo, className = '' }: { nick: string; address: string; no: number; level: number; available: number; limit: number; back: [string, string][]; overdue?: boolean; restricted?: boolean; demo?: boolean; className?: string }) {
+export function IouCard({ nick, address, no, level, available, limit, back, overdue, restricted, demo, look = 'classic', className = '' }: { nick: string; address: string; no: number; level: number; available: number; limit: number; back: [string, string][]; overdue?: boolean; restricted?: boolean; demo?: boolean; look?: Look; className?: string }) {
   const [flip, setFlip] = useState(false)
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const L = LEVELS[level - 1]
   const w = useMemo(() => waves(22, 1000, 26, 7), [])
-  const shell: CSSProperties = { borderRadius: '4.3cqw', overflow: 'hidden', color: '#fff', boxShadow: `0 5cqw 10cqw #00000073, inset 0 1px 0 #ffffff40${overdue ? ', 0 0 0 3px #FF6B57' : ''}`, background: restricted ? 'radial-gradient(120% 90% at 70% 10%, #FF8B7B 0%, #FF8B7B00 55%), linear-gradient(115deg, #7A0F12 0%, #B3201F 48%, #E0483A 100%)' : 'radial-gradient(120% 90% at 70% 10%, #6CB6FF 0%, #6CB6FF00 55%), linear-gradient(115deg, #0B3F9E 0%, #1C64D8 48%, #3D93F2 100%)' }
+  const m = restricted || look === 'classic' ? null : METAL[look]   // a Restricted card is always red, whatever the stamps
+  const shell: CSSProperties = { borderRadius: '4.3cqw', overflow: 'hidden', color: m ? m.ink : '#fff', textShadow: m ? m.emb : undefined, boxShadow: `0 5cqw 10cqw #00000073, inset 0 ${m ? 1.5 : 1}px 0 ${m ? '#ffffffaa' : '#ffffff40'}${m ? ', inset 0 -2px 3px #00000055' : ''}${overdue ? ', 0 0 0 3px #FF6B57' : ''}`, background: m ? m.bg : restricted ? 'radial-gradient(120% 90% at 70% 10%, #FF8B7B 0%, #FF8B7B00 55%), linear-gradient(115deg, #7A0F12 0%, #B3201F 48%, #E0483A 100%)' : 'radial-gradient(120% 90% at 70% 10%, #6CB6FF 0%, #6CB6FF00 55%), linear-gradient(115deg, #0B3F9E 0%, #1C64D8 48%, #3D93F2 100%)' }
   return (
     <div className={`flip ${flip ? 'is-back' : ''} ${className}`} style={{ containerType: 'inline-size', aspectRatio: '85.6 / 54' }}
       onPointerMove={(e) => { if (e.pointerType !== 'mouse') return; const r = e.currentTarget.getBoundingClientRect(); setTilt({ x: ((e.clientY - r.top) / r.height - 0.5) * -7, y: ((e.clientX - r.left) / r.width - 0.5) * 9 }) }} onPointerLeave={() => setTilt({ x: 0, y: 0 })}>
-      <button type="button" aria-pressed={flip} aria-label={`IOU Card for ${nick}. ${restricted ? 'Restricted account. ' : ''}${flip ? 'Showing the back: repay record' : `Available $${available.toFixed(2)} of $${limit} limit`}. Press to turn the card over.`} onClick={() => setFlip(!flip)} className="block w-full h-full text-left cursor-pointer" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`, transition: 'transform 200ms', transformStyle: 'preserve-3d' }}>
+      <button type="button" aria-pressed={flip} data-look={m ? look : 'classic'} aria-label={`IOU Card for ${nick}. ${m ? `${look[0].toUpperCase() + look.slice(1)} card. ` : ''}${restricted ? 'Restricted account. ' : ''}${flip ? 'Showing the back: repay record' : `Available $${available.toFixed(2)} of $${limit} limit`}. Press to turn the card over.`} onClick={() => setFlip(!flip)} className="block w-full h-full text-left cursor-pointer" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`, transition: 'transform 200ms', transformStyle: 'preserve-3d' }}>
         <span className="flip-in block">
           <span className="face-front block" style={shell}>
-            <svg aria-hidden viewBox="0 0 1000 630" preserveAspectRatio="none" className="absolute inset-0 w-full h-full"><path d={w} stroke="#fff" strokeOpacity="0.05" strokeWidth="0.8" fill="none" /></svg>
-            <Flower className="absolute" style={{ width: '44%', right: '7%', top: '50%', transform: `translateY(-50%) rotate(${tilt.y * 2}deg)`, transition: 'transform 200ms' }} />
-            <span className="absolute" style={{ inset: '2cqw', border: '1px solid #ffffff38', borderRadius: '3cqw' }} />
+            <svg aria-hidden viewBox="0 0 1000 630" preserveAspectRatio="none" className="absolute inset-0 w-full h-full"><path d={w} stroke={m ? m.ink : '#fff'} strokeOpacity={m ? 0.07 : 0.05} strokeWidth="0.8" fill="none" /></svg>
+            {m ? <FlowerInk ink={m.ink} style={{ width: '44%', right: '7%', top: '50%', transform: `translateY(-50%) rotate(${tilt.y * 2}deg)`, transition: 'transform 200ms' }} /> : <Flower className="absolute" style={{ width: '44%', right: '7%', top: '50%', transform: `translateY(-50%) rotate(${tilt.y * 2}deg)`, transition: 'transform 200ms' }} />}
+            <span className="absolute" style={{ inset: '2cqw', border: `1px solid ${m ? m.ink + '55' : '#ffffff38'}`, borderRadius: '3cqw' }} />
             <span className="absolute flex items-center font-extrabold" style={{ left: '5.3cqw', top: '4.6cqw', gap: '1.6cqw', fontSize: '3.7cqw' }}><Seal size={22} text={false} />AgentIOU</span>
             <span className="absolute text-right" style={{ right: '5cqw', top: '4.4cqw' }}>
-              <span className="inline-flex overflow-hidden rounded-full" style={{ border: '1.5px solid #ffffffbf', fontSize: '2.8cqw' }}><b className="bg-white/90 text-ink" style={{ padding: '0.6cqw 1.5cqw' }}>L{level}</b><span style={{ padding: '0.6cqw 1.7cqw' }}>{L.name}</span></span>
+              <span className="inline-flex overflow-hidden rounded-full" style={{ border: `1.5px solid ${m ? m.ink : '#ffffffbf'}`, fontSize: '2.8cqw', fontWeight: m ? 700 : undefined }}><b className={m ? '' : 'bg-white/90 text-ink'} style={{ padding: '0.6cqw 1.5cqw', background: m ? m.ink : undefined, color: m ? '#fff' : undefined, textShadow: 'none' }}>L{level}</b><span style={{ padding: '0.6cqw 1.7cqw' }}>{L.name}</span></span>
               <span className="block opacity-80" style={{ fontSize: '2.5cqw', marginTop: '1.3cqw', letterSpacing: '0.04em' }}>No. {String(no).padStart(6, '0')}</span>
             </span>
             <span className="absolute" style={{ left: '5.3cqw', top: '18.5cqw' }}>
               <span className="block opacity-85" style={{ fontSize: '3cqw' }}>Available</span>
-              <span className="block" style={{ fontSize: '10cqw', lineHeight: 1.05, textShadow: '0 0 14px #FFB23F8c' }}><Money>{'$' + available.toFixed(2)}</Money></span>
+              <span className={`block ${m ? 'ink-money' : ''}`} style={{ fontSize: '10cqw', lineHeight: 1.05, textShadow: m ? m.emb : '0 0 14px #FFB23F8c' }}><Money>{'$' + available.toFixed(2)}</Money></span>
               <span className="block opacity-85" style={{ fontSize: '3cqw', marginTop: '0.4cqw' }}>of ${limit} limit</span>
             </span>
             <span className="absolute" style={{ left: '5.3cqw', bottom: '5cqw' }}>
               <span className="block font-extrabold" style={{ fontSize: '3.6cqw' }}>{nick}</span>
-              <span className="block mono opacity-80" style={{ fontSize: '2.6cqw', marginTop: '0.5cqw' }}>{short(address)}</span>
+              <span className="block mono" style={{ fontSize: '2.6cqw', marginTop: '0.5cqw', opacity: m ? 1 : 0.8, color: m ? m.soft : undefined, fontWeight: m ? 600 : undefined }}>{short(address)}</span>
             </span>
             <span className="absolute" style={{ right: '4.6cqw', bottom: '4.3cqw' }}><Seal size={44} /></span>
-            {demo && DEMO && <span className="absolute demo-chip" style={{ left: '34%', bottom: '5cqw', color: '#fff', borderColor: '#fff', fontSize: '2.4cqw' }}>Demo data</span>}
+            {demo && DEMO && <span className="absolute demo-chip" style={{ left: '34%', bottom: '5cqw', color: m ? m.ink : '#fff', borderColor: m ? m.ink : '#fff', textShadow: 'none', fontSize: '2.4cqw' }}>Demo data</span>}
             {(overdue || restricted) && <span className={`absolute stamp ${restricted ? 'text-white bg-[#7A0F12]/70' : 'text-coral'}`} style={{ right: '26%', top: '40%' }}>{restricted ? 'Restricted' : 'Overdue'}</span>}
           </span>
-          <span className="face-back block" style={{ ...shell, background: restricted ? 'linear-gradient(115deg, #5E0B0E, #A01C1B)' : 'linear-gradient(115deg, #0A2F7A, #1552B8)' }}>
+          <span className="face-back block" style={{ ...shell, color: '#fff', textShadow: undefined, background: m ? m.back : restricted ? 'linear-gradient(115deg, #5E0B0E, #A01C1B)' : 'linear-gradient(115deg, #0A2F7A, #1552B8)' }}>
             <span className="absolute" style={{ inset: '2cqw', border: '1px solid #ffffff38', borderRadius: '3cqw' }} />
             <span className="absolute" style={{ inset: '6cqw 6cqw auto', fontSize: '2.6cqw' }}>
               <span className="block font-extrabold" style={{ fontSize: '3.2cqw', marginBottom: '2cqw' }}>Repay record</span>
@@ -211,27 +227,60 @@ export function Founder({ k, className = '', dim }: { k: string; className?: str
 function hash(a: string) { let h = 2166136261; const out: number[] = []; for (let r = 0; r < 8; r++) { for (const c of a.toLowerCase() + r) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) } out.push((h >>> 8) & 255) } return out }
 const AE: [number, number][][] = [[[0, -1], [0, 0]], [[-1, 0], [0, -1], [1, 0]], [[-1, -1], [0, 0], [1, -1]], [[0, -1], [-1, 0], [1, 0], [0, 1]], [[-1, 0], [0, 0], [1, 0]], [[0, 0], [1, 0], [0, -1], [1, -1]]]
 const AM: [number, number][][] = [[[4, 5], [5, 6], [6, 5]], [[3, 5], [4, 6], [5, 6], [6, 6], [7, 5]], [[4, 5], [5, 5], [6, 5]], [[4, 5], [5, 5], [6, 5], [5, 6]], [[5, 5]]]
-export function Avatar({ address, score, level, overdue, size = 96, mini }: { address: string; score: number; level: number; overdue?: boolean; size?: number; mini?: boolean }) {
-  const g = useMemo(() => {
-    const h = hash(address), on = new Set<string>()
-    const eye = AE[h[0] % AE.length], wink = h[2] % 7 === 0
-    eye.forEach(([x, y]) => on.add(`${3 + x},${2 + y}`)); (wink ? AE[4] : eye).forEach(([x, y]) => on.add(`${7 + x},${2 + y}`)); AM[h[1] % AM.length].forEach(([x, y]) => on.add(`${x},${y}`))
-    return { on, blush: h[3] % 3 === 0, d1: rosette(50, 50, 31.5, 4.5, 6 + (h[4] % 6), 14, (h[6] / 255) * 6.28, 1, 120), d2: rosette(50, 50, 37.2, 1.6, 9 + (h[5] % 7), 8, 0, 1, 120) }
+/* Avatar colours: one metal family per tier of stamp, three colour steps in each (the step moves every 100 XP).
+   The whole picture is tinted with one colour, so the mascot and whatever it holds stay the same metal. */
+const TINT: Record<Look, [string, string, number][]> = {
+  classic: [['none', '', 0], ['none', '', 0], ['none', '', 0]],
+  silver: [['saturate(.08) brightness(1.1) contrast(1.05)', 'linear-gradient(160deg,#EEF2F8,#C9D2E0)', 0.35], ['saturate(.1) brightness(1.08) contrast(1.05)', 'linear-gradient(160deg,#E3F0FF,#9CC3F2)', 0.85], ['saturate(.1) brightness(1.08) contrast(1.05)', 'linear-gradient(160deg,#F1E8FF,#BBA4EE)', 0.85]],
+  gold: [['saturate(.15) brightness(1.02) contrast(1.12)', 'linear-gradient(160deg,#FFE7A0 0%,#F0BE4A 50%,#D0931F 100%)', 1], ['saturate(.15) brightness(1.04) contrast(1.1)', 'linear-gradient(160deg,#FFDDD2 0%,#EFA08F 55%,#CC7461 100%)', 1], ['saturate(.12) brightness(1.1) contrast(1.06)', 'linear-gradient(160deg,#FFF6DE 0%,#EBD7A2 55%,#CDB273 100%)', 1]],
+  aurora: [['saturate(.5) brightness(1.06) contrast(1.05)', 'linear-gradient(135deg,#9FA8FF 0%,#F7A6D9 35%,#FFD98A 62%,#9EE6C8 100%)', 0.92], ['saturate(.5) brightness(1.06) contrast(1.05)', 'linear-gradient(135deg,#8CF0DC 0%,#8CC8FF 45%,#B9A6FF 100%)', 0.92], ['saturate(.5) brightness(1.06) contrast(1.05)', 'linear-gradient(135deg,#FFD98A 0%,#FF9FB5 50%,#C58CFF 100%)', 0.92]],
+}
+/* how big each pose sits in the round frame, and where (the poses are drawn at different sizes) */
+const FIT: Record<string, [number, number, number]> = { wave: [0.74, 0, 0.04], card: [0.74, 0, 0.04], read: [0.72, 0, 0.04], stamp: [0.72, 0, 0.03], search: [0.78, -0.03, 0.04], rest: [0.86, 0, 0.1], ticket: [0.8, 0.04, 0.03], coin: [0.74, 0, 0.04], jump: [0.74, 0, 0.02] }
+type Pose = keyof typeof assets.mascot
+/** The mascot in one metal, wearing the face that belongs to the address. */
+export function MascotMark({ address, pose, look, shade, asleep, width, fill }: { address: string; pose: string; look: Look; shade: number; asleep?: boolean; width: number; /** take the width of the box it sits in */ fill?: boolean }) {
+  const v = assets.mascot[(pose in assets.mascot ? pose : 'wave') as Pose], src = img('mascot-' + (pose in assets.mascot ? pose : 'wave'))
+  const [filter, tint, opacity] = asleep ? ['saturate(.12) brightness(.62)', '', 0] : TINT[look][shade % 3]
+  const on = useMemo(() => {
+    const h = hash(address), set: [number, number][] = [], eye = AE[h[0] % AE.length], wink = h[2] % 7 === 0
+    eye.forEach(([x, y]) => set.push([3 + x, 2 + y])); (wink ? AE[4] : eye).forEach(([x, y]) => set.push([7 + x, 2 + y])); AM[h[1] % AM.length].forEach(([x, y]) => set.push([x, y]))
+    return set
   }, [address])
-  const lit = Math.round((score / 100) * 64)
-  const col = (i: number) => (overdue && i >= lit - 6 ? '#FF6B57' : level === 1 ? '#8C96FF' : level === 2 ? '#FFB23F' : `hsl(${220 + i * 5.6} 90% 76%)`)
+  const W = v.w * 1000, H = v.h * 1000, st = Math.min((W * 0.8) / 8, (H * 0.8) / 6)
+  const mask = `url(${src}) center / 100% 100% no-repeat`
   return (
-    <svg role="img" aria-label={`Avatar drawn from the address. Trust Score ${score} of 100, level ${level}${overdue ? ', has an overdue IOU' : ''}.`} viewBox="0 0 100 100" width={size} height={size} className="shrink-0">
-      {!mini && <><path d={g.d1} stroke="#8C96FF" strokeOpacity="0.45" strokeWidth="0.35" fill="none" /><path d={g.d2} stroke="#FFB23F" strokeOpacity="0.35" strokeWidth="0.35" fill="none" /></>}
-      {mini ? <circle cx="50" cy="50" r="45" fill="none" stroke={overdue ? '#FF6B57' : level === 1 ? '#8C96FF' : level === 2 ? '#FFB23F' : '#F2A7E0'} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(score / 100) * 283} 283`} transform="rotate(-90 50 50)" />
-        : Array.from({ length: 64 }, (_, i) => { const a = (i / 64) * 2 * Math.PI - Math.PI / 2; return <circle key={i} cx={50 + 43.5 * Math.cos(a)} cy={50 + 43.5 * Math.sin(a)} r={1.35} fill={i < lit ? col(i) : '#2C3156'} /> })}
-      <rect x={mini ? 12 : 24} y={mini ? 22 : 31} width={mini ? 76 : 52} height={mini ? 56 : 38} rx={mini ? 20 : 13} fill="#06070F" stroke="#2C3156" strokeWidth="0.6" />
-      <g transform={mini ? 'translate(50 50) scale(1.75) translate(-50 -50)' : undefined}>
-        {Array.from({ length: 77 }, (_, n) => { const i = n % 11, j = Math.floor(n / 11), o = g.on.has(`${i},${j}`); return (o || !mini) && <circle key={n} cx={50 + (i - 5) * 4} cy={50 + (j - 3) * 4} r={o ? (mini ? 1.9 : 1.35) : 0.8} fill={o ? '#FFB23F' : '#40342299'} /> })}
-        {g.blush && !mini && <><circle cx="33" cy="58" r="2.2" fill="#FF6B57" opacity="0.55" /><circle cx="67" cy="58" r="2.2" fill="#FF6B57" opacity="0.55" /></>}
-      </g>
-      {!mini && <g><rect x="33" y="84" width="34" height="14" rx="7" fill="#0E1024" stroke={overdue ? '#FF6B57' : '#2C3156'} /><text x="50" y="94.6" textAnchor="middle" fontFamily="Doto" fontWeight="800" fontSize="10.5" fill={overdue ? '#FF6B57' : '#F0F1F7'}>L{level}</text></g>}
-    </svg>
+    <span aria-hidden className="relative block" style={{ width: fill ? '100%' : width, aspectRatio: String(v.ar), isolation: 'isolate' }}>
+      <img src={src} alt="" draggable={false} className="block w-full h-full" style={{ filter }} />
+      {tint && <span className="absolute inset-0" style={{ background: tint, mixBlendMode: 'color', opacity, WebkitMask: mask, mask }} />}
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ position: 'absolute', left: `${v.cx * 100}%`, top: `${v.cy * 100}%`, width: `${v.w * 100}%`, transform: `translate(-50%,-50%) rotate(${v.rot}deg)`, filter: asleep ? undefined : 'drop-shadow(0 0 2px #FFB23Fb0)' }}>
+        {asleep ? <><rect x={W / 2 - 3.2 * st} y={H / 2 - st * 0.3} width={2.2 * st} height={st * 0.6} rx={st * 0.3} fill="#8A8FB5" /><rect x={W / 2 + st} y={H / 2 - st * 0.3} width={2.2 * st} height={st * 0.6} rx={st * 0.3} fill="#8A8FB5" /></>
+          : on.map(([x, y], i) => <circle key={i} cx={W / 2 + (x - 5) * st} cy={H / 2 + (y - 3.6) * st} r={st * 0.4} fill="#FFB23F" />)}
+      </svg>
+    </span>
+  )
+}
+/* Avatar: the mascot in the pose and metal of the member's stamps, with the face drawn from the wallet address and the Trust Score as a ring.
+   Nobody uploads anything and nothing is stored: it is all read from the address and the contract. */
+export function Avatar({ address, score, level, overdue, size = 96, mini, style }: { address: string; score: number; level: number; overdue?: boolean; size?: number; mini?: boolean; style?: Style }) {
+  const st = style ?? { look: 'classic' as Look, tier: 0, pose: 'wave', shade: 0, design: 0 }
+  const pose = overdue ? 'rest' : st.pose, [k, dx, dy] = FIT[pose] ?? FIT.wave
+  const lit = Math.round((score / 100) * 64)
+  const ring = overdue ? '#FF6B57' : level === 1 ? '#8C96FF' : level === 2 ? '#FFB23F' : '#F2A7E0'
+  const col = (i: number) => (overdue && i >= lit - 6 ? '#FF6B57' : level === 1 ? '#8C96FF' : level === 2 ? '#FFB23F' : `hsl(${220 + i * 5.6} 90% 76%)`)
+  const pad = mini ? 0.1 : 0.13, inner = size * (1 - 2 * pad), v = assets.mascot[(pose in assets.mascot ? pose : 'wave') as Pose], w = inner * k * Math.min(1, v.ar * 1.02)
+  const what = st.tier ? `${st.look} mascot` : 'mascot'
+  return (
+    <span role="img" aria-label={`Avatar: ${overdue ? 'sleeping mascot' : what} with the face drawn from the address. Trust Score ${score} of 100, level ${level}${overdue ? ', has an overdue IOU' : ''}.`} data-look={st.look} data-pose={pose} className="relative inline-block shrink-0 align-middle" style={{ width: size, height: size }}>
+      <svg aria-hidden viewBox="0 0 100 100" width={size} height={size} className="absolute inset-0">
+        {mini ? <><circle cx="50" cy="50" r="45" fill="none" stroke="#2C3156" strokeWidth="6" /><circle cx="50" cy="50" r="45" fill="none" stroke={ring} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(score / 100) * 283} 283`} transform="rotate(-90 50 50)" /></>
+          : Array.from({ length: 64 }, (_, i) => { const a = (i / 64) * 2 * Math.PI - Math.PI / 2; return <circle key={i} cx={50 + 46.5 * Math.cos(a)} cy={50 + 46.5 * Math.sin(a)} r={1.35} fill={i < lit ? col(i) : '#2C3156'} /> })}
+      </svg>
+      <span className="absolute rounded-full overflow-hidden flex items-center justify-center" style={{ inset: size * pad, background: 'radial-gradient(circle at 50% 32%,#3A3F7A,#14163A 78%)' }}>
+        <span style={{ transform: `translate(${dx * inner}px,${dy * inner}px)` }}><MascotMark address={address} pose={pose} look={st.look} shade={st.shade} asleep={overdue} width={w} /></span>
+      </span>
+      {!mini && <span className="absolute left-1/2 -translate-x-1/2 led rounded-full" style={{ bottom: -size * 0.02, fontSize: Math.max(11, size * 0.105), lineHeight: 1, padding: `${size * 0.022}px ${size * 0.07}px`, background: '#0E1024', border: `1px solid ${overdue ? '#FF6B57' : '#2C3156'}`, color: overdue ? '#FF6B57' : '#F0F1F7' }}>L{level}</span>}
+    </span>
   )
 }
 export const PaidStamp = ({ text = 'Paid', className = 'text-leaf' }: { text?: string; className?: string }) => <span className={`stamp ${className}`}>{text}</span>

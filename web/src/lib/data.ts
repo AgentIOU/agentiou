@@ -1,4 +1,5 @@
 import { getAddress, isAddress } from 'viem'
+import { TOWN_PARTS } from './townmap'
 import assets from '../data/assets.json'
 export { assets }
 
@@ -96,8 +97,9 @@ export const ME: string = DEMO ? addr(0x142) : proven && savedMe ? savedMe : '0x
 export const MART: string = DEMO ? addr(0xa11) : env.VITE_MART && isAddress(env.VITE_MART) ? getAddress(env.VITE_MART) : '0x0000000000000000000000000000000000000000'
 export const MIRA = addr(0x2b7), SAM = addr(0x3c9), RAFI = addr(0x4d1), LINA = addr(0x5e3), OMAR = addr(0x9c5)
 const T0 = Date.now()
+const BUSY = DEMO && typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === 'busy'
 const u = (address: string, nickname: string, no: number, onTime: number, people: number, late = 0, extra: Partial<User> = {}): User => ({
-  address, nickname, no, joinedAt: T0 - (160 - no) * DAY * 0.2 - 3 * DAY, onTime, late, defaults: 0, people, xp: 50 + onTime * 30, claimed: [0, 0, 0], pocket: [0, 0, 0], stickers: {}, badges: onTime >= 0 && nickname !== 'promise-mart' ? { 'IOU Verified': T0 - 20 * DAY, ...(onTime > 0 ? { 'First Promise': T0 - 12 * DAY } : {}), ...(onTime >= 3 ? { Trusted: T0 - 8 * DAY } : {}), ...(onTime >= 10 && people >= 3 ? { 'Highly Trusted': T0 - 3 * DAY } : {}) } : {}, checkDays: 0, lastCheck: 0, ...extra })
+  address, nickname, no, joinedAt: T0 - (160 - no) * DAY * 0.2 - 3 * DAY, onTime, late, defaults: 0, people, xp: 50 + onTime * 30, claimed: [Math.floor((50 + onTime * 30) / 50), Math.floor((50 + onTime * 30) / 150), Math.floor((50 + onTime * 30) / 300)], pocket: [0, 0, 0], stickers: {}, badges: onTime >= 0 && nickname !== 'promise-mart' ? { 'IOU Verified': T0 - 20 * DAY, ...(onTime > 0 ? { 'First Promise': T0 - 12 * DAY } : {}), ...(onTime >= 3 ? { Trusted: T0 - 8 * DAY } : {}), ...(onTime >= 10 && people >= 3 ? { 'Highly Trusted': T0 - 3 * DAY } : {}) } : {}, checkDays: 0, lastCheck: 0, ...extra })
 export const seedUsers = (): User[] => [
   u(ME, 'tuku', 142, 4, 2, 0, { xp: 350, checkDays: 2, lastCheck: T0 - DAY, claimed: [2, 1, 0], pocket: [1, 0, 0],
     stickers: { 1: { edition: 9, block: 52_340_118, time: T0 - 6 * DAY }, 4: { edition: 42, block: 52_512_904, time: T0 - 2 * DAY }, 7: { edition: 17, block: 52_540_377, time: T0 - DAY } },
@@ -126,6 +128,9 @@ export const seedIous = (): Iou[] => [
   i(8, ME, LINA, 'USDT', 0.5, -2, 4, 'Active', 'Print shop'),
   i(9, MIRA, OMAR, 'USDT', 0.5, -9, -2, 'Active', 'Groceries'),
   i(10, RAFI, OMAR, 'USDT', 0.3, -6, -1, 'Active', 'Data pack'),
+  // ?demo=busy: a member with many open IOUs, to see the harbour at its biggest (tests use it; nothing links to it)
+  ...(BUSY ? [i(11, addr(0x6f2), ME, 'USDT', 0.2, -1, 1, 'Active', 'Snacks'), i(12, ME, addr(0x7a8), 'USDT', 0.4, -1, 2, 'Active', 'Stickers'), i(13, addr(0x7a8), ME, 'USDT', 0.3, -2, 3, 'Active', 'Bus card'), i(14, ME, SAM, 'USDT', 0.6, -1, 6, 'Active', 'Coffee'),
+    i(15, ME, addr(0x8b4), 'USDT', 0.2, -3, 7, 'Active', 'Pens'), i(16, addr(0x6f2), ME, 'USDT', 0.1, -1, 8, 'Active', 'Gum'), i(17, ME, OMAR, 'USDT', 0.5, -2, 9, 'Active', 'Charger'), i(18, SAM, ME, 'USDT', 0.2, -1, 10, 'Active', 'Tea')] : []),
 ]
 
 /** IOUs past due right now, per address. The demo store fills this in; on the live site the contract returns the same numbers. */
@@ -171,3 +176,35 @@ export const SAFE_TEXT = /^[A-Za-z0-9 .,!?()'\-_]*$/
 export const plain = (t: string) => (SAFE_TEXT.test(t) ? t : '(hidden: unusual characters)')
 export const BANNED_NICK = /binance|bnb|official|admin|support/i
 export function nickError(n: string) { return !n ? '' : BANNED_NICK.test(n) ? 'That word is not allowed in a nickname.' : !/^[A-Za-z0-9_\-]*$/.test(n) ? 'Use letters, numbers, - and _ only.' : n.length < 2 || n.length > 20 ? 'Use 2 to 20 characters.' : '' }
+
+/* Looks. Nothing here is stored: the card metal, the avatar's pose and its colour are all worked out from what the contract already keeps
+   (which stamps an address holds, when they were minted, and its XP), so every device draws the same member the same way. */
+export type Look = 'classic' | 'silver' | 'gold' | 'aurora'
+export const LOOKS: Look[] = ['classic', 'silver', 'gold', 'aurora']
+export const LOOK_NAME: Record<Look, string> = { classic: 'Classic', silver: 'Silver', gold: 'Gold', aurora: 'Aurora' }
+/** XP between two colour steps of the avatar */
+export const SHADE_XP = 100
+export const SHADES: Record<Look, [string, string, string]> = { classic: ['Lavender', 'Lavender', 'Lavender'], silver: ['Silver', 'Ice blue', 'Lilac pearl'], gold: ['Gold', 'Rose gold', 'Champagne'], aurora: ['Aurora', 'Ocean aurora', 'Sunset aurora'] }
+const STAMP_POSE: Record<number, string> = { 4: 'wave', 5: 'card', 6: 'read', 7: 'stamp', 8: 'search', 9: 'rest', 10: 'ticket', 11: 'coin', 12: 'jump' }
+export interface Style { look: Look; /** 0 none, 1 Common, 2 Rare, 3 Legendary */ tier: number; pose: string; shade: number; design: number }
+/** The highest tier of stamp held sets the metal; the stamp minted last in that tier sets the pose; XP sets the colour step. */
+export function styleOf(u?: Pick<User, 'stickers' | 'xp'> | null): Style {
+  let tier = 0, design = 0, at = -1
+  for (const [k, m] of Object.entries(u?.stickers ?? {})) {
+    const id = Number(k), t = id >= 10 ? 3 : id >= 7 ? 2 : id >= 4 ? 1 : 0
+    if (!t) continue
+    if (t > tier || (t === tier && (m.time > at || (m.time === at && id > design)))) { tier = t; design = id; at = m.time }
+  }
+  return { look: LOOKS[tier], tier, pose: STAMP_POSE[design] ?? 'wave', shade: tier ? Math.floor((u?.xp ?? 0) / SHADE_XP) % 3 : 0, design }
+}
+
+/* Build your own town. Nothing is stored for it: the contract's own count of claimed vouchers is the whole state.
+   Two claimed Common vouchers open one part; one Rare voucher opens one; one Legendary voucher opens one. Parts open in a fixed order and each has its own place. */
+export const PART_COST = [2, 1, 1] as const
+export function townOf(u: User) {
+  const seen = [0, 0, 0], open = new Set<number>()
+  TOWN_PARTS.forEach((p, i) => { if (seen[p.tier]++ < Math.floor(u.claimed[p.tier] / PART_COST[p.tier])) open.add(i) })
+  /** per tier: the next part still closed and how many more vouchers have to be claimed for it; null when the tier is complete */
+  const next = [0, 1, 2].map((t) => { const part = TOWN_PARTS.filter((p) => p.tier === t)[Math.floor(u.claimed[t] / PART_COST[t])]; return part ? { name: part.name, need: PART_COST[t] - (u.claimed[t] % PART_COST[t]) } : null })
+  return { open, next }
+}

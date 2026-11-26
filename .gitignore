@@ -7,3 +7,4 @@ contracts/out
 tools/shots
 __pycache__
 .env
+dist-artifact

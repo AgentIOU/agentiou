@@ -38,6 +38,7 @@ function Shell() {
       </main>
       <div className="relative z-[1]"><Footer /></div>
       <TabBar route={r.name} /><Tray /><Toasts />
+      {import.meta.env.VITE_PREVIEW_SWITCH === '1' && DEMO && <div role="group" aria-label="Preview as" className="fixed z-[55] left-2 bottom-[92px] inline-flex items-center p-0.5 rounded-full text-[11px] font-bold opacity-90" style={{ background: '#0E1024F2', boxShadow: 'inset 0 0 0 1px #FFB23F' }}>{([['Guest', false], ['Member', true]] as const).map(([t, m]) => <button key={t} type="button" aria-pressed={joined === m} onClick={() => dispatchEvent(new CustomEvent('agentiou-preview', { detail: m }))} className={`h-6 px-2 rounded-full cursor-pointer ${joined === m ? 'text-[#1E1B4B]' : 'text-muted'}`} style={joined === m ? { background: 'var(--holo)' } : undefined}>{t}</button>)}</div>}
     </>
   )
 }

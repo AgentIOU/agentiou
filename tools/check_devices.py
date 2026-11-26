@@ -25,7 +25,7 @@ try:
     # Android phone emulation (Pixel 7, Chrome): tab bar reaches every app page, touch flows work
     ctx=b.new_context(**p.devices["Pixel 7"]); pg=ctx.new_page(); errs=[]; pg.on("pageerror",lambda e:errs.append(str(e)))
     pg.goto(U+"home"); pg.wait_for_timeout(2500)
-    for label,expect in (("Mart","Promise Mart"),("Tasks","Task Hub"),("My IOUs","Open IOUs"),("Profile","Promise record"),("Home","Your promise history")):
+    for label,expect in (("Mart","Promise Mart"),("Town","Task Hub"),("My IOUs","Open IOUs"),("Home","Your promise history")):
       pg.locator("nav[aria-label=App]").get_by_role("link",name=label).tap(); pg.wait_for_timeout(700); ok(f"Android tab bar: {label}",expect in pg.inner_text("main"))
     small=pg.evaluate("[...document.querySelectorAll('nav[aria-label=App] a')].filter(e=>{const r=e.getBoundingClientRect();return r.height<44||r.width<44}).length"); ok("Android tab targets are at least 44px",small==0,small)
     pg.goto(U+"mart"); pg.wait_for_timeout(900); pg.get_by_role("button",name="Take on credit").first.tap(); pg.wait_for_timeout(400)

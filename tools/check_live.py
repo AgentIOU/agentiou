@@ -81,7 +81,7 @@ try:
     go("me"); ok("guest: My IOUs says to get IOU Verified first, and never says prove or connect a wallet","Get IOU Verified first" in main() and "Prove your wallet" not in main() and "no wallet connection" in main(),main()[:300])
     node("join",BEN,"ben")   # another member joins first, so member numbers can be checked
     keys=lambda: sorted(k for k in pg.evaluate("Object.keys(localStorage)") if k.startswith("agentiou.") and k not in ("agentiou.sound","agentiou.reduce"))
-    guest=lambda: pg.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and pg.locator("header").get_by_role("link",name=re.compile("^Profile:")).count()==0
+    guest=lambda: pg.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and pg.locator("header").get_by_role("link",name=re.compile("^My profile:")).count()==0
     def to_step4():
         go("start")
         for _ in range(3): pg.get_by_role("button",name="I did this").first.click(); pg.wait_for_timeout(150)
@@ -93,9 +93,10 @@ try:
         if b.is_enabled(): b.click()
         pg.wait_for_timeout(3500)
     # ---- B. a profile is never "mine" without a signature from its wallet
-    pg.reload(); pg.wait_for_timeout(3500); go("tasks"); pg.fill("#see",BEN); pg.get_by_role("button",name="Show").click(); pg.wait_for_timeout(500); t=main()
-    ok("Task Hub lookup shows a member's public numbers, marked viewing only","Viewing only" in t and "ben" in t and re.search(r"50\s*XP",t) is not None,t[:400])
-    ok("the lookup saves nothing and the visitor stays a guest",keys()==[] and guest(),keys())
+    pg.reload(); pg.wait_for_timeout(3500); go("tasks"); ok("Task Hub points to Open Trust for checking someone else",pg.locator("main").get_by_role("link",name="Check their record on Open Trust.").count()==1)
+    go("u-"+BEN,1200); t=main()
+    ok("a member's public profile shows the public numbers","ben" in t and "Trust Score" in t,t[:400])
+    ok("looking at a profile saves nothing and the visitor stays a guest",keys()==[] and guest(),keys())
     to_step4(); pg.fill("#aw","not an address"); ok("a wrong address cannot be used",pg.get_by_role("button",name="Prove this wallet is mine").is_disabled())
     req=ask_for(BEN); body=json.loads(json.loads(req)["params"][1])
     ok("the signing prompt says it is a signature only and names this device and an expiry","signature only: no transaction, no transfer, no approval" in pg.locator("pre.code").inner_text() and body["message"]["wallet"].lower()==BEN.lower() and re.fullmatch(r"[A-Z2-7]{4}-[A-Z2-7]{4}",body["message"]["device"]) is not None and int(body["message"]["expires"])-int(body["message"]["issued"])==900 and set(x["name"] for x in body["types"]["Proof"])=={"statement","wallet","device","issued","expires"},body)
@@ -127,9 +128,9 @@ try:
     kept=pg.evaluate("[localStorage.getItem('agentiou.me'),localStorage.getItem('agentiou.proof')]")
     pg.fill("#nn","ana"); pg.get_by_role("button",name="Get IOU Verified").last.click(); pg.wait_for_timeout(400)
     ok("join: prompt sent as written, the card finishes when the chain shows it",act(ANA)); done()
-    ok("after joining: header shows the profile, no join button",pg.locator("header").get_by_role("link",name="Profile: ana").count()==1 and pg.locator("header").get_by_role("link",name="Get IOU Verified").count()==0)
+    ok("after joining: header shows the profile, no join button",pg.locator("header").get_by_role("link",name=re.compile("^My profile: ana")).count()==1 and pg.locator("header").get_by_role("link",name="Get IOU Verified").count()==0)
     go("me"); ok("member numbers follow joining order (ben 1, ana 2)","Member No. 000002" in main(),main()[:200]); c=same("after join"); ok("join gives 50 XP, L1, $1",(c["xp"],c["level"],c["limitCents"])==(50,1,100))
-    pg.reload(); pg.wait_for_timeout(3000); ok("after a reload the visitor is still a member, not a guest",pg.locator("header").get_by_role("link",name="Profile: ana").count()==1 and "Guest" not in main())
+    pg.reload(); pg.wait_for_timeout(3000); ok("after a reload the visitor is still a member, not a guest",pg.locator("header").get_by_role("link",name=re.compile("^My profile: ana")).count()==1 and "Guest" not in main())
     # ---- D. take on credit
     go("mart"); pg.get_by_role("button",name="Take on credit").first.click(); pg.wait_for_timeout(400)
     pr=pg.locator("pre.code").inner_text(); ok("the loan prompt says what arrives, from whom, and that nothing leaves my wallet","lends me 0.01 USDT from the shop ("+A["mart"] in pr and "within 1 day." in pr and "Nothing leaves my wallet" in pr,pr[:400])
@@ -249,7 +250,7 @@ try:
     ok("footer links to Open Trust",pg.locator("footer").get_by_role("link",name=re.compile("Open Trust")).count()==1)
     c2=b.new_context(viewport={"width":390,"height":844}); p2=c2.new_page(); p2.goto(U+"home"); p2.wait_for_timeout(1500)
     p2.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr);localStorage.setItem('agentiou.device','ZZZZ-2222')}",kept); p2.reload(); p2.wait_for_timeout(4000)
-    ok("the address and its proof copied to another device do not open the profile there",p2.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and p2.locator("header").get_by_role("link",name=re.compile("^Profile:")).count()==0); c2.close()
+    ok("the address and its proof copied to another device do not open the profile there",p2.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and p2.locator("header").get_by_role("link",name=re.compile("^My profile:")).count()==0); c2.close()
     ok("the page only ever talked to its own host and the chain",hosts<={"127.0.0.1:4175","127.0.0.1:8547"},hosts); ok("no script errors",not errs,errs[:3]); b.close()
 finally:
     srv.terminate(); anvil.terminate()

@@ -5,7 +5,7 @@ import { useStore, type TrayReq } from '../lib/store'
 import { play } from '../lib/sound'
 import { Avatar, Money, PaidStamp } from './art'
 import { Mascot, type Pose } from './fx'
-import { score, levelOf, plain } from '../lib/data'
+import { score, levelOf, plain, styleOf } from '../lib/data'
 import { Link } from '../lib/router'
 
 export const Dots = ({ label }: { label?: string }) => <span className="inline-flex items-center gap-3" role="status"><span className="dots" aria-hidden><i /><i /><i /><i /></span>{label && <span>{label}</span>}</span>
@@ -117,7 +117,7 @@ function TrayInner({ t, close }: { t: TrayReq; close: () => void }) {
           <div className="flex items-center justify-between mt-4 mb-2"><span className="text-[14px] text-muted">Prompt for your agent</span><button type="button" className="btn btn-secondary btn-sm" onClick={async () => setCopied(await copy(s.prompt, 'Copied'))}>{copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}{copied ? 'Copied' : many ? `Copy prompt ${step + 1} of ${t.steps.length}` : 'Copy'}</button></div>
           <pre className="code max-h-[34dvh] overflow-auto" tabIndex={0}>{s.prompt}</pre>
           <p className="text-[14px] text-muted mt-3">Paste this into your Binance Agentic Wallet agent. It shows a preview and the risks; nothing is sent until you confirm there.</p>
-          <div className="flex flex-wrap gap-3 mt-5"><button type="button" className="btn btn-primary" onClick={() => setPhase('wait')}>I confirmed in my agent</button><button type="button" className="btn btn-secondary" onClick={close}>Not now</button></div>
+          <div className="flex flex-wrap gap-3 mt-5"><button type="button" className="btn btn-primary" onClick={() => setPhase('wait')}><Check size={17} aria-hidden />I confirmed in my agent</button><button type="button" className="btn btn-secondary" onClick={close}>Not now</button></div>
         </>}
         {phase === 'between' && <div className="pt-6"><div className="flex items-center gap-5"><Mascot pose="jump" expr="success" className="w-24 shrink-0" /><div><p className="led text-amber text-[30px] leading-[1.05]">{step + 1} of {t.steps.length} done</p><p className="font-extrabold text-[18px] leading-tight mt-2">{t.steps.length - step - 1 === 1 ? `One more prompt to finish the ${t.steps[t.steps.length - 1].label.toLowerCase()}.` : `${t.steps.length - step - 1} more prompts to finish.`}</p>{s.landed && <p className="text-muted text-[14px] mt-1.5">{s.landed}</p>}</div></div><button type="button" className="btn btn-primary w-full justify-center mt-5" onClick={() => { setStep(step + 1); setPhase('prompt') }}>Show prompt {step + 2} of {t.steps.length}</button><p className="text-muted text-[13px] text-center mt-2.5">The next prompt opens with its own Copy button.</p></div>}
         {phase === 'wait' && <div className="py-8 flex items-center gap-5"><Mascot pose="wave" expr="thinking" className="w-24 shrink-0" /><div><Dots label="Waiting for your agent" /><p className="text-muted text-[14px] mt-2">{DEMO ? 'The site reads the contract every few seconds: pending, confirmed, then updated. In this demo it confirms by itself.' : 'The site is reading the contract every few seconds. This card moves on by itself, usually within a few seconds of your transaction landing.'}</p>{!DEMO && <button type="button" className="btn-text underline underline-offset-4 text-[14px] text-muted mt-3 min-h-[44px]" onClick={() => setPhase('prompt')}>I have not sent it yet: back to the prompt</button>}</div></div>}
@@ -140,7 +140,7 @@ export function IouLine({ x, action }: { x: Iou; action?: ReactNode }) {
     <li style={{ ['--bar' as string]: BAR[v] }} className="border-b border-rule border-l-[3px] border-l-[var(--bar)]">
       <div className="line" style={{ border: 0 }}>
         <time className="text-muted text-[14px]" dateTime={new Date(x.createdAt).toISOString()}>{dateShort(x.createdAt)}</time>
-        <span className="flex items-center gap-2 min-w-0 font-semibold">{o && <Avatar address={other} score={score(o)} level={levelOf(o)} size={28} mini />}<span className="truncate">{mine ? name(other) : `To ${name(other)}`}</span></span>
+        <span className="flex items-center gap-2 min-w-0 font-semibold">{o && <Avatar address={other} score={score(o)} level={levelOf(o)} style={styleOf(o)} size={32} mini />}<span className="truncate">{mine ? name(other) : `To ${name(other)}`}</span></span>
         <span className="text-right min-[860px]:hidden"><Money>{amt(x)}</Money></span>
         <span className="text-muted truncate col-span-3 min-[860px]:col-span-1">{plain(x.memo)}</span>
         <span className="hidden min-[860px]:block text-right"><Money>{amt(x)}</Money> <span className="text-muted text-[13px]">{x.asset === 'BNB' ? `≈ ${usd(x.usd)}` : ''}</span></span>
