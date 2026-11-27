@@ -206,6 +206,12 @@ try:
       ok(f"{w}px: the dock is {'shown' if want else 'hidden'}",pw.locator("nav[aria-label=App]").is_visible()==want and (want or pw.locator("header nav[aria-label=Main] a:visible").count()>=5)); 
       if w==1280:
         r=pw.locator("#t-open").locator("xpath=..").bounding_box(); ok("desktop: the whole town fits one screen, with the game and the builder beside it",r["height"]<=460 and r["y"]+r["height"]<=800 and pw.evaluate("(()=>{const t=document.querySelector('#t-open').parentElement.getBoundingClientRect(),b=document.querySelector('#t-build').getBoundingClientRect();return b.left>t.right-1&&b.top<t.bottom})()"),r)
+      SH="""()=>{const sh=document.querySelector('section[aria-labelledby=t-shelf]'),r=sh.getBoundingClientRect(),po=document.querySelector('[aria-labelledby=t-opens]').getBoundingClientRect(),pc=document.querySelector('[aria-labelledby=t-cards]').getBoundingClientRect(),ul=[...sh.querySelectorAll('ul.grid-cols-3')].map(u=>u.getBoundingClientRect());
+        let out=0;sh.querySelectorAll('li,button,h3').forEach(x=>{const q=x.getBoundingClientRect();if(q.width&&(q.left<r.left-1||q.right>r.right+1))out++});
+        return {side:Math.abs(po.top-pc.top)<2&&po.right<=pc.left,sameH:Math.abs(po.height-pc.height)<2,rows:new Set(ul.map(u=>Math.round(u.top))).size,fill:Math.max(pc.right,...ul.map(u=>u.right))>=r.right-2,out,scroll:document.documentElement.scrollWidth>document.documentElement.clientWidth}}"""
+      d=pw.evaluate(SH)
+      if w>=1024: ok(f"{w}px: under Season 1 stickers the two boxes sit side by side and the three shelves go three across, out to the right edge",d["side"] and d["sameH"] and d["rows"]==1 and d["fill"] and not d["out"] and not d["scroll"],d)
+      else: ok(f"{w}px: under Season 1 stickers everything stays in one column",not d["side"] and d["rows"]==3 and not d["out"] and not d["scroll"],d)
       pw.close()
     # ---- nothing may be wider than the phone. (main clips what sticks out, so scroll width cannot see it: measure the cards themselves.)
     for w in (320,360,393):
