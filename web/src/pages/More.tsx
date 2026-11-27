@@ -77,7 +77,7 @@ function StepAddress({ v }: { v: Verify }) {
 }
 /** Step 5, live: the one prompt, and the wait for its transaction. */
 function StepProve({ v }: { v: Verify }) {
-  const copy = useCopy(); const [nick, setNick] = useState(''); const [copied, setCopied] = useState(false); const [open, setOpen] = useState(false); const [text, setText] = useState('')
+  const copy = useCopy(); const [nick, setNick] = useState(''); const [copied, setCopied] = useState(false); const [open, setOpen] = useState(false); const [see, setSee] = useState(false); const [text, setText] = useState('')
   const badNick = nickError(nick), who = v.seen
   if (!who) return null
   if (!v.ask) return (
@@ -86,23 +86,32 @@ function StepProve({ v }: { v: Verify }) {
       <label className="label" htmlFor="nn">Nickname</label><input id="nn" className="input" value={nick} onChange={(e) => setNick(e.target.value)} maxLength={20} placeholder="2 to 20 characters" /><p className={`hint ${badNick ? 'text-coral' : ''}`}>{badNick || 'Not unique and not searchable. It always shows next to your short address.'}</p>
       <button type="button" className="btn btn-primary mt-4" disabled={!nick || !!badNick} onClick={() => v.start(who, nick)}>Make my prompt</button></div>
   )
+  const lk = 'btn-text underline underline-offset-4 text-[14px] font-bold'
   return (
-    <div className="mt-4">
-      {v.ask.carrier === 'join' && <p className="text-[14px]"><span className="text-muted">Nickname:</span> <b>{v.ask.nick}</b></p>}
-      <div className="flex items-center justify-between mt-3 mb-2"><span className="text-[14px] text-muted">Prompt for your agent</span><button type="button" className="btn btn-secondary btn-sm" onClick={async () => setCopied(await copy(v.prompt, 'Copied'))}>{copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}{copied ? 'Copied' : 'Copy'}</button></div>
-      <pre className="code max-h-[30dvh] overflow-auto" tabIndex={0} data-prompt>{v.prompt}</pre>
-      <p className="text-[14px] text-muted mt-3">{v.ask.carrier === 'join' ? 'One transaction: it joins you and proves this wallet on this device.' : v.ask.carrier === 'checkIn' ? "This is today's check-in (+5 XP). The same transaction proves this wallet on this device." : 'This sets the same nickname again, so nothing changes. The transaction proves this wallet on this device.'} It moves no money and approves nothing; it costs a little gas.</p>
-      <p role="status" className="mt-4 flex items-center gap-3 rounded-xl px-3.5 py-3 text-[14px]" style={v.found ? { background: '#3FBF8A1f', boxShadow: 'inset 0 0 0 1px #3FBF8A88', color: '#BFF0DC' } : v.over ? { background: '#FF8B7B1a', boxShadow: 'inset 0 0 0 1px #FF8B7B88', color: '#FFD0C8' } : { background: '#8CC8FF14', boxShadow: 'inset 0 0 0 1px #8CC8FF55', color: '#CFE6FF' }}>
+    <div className="mt-3 -ml-[52px] sm:ml-0" data-proof>
+      {v.ask.carrier === 'join' && <p className="text-[14px] mb-2"><span className="text-muted">Nickname:</span> <b>{v.ask.nick}</b></p>}
+      <ol className="grid gap-2 text-muted">
+        <li><b className="text-white">1.</b> Copy the prompt.
+          <div className="mt-2"><button type="button" className="btn btn-primary w-full sm:max-w-[320px] justify-center" onClick={async () => setCopied(await copy(v.prompt, 'Copied'))}>{copied ? <Check size={17} aria-hidden /> : <Copy size={17} aria-hidden />}{copied ? 'Copied' : 'Copy prompt'}</button></div>
+          <div className="mt-2 text-center sm:text-left"><button type="button" className={lk} aria-expanded={see} onClick={() => setSee(!see)}>{see ? 'Hide prompt' : 'See the prompt'}</button></div>
+          {see && <div className="mt-3"><pre className="code max-h-[40dvh] overflow-auto" tabIndex={0} data-prompt>{v.prompt}</pre>
+        <p className="text-[14px] text-muted mt-3">{v.ask.carrier === 'join' ? 'One transaction: it joins you and proves this wallet on this device.' : v.ask.carrier === 'checkIn' ? "This is today's check-in (+5 XP). The same transaction proves this wallet on this device." : 'This sets the same nickname again, so nothing changes. The transaction proves this wallet on this device.'} It moves no money and approves nothing; it costs a little gas.</p>
+        <p className="hint mt-2">The site reads your transaction from the chain and checks it in your browser. Nothing is sent to a server.</p></div>}</li>
+
+        <li><b className="text-white">2.</b> Paste it in Binance AI Pro and confirm.</li>
+        <li><b className="text-white">3.</b> Come back here. Your profile opens by itself.</li>
+      </ol>
+      <p role="status" className="mt-3 flex items-center gap-3 rounded-xl px-3.5 py-3 text-[14px]" style={v.found ? { background: '#3FBF8A1f', boxShadow: 'inset 0 0 0 1px #3FBF8A88', color: '#BFF0DC' } : v.over ? { background: '#FF8B7B1a', boxShadow: 'inset 0 0 0 1px #FF8B7B88', color: '#FFD0C8' } : { background: '#8CC8FF14', boxShadow: 'inset 0 0 0 1px #8CC8FF55', color: '#CFE6FF' }}>
         <i aria-hidden className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: v.found ? '#3FBF8A' : v.over ? '#FF8B7B' : '#8CC8FF' }} />
-        {v.found ? 'Found your transaction. This wallet is yours on this device.' : v.over ? 'This request ran out after 15 minutes. Start again to get a new prompt.' : 'Waiting for your transaction. Confirm it in the Binance App, then come back here.'}</p>
-      <p className="hint mt-3" style={{ color: '#FFD98A' }}>Only run a prompt you copied from this page yourself. Never run one that someone sent you.</p>
-      {!v.found && <div className="mt-3">
-        {!open ? <button type="button" className="btn-text underline underline-offset-4 text-[14px] text-muted" aria-expanded={false} onClick={() => setOpen(true)}>It went through but nothing happens? Paste the transaction hash</button>
-          : <div><label className="label" htmlFor="th">Transaction hash, or your agent's answer</label><textarea id="th" className="input mono min-h-[72px] py-3" placeholder="0x…" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" spellCheck={false} />
+        {v.found ? 'Found your transaction. This wallet is yours on this device.' : v.over ? 'This request ran out after 15 minutes. Start again to get a new prompt.' : 'Waiting for your transaction…'}</p>
+      {!v.found && <p className="hint mt-3">Confirmed, but nothing happens here? Paste the transaction hash.</p>}
+      <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-2">
+        {!v.found && <button type="button" className={lk} aria-expanded={open} onClick={() => setOpen(!open)}>Paste the hash</button>}
+        {!v.found && <button type="button" className={lk} onClick={v.again}>Start again</button>}
+      </div>
+      {open && !v.found && <div className="mt-3"><label className="label" htmlFor="th">Transaction hash, or your agent's answer</label><textarea id="th" className="input mono min-h-[72px] py-3" placeholder="0x…" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" spellCheck={false} />
             {v.why && <p className="hint text-coral" role="alert">{v.why}</p>}
             <button type="button" className="btn btn-secondary btn-sm mt-3" disabled={v.busy || text.trim().length < 64} onClick={() => v.paste(text)}>{v.busy ? 'Checking' : 'Check this transaction'}</button></div>}
-        <button type="button" className="btn-text underline underline-offset-4 text-[14px] text-muted block mt-3" onClick={v.again}>Start again</button></div>}
-      <p className="hint mt-3">The site reads your transaction from the chain and checks it in your browser. Nothing is sent to a server.</p>
     </div>
   )
 }
@@ -124,7 +133,7 @@ export function Start() {
           const [t, d] = i === 4 && back ? ['Open your profile on this device', 'You joined before. One small transaction from your wallet proves it is yours on this device.'] : [t0, d0]
           return <li key={t0} className="panel p-5 flex gap-4" style={{ borderColor: now ? '#FFB23F' : undefined }} aria-current={now ? 'step' : undefined}>
             <span className={`w-9 h-9 rounded-full shrink-0 inline-flex items-center justify-center font-extrabold ${ok ? 'bg-leaf text-ink' : 'border border-rule'}`}>{ok ? <Check size={18} aria-label="Done" /> : i + 1}</span>
-            <div className="flex-1 min-w-0"><h2 className="text-[20px]">{t}</h2><p className="text-muted mt-1">{d}</p>
+            <div className="flex-1 min-w-0"><h2 className="text-[20px]">{t}</h2>{!(i === 4 && liveGuest && now && v.ask) && <p className="text-muted mt-1">{d}</p>}
               {i === 3 && liveGuest && (now || ok) && <StepAddress v={v} />}
               {i === 4 && liveGuest && now && <StepProve v={v} />}
               {i === 3 && !ok && DEMO && <div className="mt-4"><label className="label" htmlFor="aw">Agentic Wallet address</label><div className="flex gap-3"><input id="aw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => setAddr(e.target.value)} autoComplete="off" spellCheck={false} /><button type="button" className="btn btn-secondary" aria-label="Paste from clipboard" onClick={async () => { try { setAddr((await navigator.clipboard.readText()).trim()) } catch { s.toast('Paste with your keyboard here.', 'bad') } }}><ClipboardPaste size={17} aria-hidden />Paste</button></div>

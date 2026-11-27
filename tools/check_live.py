@@ -87,7 +87,10 @@ try:
         for _ in range(3): pg.get_by_role("button",name="I did this").first.click(); pg.wait_for_timeout(150)
     def enter(addr):   # step 4: type the address; the site reads the chain for it
         pg.fill("#aw",addr); pg.get_by_role("button",name="Continue").click(); pg.wait_for_timeout(2200)
-    prompt=lambda: pg.locator("pre.code").inner_text()
+    def see(page):   # the prompt sits behind "See the prompt"; open it the way a visitor would
+        if page.locator("pre.code").count()==0: page.get_by_role("button",name="See the prompt").click(); page.wait_for_timeout(200)
+        return page.locator("pre.code").inner_text()
+    prompt=lambda: see(pg)
     calldata=lambda: re.search(r"^Calldata: (0x[0-9a-fA-F]+)$",prompt(),re.M).group(1)
     def mine_within(sec=22):   # the site finds the transaction by itself and reloads as that wallet
         end=time.time()+sec
@@ -104,10 +107,12 @@ try:
     ok("a member's public profile shows the public numbers","ben" in t and "Trust Score" in t,t[:400])
     ok("looking at a profile saves nothing and the visitor stays a guest",keys()==[] and guest(),keys())
     to_step4(); pg.fill("#aw","not an address"); ok("a wrong address cannot be used",pg.get_by_role("button",name="Continue").is_disabled())
-    enter(BEN); t=main(); pr=prompt(); d0=calldata()
+    enter(BEN); t=main(); shut=pg.locator("pre.code").count()==0 and pg.get_by_role("button",name="Copy prompt").count()==1; pr=prompt(); d0=calldata()
+    ok("the step is three short lines and one Copy button; the prompt opens with See the prompt and closes again",shut and all(x in t for x in ("1. Copy the prompt.","2. Paste it in Binance AI Pro and confirm.","3. Come back here.")) and pg.get_by_role("button",name="Hide prompt").count()==1,t[-500:])
+    pg.get_by_role("button",name="Hide prompt").click(); pg.wait_for_timeout(150); ok("closed again, the prompt is gone from the page",pg.locator("pre.code").count()==0)
     ok("a member's address: the site says who it is and offers to open the profile on this device","already IOU Verified as ben" in t and "Open your profile on this device" in t and pg.locator("#nn").count()==0,t[-500:])
     ok("the prompt is today's check-in with this device's mark on the end, to be sent as written","Function: checkIn()" in pr and "exactly as written" in pr and "transaction hash" in pr and d0.startswith("0x183ff085") and len(d0)==2+8+82 and d0[10:28]=="4147454e54494f5531",pr)
-    ok("the page waits, and warns never to run a prompt from someone else","Waiting for your transaction" in t and "Never run one that someone sent you" in t)
+    ok("the page waits for the transaction","Waiting for your transaction" in t)
     ok("typing a member's address is not enough: still a guest, no address kept as mine",guest() and "agentiou.me" not in keys() and "agentiou.proof" not in keys(),keys())
     node("sendh",ANA,C_,d0); pg.wait_for_timeout(6500); ok("the same call from another wallet proves nothing",guest() and "agentiou.proof" not in keys(),keys())
     node("sendh",BEN,C_,"0x1c5d9faa"+"0"*62+"20"+"0"*63+"3"+"62656e".ljust(64,"0")); pg.wait_for_timeout(7000); ok("the wallet's own transaction without this device's mark proves nothing",guest() and "agentiou.proof" not in keys(),keys())
@@ -126,7 +131,7 @@ try:
     to_step4(); enter(CAT); pg.fill("#nn","cat"); pg.get_by_role("button",name="Make my prompt").click(); pg.wait_for_timeout(400)
     pg.evaluate("Object.defineProperty(document,'hidden',{get:()=>true,configurable:true})"); pg.wait_for_timeout(4500)   # the page believes it is in the background, so it does not look by itself
     h1=node("sendh",CAT,C_,calldata()).split()[-1]; hb=node("sendh",BEN,C_,d0).split()[-1]; pg.wait_for_timeout(5000); ok("while the page is in the background it does not look, so nothing is proved yet",guest() and "agentiou.proof" not in keys())
-    pg.get_by_role("button",name=re.compile("Paste the transaction hash")).click(); pg.fill("#th","my agent said: done!"); ok("no hash pasted: nothing to check",pg.get_by_role("button",name="Check this transaction").is_disabled())
+    pg.get_by_role("button",name="Paste the hash").click(); pg.fill("#th","my agent said: done!"); ok("no hash pasted: nothing to check",pg.get_by_role("button",name="Check this transaction").is_disabled())
     pg.fill("#th","Executed. Hash: "+hb); pg.get_by_role("button",name="Check this transaction").click(); pg.wait_for_timeout(3000); ok("another wallet's transaction pasted: refused","not from this wallet" in main() and guest(),main()[-300:])
     pg.fill("#th","Done.\nTransaction hash:\n"+h1[:30]+"​"+h1[30:]+"\nStatus: success"); pg.get_by_role("button",name="Check this transaction").click()
     ok("the wallet's own transaction, pasted as the agent's whole answer with an invisible character inside the hash, is accepted",mine_within(12) and "Proved on this device" in main(),main()[-300:])
@@ -273,7 +278,7 @@ try:
     # ---- someone who joined before, on a new device: one small transaction that changes nothing opens the profile there
     p9.evaluate("localStorage.clear()"); p9.goto(U+"start"); p9.wait_for_timeout(1500)
     for _ in range(3): p9.get_by_role("button",name="I did this").first.click(); p9.wait_for_timeout(150)
-    p9.fill("#aw",ANA); p9.get_by_role("button",name="Continue").click(); p9.wait_for_timeout(2200); t9=p9.inner_text("main"); pr9=p9.locator("pre.code").inner_text(); before=chain(ANA)
+    p9.fill("#aw",ANA); p9.get_by_role("button",name="Continue").click(); p9.wait_for_timeout(2200); t9=p9.inner_text("main"); pr9=see(p9); before=chain(ANA)
     ok("a member on a new device types nothing but the address: no nickname box, and the prompt keeps the nickname as it is","already IOU Verified as ana" in t9 and p9.locator("#nn").count()==0 and ('Function: setNickname(string), nickname = "ana" (my nickname stays the same)' in pr9 or "Function: checkIn()" in pr9),pr9[:300])
     r=node("sendh",ANA,C_,re.search(r"^Calldata: (0x[0-9a-fA-F]+)$",pr9,re.M).group(1),"legacy"); end=time.time()+22
     while time.time()<end and "agentiou.proof" not in p9.evaluate("Object.keys(localStorage)"): p9.wait_for_timeout(700)
