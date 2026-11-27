@@ -305,11 +305,16 @@ try:
     hdr=pg.locator("header"); early=hdr.get_by_role("link",name="Get IOU Verified").count()==0 and hdr.locator("a[href*='me'],button").count()>0
     ok("on opening, a member's profile shows after the first read, before the other members are read",hold["big"] and len(hold["held"])>0 and early,(hold["big"],len(hold["held"]),hdr.inner_text()[:120]))
     ok("in that moment nothing is kept on the device beyond the address, its proof and its seal",sorted(k for k in keys() if k.startswith("agentiou.") and k not in ("agentiou.ask",))==["agentiou.me","agentiou.proof","agentiou.seal"],keys())
+    # while the rest is still on its way, nobody is called "not joined" and no list is called empty
+    go("u-"+BEN,500); t=main(); ok("a profile that has not been read yet says it is loading, not that the address has not joined","Loading this profile" in t and "No AgentIOU profile here" not in t,t[:200])
+    go("board",500); t=main(); ok("the leaderboard says it is loading instead of showing a short or empty list","Loading the leaderboard" in t and pg.locator("main ol.ledger").count()==0,t[:300])
+    go("me",500); t=main(); ok("my own IOU list is not called empty before it has been read","Your IOU list is empty" not in t and "Loading your IOUs" in t or pg.locator("main ul.ledger li").count()>0,t[-300:])
     pg.unroute(re.compile(r".*127\.0\.0\.1:8547.*"))
     for r in hold["held"]:
         try: r.continue_()
         except Exception: pass
-    pg.wait_for_timeout(2500); ok("then the full read lands and the page is complete",hdr.get_by_role("link",name="Get IOU Verified").count()==0 and len(pg.evaluate("document.querySelector('main').innerText"))>200)
+    pg.wait_for_timeout(2500); go("board",600); t=main(); ok("once read, the leaderboard lists the members and the loading line is gone","Loading the leaderboard" not in t and pg.locator("main ol.ledger li").count()>=2,t[:300]); go("u-"+BEN,600); ok("and the profile shows",("ben" in main()) and "Loading this profile" not in main()); go("me",600)
+    ok("then the full read lands and the page is complete",hdr.get_by_role("link",name="Get IOU Verified").count()==0 and len(pg.evaluate("document.querySelector('main').innerText"))>200)
     c2=b.new_context(viewport={"width":390,"height":844}); p2=c2.new_page(); p2.goto(U+"home"); p2.wait_for_timeout(1500)
     p2.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr);localStorage.setItem('agentiou.seal','0x'+'5a'.repeat(32))}",kept[:2]); p2.reload(); p2.wait_for_timeout(4000)
     ok("the address and its proof copied to another device do not open the profile there",p2.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and p2.locator("header").get_by_role("link",name=re.compile("^My profile:")).count()==0); c2.close()
