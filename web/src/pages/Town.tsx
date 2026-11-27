@@ -110,7 +110,7 @@ function TownPage({ t, set, go, close, visit }: { t: Town; set: (p: Pick) => voi
   const pay = t.mine.filter((x) => x.debtor === ME), get = t.mine.filter((x) => x.creditor === ME), soon = pay[0], who: [string | number, string] = [t.people.length, t.people.length === 1 ? 'person' : 'people']
   // My circle: my own open IOUs. Whole town: the whole record so far, open and finished.
   const facts: [string | number, string, string?][] = t.view === 'circle' ? [who, [pay.length, 'to pay', '#FFD98A'], [get.length, 'to receive', '#9EE6C8'], [soon ? dueTag(soon) : 'none', 'next due']]
-    : [who, [t.total.length, 'open promises', '#8CC8FF'], [s.ious.filter((x) => viewOf(x) === 'Repaid').length, 'repaid on time', '#9EE6C8'], [t.open.filter((x) => viewOf(x) === 'Overdue').length, 'late now', '#FF8B7B']]
+    : [who, [t.total.length, 'open promises', '#8CC8FF'], [s.ious.filter((x) => viewOf(x) === 'Repaid').length, 'repaid on time', '#9EE6C8'], [t.total.filter((x) => viewOf(x) === 'Overdue').length, 'late now', '#FF8B7B']]
   const round = 'w-10 h-10 rounded-full inline-flex items-center justify-center text-chalk cursor-pointer'
   return (
     <Sheet title="Promise Town" close={close}>
@@ -155,7 +155,7 @@ export function TownBox({ checked, streak }: { checked: boolean; streak: number 
             <span aria-hidden className="absolute right-2.5 top-2.5 w-9 h-9 rounded-full inline-flex items-center justify-center text-chalk" style={GLASS}><Maximize2 size={17} /></span></button>
         </div>
         <Pager t={t} go={go} auto={!motionOff} />
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[13px] text-muted">{view === 'circle' ? <span>You and the {circle.length - 1} {circle.length === 2 ? 'person' : 'people'} you have an IOU with.</span> : <>{[3, 2, 1].map((lv) => <span key={lv} className="rounded-full px-2.5 py-0.5" style={{ background: '#0E1024', boxShadow: 'inset 0 0 0 1px #2C3156' }}>Level {lv} · <b className="text-chalk">{count[lv]}</b></span>)}</>} <Link to="board" className="underline underline-offset-4 text-chalk">See everyone on the Leaderboard</Link></p>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[13px] text-muted">{view === 'circle' ? <span>You and the {circle.length - 1} {circle.length === 2 ? 'person' : 'people'} you have an IOU with.</span> : <>{[3, 2, 1].map((lv) => <span key={lv} className="rounded-full px-2.5 py-0.5" style={{ background: '#0E1024', boxShadow: 'inset 0 0 0 1px #2C3156' }}>Level {lv} · <b className="text-chalk">{s.loaded ? count[lv] : '…'}</b></span>)}</>} <Link to="board" className="underline underline-offset-4 text-chalk">See everyone on the Leaderboard</Link></p>
         </div><div>
         {/* the button sits under the row, not in it: beside the teaser it was wider than a phone and pushed the whole card off the right edge */}
         <div className="flex items-center gap-4 mt-4">

@@ -203,7 +203,7 @@ export function Board() {
   const s = useStore(); const rows = useMemo(() => s.users.filter((u) => u.nickname !== 'promise-mart').sort((a, b) => rankPoints(b) - rankPoints(a) || score(b) - score(a) || b.onTime - a.onTime), [s.users])
   return (
     <div className="wrap pt-28 pb-16"><div className="flex flex-wrap items-center gap-3"><h1 className="h2">Leaderboard</h1><DemoChip /></div><p className="lead mt-3">Every member, by points. Profiles are public: the record is on-chain for anyone to check.</p><p className="text-muted mt-2">Points = Trust Score x 10 + XP. Repaying on time moves you up fastest; a late IOU moves you down.</p>
-      {!s.loaded && <p className="text-muted mt-8" role="status">Loading the leaderboard from BNB Smart Chain…</p>}
+      {!s.loaded && <p className="text-muted mt-8" role="status">{s.chainDown ? "Can't reach BNB Smart Chain yet. The site keeps trying." : 'Loading the leaderboard from BNB Smart Chain…'}</p>}
       {s.loaded && <ol className="ledger mt-8">{rows.map((u, i) => <li key={u.address} className="grid grid-cols-[36px_1fr_auto] sm:grid-cols-[48px_1fr_170px_130px_90px] items-center gap-x-4 py-3.5 border-b border-rule">
         <span className="led text-[20px] text-muted">{i + 1}</span>
         <Link to="u" param={u.address} className="flex items-center gap-3 font-semibold min-w-0 hover:underline underline-offset-4"><Avatar address={u.address} score={score(u)} level={levelOf(u)} style={styleOf(u)} overdue={s.hasOverdue(u.address)} size={44} mini /><span className="truncate">{u.nickname}</span>{s.restricted(u.address) && <RestrictedTag small />}</Link>

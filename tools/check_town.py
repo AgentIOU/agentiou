@@ -169,11 +169,11 @@ try:
     pg.close()
     # ---- boats turn with the pages: each page shows the boats of its own members, what I owe rides on every page, and the count stays the whole town's
     pg=phone(); pg.goto(CR+"tasks"); pg.wait_for_timeout(1500); tw=town(pg); tw.get_by_role("button",name="Whole town").click(); pg.wait_for_timeout(300); pg.locator("#t-open").click(); pg.wait_for_timeout(900)
-    tp=pg.locator("[role=dialog][aria-label='Promise Town']"); seen=[]; fits=True; minePages=0; tiles=set(); sizes=set()
+    tp=pg.locator("[role=dialog][aria-label='Promise Town']"); seen=[]; fits=True; minePages=0; tiles=set(); sizes=set(); lates=set()
     for n in range(4):
         d=pg.evaluate("""()=>{const t=document.querySelector("[role=dialog][aria-label='Promise Town']");return {names:[...t.querySelectorAll("button[aria-haspopup=dialog][aria-label*='level']")].map(b=>b.getAttribute('aria-label').split(',')[0]),boats:[...t.querySelectorAll('[data-boat]')].map(b=>b.getAttribute('aria-label')),text:t.innerText,img:t.querySelector('img').getAttribute('src')}}""")
         others=[x for x in d["boats"] if " owes " in x]; fits=fits and all(x.split(" owes ")[0] in d["names"] for x in others); seen.append(sorted(others)); minePages+=any(x.startswith("Pay ") for x in d["boats"])
-        m=RE.search(r"(\d+)\s*open promises",d["text"]); tiles.add(m.group(1) if m else "?"); sizes.add(d["img"])
+        m=RE.search(r"(\d+)\s*open promises",d["text"]); tiles.add(m.group(1) if m else "?"); sizes.add(d["img"]); m2=RE.search(r"(\d+)\s*late now",d["text"]); lates.add(m2.group(1) if m2 else "?")
         if n<3: tp.get_by_role("button",name="Next town page").click(); pg.wait_for_timeout(350)
     allb=sorted(set(x for pgb in seen for x in pgb))
     ok("Whole town: a boat rides on the page where its borrower stands",fits and len(allb)>=6,(fits,seen))
@@ -182,6 +182,7 @@ try:
     ok("what I owe rides on every page, as I do",minePages==4,minePages)
     ok("the summary counts every open promise in the town on every page, not only the boats of that page",len(tiles)==1 and "?" not in tiles and int(list(tiles)[0])>=max(len(x) for x in seen)+1,tiles)
     ok("the harbour keeps one size while the pages turn",len(sizes)==1,sizes)
+    ok("'late now' is the whole town's count too, the same on every page",len(lates)==1 and "?" not in lates,lates)
     pg.close()
     pg=phone(); pg.goto(CR+"tasks"); pg.wait_for_timeout(1500); tw=town(pg); tw.get_by_role("button",name="Whole town").dispatch_event("click"); pg.wait_for_timeout(400); t0=tw.locator("[data-pager]").inner_text()
     pg.wait_for_timeout(5600); t1=tw.locator("[data-pager]").inner_text(); pg.wait_for_timeout(5200); t2=tw.locator("[data-pager]").inner_text()

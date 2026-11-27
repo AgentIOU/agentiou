@@ -309,12 +309,21 @@ try:
     go("u-"+BEN,500); t=main(); ok("a profile that has not been read yet says it is loading, not that the address has not joined","Loading this profile" in t and "No AgentIOU profile here" not in t,t[:200])
     go("board",500); t=main(); ok("the leaderboard says it is loading instead of showing a short or empty list","Loading the leaderboard" in t and pg.locator("main ol.ledger").count()==0,t[:300])
     go("me",500); t=main(); ok("my own IOU list is not called empty before it has been read","Your IOU list is empty" not in t and "Loading your IOUs" in t or pg.locator("main ul.ledger li").count()>0,t[-300:])
+    ok("and before the read, my page shows no counts of nothing: no '0 active', no 'Nothing repaid yet', no '0 repaid on time'","0 active" not in t and "Nothing repaid yet" not in t and "0 repaid on time" not in t,[l for l in t.split("\n") if "active" in l or "repaid" in l][:6])
+    go("tasks",500); t=main(); ok("Promise Town does not count 0 members on each level before the members are read","Level 3 · 0" not in t and "Level 1 · 0" not in t,[l for l in t.split("\n") if "Level" in l][:4])
     pg.unroute(re.compile(r".*127\.0\.0\.1:8547.*"))
     for r in hold["held"]:
         try: r.continue_()
         except Exception: pass
     pg.wait_for_timeout(2500); go("board",600); t=main(); ok("once read, the leaderboard lists the members and the loading line is gone","Loading the leaderboard" not in t and pg.locator("main ol.ledger li").count()>=2,t[:300]); go("u-"+BEN,600); ok("and the profile shows",("ben" in main()) and "Loading this profile" not in main()); go("me",600)
     ok("then the full read lands and the page is complete",hdr.get_by_role("link",name="Get IOU Verified").count()==0 and len(pg.evaluate("document.querySelector('main').innerText"))>200)
+    # the chain cannot be reached at all: the pages say so instead of "Loading…" for ever
+    c3=b.new_context(viewport={"width":390,"height":844}); p3=c3.new_page(); p3.route(re.compile(r".*127\.0\.0\.1:8547.*"),lambda r: r.abort()); p3.goto(U+"board"); t0=time.time(); t3=""
+    while time.time()-t0<40:
+        p3.wait_for_timeout(500); t3=p3.locator("main").inner_text()
+        if "keeps trying" in t3: break
+    ok(f"with no chain, the leaderboard says it cannot reach it and no longer says Loading (after {time.time()-t0:.0f}s)","Can't reach BNB Smart Chain yet" in t3 and "Loading the leaderboard" not in t3,t3[:200])
+    p3.goto(U+"u-"+BEN); p3.wait_for_timeout(1200); t3=p3.locator("main").inner_text(); ok("and so does a profile","Can't reach BNB Smart Chain yet" in t3 and "Loading this profile" not in t3,t3[:200]); c3.close()
     c2=b.new_context(viewport={"width":390,"height":844}); p2=c2.new_page(); p2.goto(U+"home"); p2.wait_for_timeout(1500)
     p2.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr);localStorage.setItem('agentiou.seal','0x'+'5a'.repeat(32))}",kept[:2]); p2.reload(); p2.wait_for_timeout(4000)
     ok("the address and its proof copied to another device do not open the profile there",p2.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and p2.locator("header").get_by_role("link",name=re.compile("^My profile:")).count()==0); c2.close()
