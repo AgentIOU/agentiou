@@ -64,12 +64,16 @@ export function TabBar({ route }: { route: RouteName }) {
 export function Footer() {
   const { motionOff } = usePrefs(); const { joined } = useStore()
   const l = 'text-muted hover:text-chalk hover:underline underline-offset-4'
+  const pl = 'text-chalk font-semibold hover:underline underline-offset-4'
   return (
     <footer className="relative border-t border-rule mt-10 pb-24 lg:pb-10 bg-ink">
-      <div className="wrap pt-10 grid gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
+      <div className="wrap pt-10 grid gap-6 md:gap-10 md:grid-cols-[1.2fr_2fr]">
         <div><Logo /><p className="text-muted mt-3 text-[13px] max-w-[44ch]">Independent project, not affiliated with Binance. Not financial advice.</p><p className="text-muted mt-2 text-[13px]">XP has no cash value. Vouchers and stickers can't be sold or transferred.</p></div>
-        <nav aria-label="Pages" className="grid gap-2 content-start">{joined ? <Link to="me" className={l}>My IOUs</Link> : <Link to="start" className={l}>Get IOU Verified</Link>}<Link to="mart" className={l}>Promise Mart</Link><Link to="tasks" className={l}>Task Hub</Link><Link to="new" className={l}>New IOU</Link><Link to="board" className={l}>Leaderboard</Link><Link to="trust" className={l}>Open Trust: Trust Check for DeFi &amp; CEX</Link><Link to="home" scrollTo="faq" className={l}>FAQs</Link></nav>
-        <nav aria-label="Trust" className="grid gap-2 content-start"><Link to="proof" className={l}>Proof &amp; Safety</Link><Link to="about" className={l}>About AgentIOU</Link><Link to="legal" className={l}>Terms, privacy and risks</Link><a href="https://github.com/AgentIOU/agentiou" target="_blank" rel="noopener noreferrer" className={l}>Source code on GitHub</a>{CONTRACT ? <a href={`https://bscscan.com/address/${CONTRACT}#code`} target="_blank" rel="noopener noreferrer" className={l}>Contract on BscScan</a> : <span className="text-muted text-[14px]">The BscScan link appears here when the contract is deployed.</span>}</nav>
+        {/* two columns on every screen: the pages (bright), then proof and legal (softer), with a line between; Open Trust closes the pages, its long second half in small type */}
+        <div className="grid grid-cols-[1fr_1.18fr] text-[14.5px] [&_a]:block [&_a]:py-[9px]">
+          <nav aria-label="Pages" className="pr-[18px] border-r border-rule content-start">{joined ? <Link to="me" className={pl}>My IOUs</Link> : <Link to="start" className={pl}>Get IOU Verified</Link>}<Link to="mart" className={pl}>Promise Mart</Link><Link to="tasks" className={pl}>Task Hub</Link><Link to="new" className={pl}>New IOU</Link><Link to="board" className={pl}>Leaderboard</Link><Link to="home" scrollTo="faq" className={pl}>FAQs</Link><Link to="trust" className={`leading-[1.4] ${pl}`}>Open Trust: <span className="text-[12px] font-normal text-muted">Trust Check for DeFi &amp; CEX</span></Link></nav>
+          <nav aria-label="Trust" className="pl-[18px] content-start"><Link to="proof" className={l}>Proof &amp; Safety</Link><Link to="about" className={l}>About AgentIOU</Link><Link to="legal" className={l}>Terms, privacy and risks</Link><a href="https://github.com/AgentIOU/agentiou" target="_blank" rel="noopener noreferrer" className={l}>Source code on GitHub</a>{CONTRACT ? <a href={`https://bscscan.com/address/${CONTRACT}#code`} target="_blank" rel="noopener noreferrer" className={l}>Contract on BscScan</a> : <span className="block py-[9px] text-muted">The BscScan link appears here when the contract is deployed.</span>}</nav>
+        </div>
       </div>
       <div className="wrap mt-8 pt-6 border-t border-rule flex flex-wrap items-center gap-x-6 gap-y-3 text-[14px] text-muted">
         <span className="inline-flex items-center gap-2"><i className={`w-2.5 h-2.5 rounded-full ${DEMO ? 'bg-iris' : 'bg-leaf'}`} aria-hidden />{DEMO ? 'Demo data: not reading BNB Smart Chain yet' : 'Reading BNB Smart Chain'}</span>
