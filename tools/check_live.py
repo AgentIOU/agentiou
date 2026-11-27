@@ -85,49 +85,63 @@ try:
     def to_step4():
         go("start")
         for _ in range(3): pg.get_by_role("button",name="I did this").first.click(); pg.wait_for_timeout(150)
-    def ask_for(addr):   # type the address, ask for the signing prompt, return the request the wallet is asked to sign
-        pg.fill("#aw",addr); pg.get_by_role("button",name="Prove this wallet is mine").click(); pg.wait_for_timeout(300)
-        return re.search(r'^(\{"method":"eth_signTypedData_v4".*\})$',pg.locator("pre.code").inner_text(),re.M).group(1)
-    def paste(answer):
-        pg.fill("#sg",answer); b=pg.get_by_role("button",name="Check the signature")
-        if b.is_enabled(): b.click()
-        pg.wait_for_timeout(3500)
-    # ---- B. a profile is never "mine" without a signature from its wallet
+    def enter(addr):   # step 4: type the address; the site reads the chain for it
+        pg.fill("#aw",addr); pg.get_by_role("button",name="Continue").click(); pg.wait_for_timeout(2200)
+    prompt=lambda: pg.locator("pre.code").inner_text()
+    calldata=lambda: re.search(r"^Calldata: (0x[0-9a-fA-F]+)$",prompt(),re.M).group(1)
+    def mine_within(sec=22):   # the site finds the transaction by itself and reloads as that wallet
+        end=time.time()+sec
+        while time.time()<end:
+            pg.wait_for_timeout(700)
+            try:
+                if "agentiou.proof" in keys(): pg.wait_for_timeout(2600); return True
+            except Exception: pass
+        return False
+    C_=A["contract"]
+    # ---- B. a profile is never "mine" without a transaction from its own wallet that carries this device's mark
     pg.reload(); pg.wait_for_timeout(3500); go("tasks"); ok("Task Hub points to Open Trust for checking someone else",pg.locator("main").get_by_role("link",name="Check their record on Open Trust.").count()==1)
     go("u-"+BEN,1200); t=main()
     ok("a member's public profile shows the public numbers","ben" in t and "Trust Score" in t,t[:400])
     ok("looking at a profile saves nothing and the visitor stays a guest",keys()==[] and guest(),keys())
-    to_step4(); pg.fill("#aw","not an address"); ok("a wrong address cannot be used",pg.get_by_role("button",name="Prove this wallet is mine").is_disabled())
-    req=ask_for(BEN); body=json.loads(json.loads(req)["params"][1])
-    ok("the signing prompt says it is a signature only and names this device and an expiry","signature only: no transaction, no transfer, no approval" in pg.locator("pre.code").inner_text() and body["message"]["wallet"].lower()==BEN.lower() and re.fullmatch(r"[A-Z2-7]{4}-[A-Z2-7]{4}",body["message"]["device"]) is not None and int(body["message"]["expires"])-int(body["message"]["issued"])==900 and set(x["name"] for x in body["types"]["Proof"])=={"statement","wallet","device","issued","expires"},body)
-    ok("typing a member's address and asking is not enough: still a guest, no address kept as mine",guest() and "agentiou.me" not in keys() and "agentiou.proof" not in keys(),keys())
-    paste("my agent said: done!"); ok("no signature pasted: refused",pg.get_by_role("button",name="Check the signature").is_disabled() and guest())
-    paste(node("sign",ANA,req)); ok("a signature from another wallet is refused","not from this wallet" in main() and guest() and "agentiou.me" not in keys(),main()[-300:])
-    other=json.loads(req); m=json.loads(other["params"][1]); m["message"]["device"]="AAAA-BBBB"; other["params"][1]=json.dumps(m)
-    paste(node("sign",BEN,json.dumps(other))); ok("the right wallet's signature for another device is refused","not from this wallet" in main() and guest(),main()[-300:])
-    pg.evaluate("(()=>{const n=Date.now.bind(Date);Date.now=()=>n()+16*60*1000})()")   # sixteen minutes pass on this device
-    paste(node("sign",BEN,req)); ok("a request that has run out is refused, even with the right signature","ran out" in main() and guest(),main()[-300:])
-    pg.get_by_role("button",name="Start again").click(); pg.wait_for_timeout(300)
-    # an address that holds no Agent ID proves itself, and the site warns before any prompt
-    req=ask_for(CAT); rc=node("sign",CAT,req); hc=re.search(r"([0-9a-fA-F]{128})",rc).group(1); paste("Done.\nAGENTIOU-PROOF "+hc[:40]+"\u200b"+hc[40:90]+"\u00ad"+hc[90:]+" "+re.search(r"signatureRecovery:\s*(\d\d)",rc).group(1))   # the one-line form the prompt asks for, with invisible characters a copy can add inside the code
-    ok("the wallet's own signature is accepted, even with invisible characters inside the code","Proved on this device" in main() and CAT in main(),main()[-400:])
-    ok("address without an Agent ID: the site warns before any prompt","has no Agent ID yet" in main(),main()[-400:])
+    to_step4(); pg.fill("#aw","not an address"); ok("a wrong address cannot be used",pg.get_by_role("button",name="Continue").is_disabled())
+    enter(BEN); t=main(); pr=prompt(); d0=calldata()
+    ok("a member's address: the site says who it is and offers to open the profile on this device","already IOU Verified as ben" in t and "Open your profile on this device" in t and pg.locator("#nn").count()==0,t[-500:])
+    ok("the prompt is today's check-in with this device's mark on the end, to be sent as written","Function: checkIn()" in pr and "exactly as written" in pr and "transaction hash" in pr and d0.startswith("0x183ff085") and len(d0)==2+8+82 and d0[10:28]=="4147454e54494f5531",pr)
+    ok("the page waits, and warns never to run a prompt from someone else","Waiting for your transaction" in t and "Never run one that someone sent you" in t)
+    ok("typing a member's address is not enough: still a guest, no address kept as mine",guest() and "agentiou.me" not in keys() and "agentiou.proof" not in keys(),keys())
+    node("sendh",ANA,C_,d0); pg.wait_for_timeout(6500); ok("the same call from another wallet proves nothing",guest() and "agentiou.proof" not in keys(),keys())
+    node("sendh",BEN,C_,"0x1c5d9faa"+"0"*62+"20"+"0"*63+"3"+"62656e".ljust(64,"0")); pg.wait_for_timeout(7000); ok("the wallet's own transaction without this device's mark proves nothing",guest() and "agentiou.proof" not in keys(),keys())
+    node("sendh",BEN,C_,"0x1c5d9faa"+"0"*62+"20"+"0"*63+"3"+"62656e".ljust(64,"0")+"4147454e54494f5531"+"ab"*32); pg.wait_for_timeout(7000); ok("the wallet's own transaction with another device's mark proves nothing",guest() and "agentiou.proof" not in keys(),keys())
+    pg.evaluate("(()=>{const n=Date.now.bind(Date);Date.now=()=>n()+16*60*1000})()"); pg.wait_for_timeout(5000)   # sixteen minutes pass on this device
+    r=node("sendh",BEN,C_,d0); pg.wait_for_timeout(6500); ok("a request that has run out is closed, even when the right transaction then arrives",r.startswith("success") and "ran out after 15 minutes" in main() and guest(),main()[-300:])
+    pg.get_by_role("button",name="Start again").click(); pg.wait_for_timeout(300); pg.reload(); pg.wait_for_timeout(2500)
+    # an address that holds no Agent ID: the join is refused by the contract, the site warns before any prompt, and the refused transaction still proves whose wallet it is
+    to_step4(); enter(CAT); t=main(); ok("address without an Agent ID: the site warns before any prompt","not joined yet" in t and "has no Agent ID yet" in t and pg.locator("pre.code").count()==0,t[-400:])
+    pg.fill("#nn","cat"); pg.get_by_role("button",name="Make my prompt").click(); pg.wait_for_timeout(400); r=node("sendh",CAT,C_,calldata(),"legacy")
+    ok("its own transaction is found, in the form the Agentic Wallet sends, and the wallet is proved on this device",r.startswith("reverted") and mine_within() and "Proved on this device" in main() and CAT in main(),(r,main()[-300:]))
     # someone edits the browser storage to point the kept proof at another member
     pg.evaluate("(()=>{const p=JSON.parse(localStorage.getItem('agentiou.proof'));p.wallet=%r;localStorage.setItem('agentiou.proof',JSON.stringify(p));localStorage.setItem('agentiou.me',%r)})()" % (BEN,BEN))
-    pg.reload(); pg.wait_for_timeout(4500); ok("a kept proof pointed at another wallet does not hold: forgotten, guest again",guest() and keys() in (["agentiou.device"],[]),keys())
-    to_step4(); req=ask_for(CAT); paste(node("sign",CAT,req)); pg.get_by_role("button",name="Use a different address").click(); pg.wait_for_timeout(2500)
-    ok("the proved wallet can be forgotten","agentiou.me" not in keys() and "agentiou.proof" not in keys() and guest(),keys())
-    # ---- C. join
-    to_step4(); req=ask_for(ANA.lower()); raw=node("sign",ANA,req); h=re.search(r"([0-9a-fA-F]{128})",raw).group(1)
-    ok("the signing prompt asks the agent for one plain line to copy","AGENTIOU-PROOF <signature> <signatureRecovery>" in pg.locator("pre.code").inner_text() and "no code block" in pg.locator("pre.code").inner_text())
-    paste("Signature from order 4b16d500084b487e8e78867ec7118d6b (status COMPLETED):\n\n\n\nsignatureRecovery: 005b9b6\n\nSigned by wallet "+ANA+" for the AgentIOU Proof typed data on chain ID 56, valid 1795420320-1795421220 (15 minutes). No transaction, transfer, or approval was involved.")
-    ok("an answer copied without its code box: the site says to copy the box, and stays a guest","copy that box" in main() and guest(),main()[-300:])
-    paste("Signature code\n"+h[:43]+"\n"+h[43:86]+"\n"+h[86:]+"\nsignatureRecovery: 005b9b6")   # a copied code box, broken over three lines
-    ok("address with an Agent ID is recognised","Holds an Agent ID" in main(),main()[-300:])
-    ok("the device keeps only the address, its proof and a device code",keys()==["agentiou.device","agentiou.me","agentiou.proof"],keys())
-    kept=pg.evaluate("[localStorage.getItem('agentiou.me'),localStorage.getItem('agentiou.proof')]")
-    pg.fill("#nn","ana"); pg.get_by_role("button",name="Get IOU Verified").last.click(); pg.wait_for_timeout(400)
-    ok("join: prompt sent as written, the card finishes when the chain shows it",act(ANA)); done()
+    pg.reload(); pg.wait_for_timeout(4500); ok("a kept proof pointed at another wallet does not hold: forgotten, guest again",guest() and keys()==[],keys())
+    # the way round when the site cannot look for the transaction itself: paste its hash
+    to_step4(); enter(CAT); pg.fill("#nn","cat"); pg.get_by_role("button",name="Make my prompt").click(); pg.wait_for_timeout(400)
+    pg.evaluate("Object.defineProperty(document,'hidden',{get:()=>true,configurable:true})"); pg.wait_for_timeout(4500)   # the page believes it is in the background, so it does not look by itself
+    h1=node("sendh",CAT,C_,calldata()).split()[-1]; hb=node("sendh",BEN,C_,d0).split()[-1]; pg.wait_for_timeout(5000); ok("while the page is in the background it does not look, so nothing is proved yet",guest() and "agentiou.proof" not in keys())
+    pg.get_by_role("button",name=re.compile("Paste the transaction hash")).click(); pg.fill("#th","my agent said: done!"); ok("no hash pasted: nothing to check",pg.get_by_role("button",name="Check this transaction").is_disabled())
+    pg.fill("#th","Executed. Hash: "+hb); pg.get_by_role("button",name="Check this transaction").click(); pg.wait_for_timeout(3000); ok("another wallet's transaction pasted: refused","not from this wallet" in main() and guest(),main()[-300:])
+    pg.fill("#th","Done.\nTransaction hash:\n"+h1[:30]+"​"+h1[30:]+"\nStatus: success"); pg.get_by_role("button",name="Check this transaction").click()
+    ok("the wallet's own transaction, pasted as the agent's whole answer with an invisible character inside the hash, is accepted",mine_within(12) and "Proved on this device" in main(),main()[-300:])
+    pg.get_by_role("button",name="Use a different address").click(); pg.wait_for_timeout(2500)
+    ok("the proved wallet can be forgotten",keys()==[] and guest(),keys())
+    # ---- C. join: one transaction joins and proves
+    to_step4(); enter(ANA.lower()); t=main(); ok("a new address: not joined yet, and it holds an Agent ID so nothing warns","not joined yet" in t and "has no Agent ID yet" not in t,t[-300:])
+    pg.fill("#nn","ana"); pg.get_by_role("button",name="Make my prompt").click(); pg.wait_for_timeout(400); pr=prompt()
+    ok("the join prompt names the call and the nickname, and carries this device's mark",'Function: join(string), nickname = "ana"' in pr and "exactly as written" in pr and calldata()[-82:-64]=="4147454e54494f5531" and "Show me the preview and risks first. Do not execute until I confirm." in pr,pr)
+    ok("asking is not enough: still a guest",guest() and keys()==["agentiou.ask"],keys())
+    r=node("sendh",ANA,C_,calldata()); ok("join: the prompt sent as written joins, and the site finds the transaction by itself",r.startswith("success") and mine_within(),r)
+    ok("the device keeps only the address, its proof and its seal",keys()==["agentiou.me","agentiou.proof","agentiou.seal"],keys())
+    kept=pg.evaluate("[localStorage.getItem('agentiou.me'),localStorage.getItem('agentiou.proof'),localStorage.getItem('agentiou.seal')]")
+    ok("the kept proof is the transaction itself, and the seal is not inside it",json.loads(kept[1])["v"]==2 and kept[2][2:] not in kept[1] and len(kept[2])==66,kept[1][:80])
+    go("start",1500); ok("the page says the wallet is IOU Verified","You are IOU Verified" in main(),main()[:200])
     ok("after joining: header shows the profile, no join button",pg.locator("header").get_by_role("link",name=re.compile("^My profile: ana")).count()==1 and pg.locator("header").get_by_role("link",name="Get IOU Verified").count()==0)
     go("me"); ok("member numbers follow joining order (ben 1, ana 2)","Member No. 000002" in main(),main()[:200]); c=same("after join"); ok("join gives 50 XP, L1, $1",(c["xp"],c["level"],c["limitCents"])==(50,1,100))
     pg.reload(); pg.wait_for_timeout(3000); ok("after a reload the visitor is still a member, not a guest",pg.locator("header").get_by_role("link",name=re.compile("^My profile: ana")).count()==1 and "Guest" not in main())
@@ -253,9 +267,25 @@ try:
     p9.evaluate("m=>localStorage.setItem('agentiou.me',m)",kept[0]); p9.reload(); p9.wait_for_timeout(2500)
     k9=p9.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('agentiou.')).sort()")
     ok("an address kept without a proof is forgotten on the next visit, and the device is a guest","agentiou.me" not in k9 and "agentiou.proof" not in k9 and p9.locator("header").get_by_role("link",name="Get IOU Verified").count()==1,k9)
-    p9.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr)}",kept); p9.reload(); p9.wait_for_timeout(2500)
+    p9.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr)}",kept[:2]); p9.reload(); p9.wait_for_timeout(2500)
     k9=p9.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('agentiou.')).sort()")
-    ok("a proof copied to a device it was not made for is forgotten too","agentiou.me" not in k9 and "agentiou.proof" not in k9 and p9.locator("header").get_by_role("link",name="Get IOU Verified").count()==1,k9)
+    ok("a proof copied to a device without its seal is forgotten too","agentiou.me" not in k9 and "agentiou.proof" not in k9 and p9.locator("header").get_by_role("link",name="Get IOU Verified").count()==1,k9)
+    # ---- someone who joined before, on a new device: one small transaction that changes nothing opens the profile there
+    p9.evaluate("localStorage.clear()"); p9.goto(U+"start"); p9.wait_for_timeout(1500)
+    for _ in range(3): p9.get_by_role("button",name="I did this").first.click(); p9.wait_for_timeout(150)
+    p9.fill("#aw",ANA); p9.get_by_role("button",name="Continue").click(); p9.wait_for_timeout(2200); t9=p9.inner_text("main"); pr9=p9.locator("pre.code").inner_text(); before=chain(ANA)
+    ok("a member on a new device types nothing but the address: no nickname box, and the prompt keeps the nickname as it is","already IOU Verified as ana" in t9 and p9.locator("#nn").count()==0 and ('Function: setNickname(string), nickname = "ana" (my nickname stays the same)' in pr9 or "Function: checkIn()" in pr9),pr9[:300])
+    r=node("sendh",ANA,C_,re.search(r"^Calldata: (0x[0-9a-fA-F]+)$",pr9,re.M).group(1),"legacy"); end=time.time()+22
+    while time.time()<end and "agentiou.proof" not in p9.evaluate("Object.keys(localStorage)"): p9.wait_for_timeout(700)
+    p9.wait_for_timeout(3500); after=chain(ANA)
+    ok("their own transaction opens the profile on the new device, by itself",r.startswith("success") and p9.locator("header").get_by_role("link",name=re.compile("^My profile: ana")).count()==1,(r,p9.locator("header").inner_text()[:120]))
+    ok("that transaction changed nothing in the record but what a check-in changes",{k:v for k,v in after.items() if k not in ("xp","checkDays")}=={k:v for k,v in before.items() if k not in ("xp","checkDays")} and after["xp"]-before["xp"] in (0,5,25),(before,after))
+    # ---- a device that proved the earlier way, with a signed message, is still that wallet
+    p9.evaluate("localStorage.clear()"); dev="ABCD-2345"
+    req=json.dumps({"method":"eth_signTypedData_v4","params":[ANA,json.dumps({"domain":{"name":"AgentIOU","version":"1","chainId":56,"verifyingContract":C_},"primaryType":"Proof","types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Proof":[{"name":"statement","type":"string"},{"name":"wallet","type":"address"},{"name":"device","type":"string"},{"name":"issued","type":"uint256"},{"name":"expires","type":"uint256"}]},"message":{"statement":"I own this wallet. Show its AgentIOU profile as mine on this device. This signature moves no money and approves nothing.","wallet":ANA,"device":dev,"issued":"1795000000","expires":"1795000900"}})]})
+    sg=node("sign",ANA,req); old={"wallet":ANA,"device":dev,"issued":1795000000,"expires":1795000900,"sig":"0x"+re.search(r"([0-9a-fA-F]{128})",sg).group(1)+("1c" if re.search(r"signatureRecovery:\s*01",sg) else "1b")}
+    p9.evaluate("([m,pr,d])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr);localStorage.setItem('agentiou.device',d)}",[ANA,json.dumps(old),dev]); p9.reload(); p9.wait_for_timeout(4500)
+    ok("a proof made the earlier way (a signed message) still opens the profile",p9.locator("header").get_by_role("link",name=re.compile("^My profile: ana")).count()==1 and "agentiou.proof" in p9.evaluate("Object.keys(localStorage)"),p9.locator("header").inner_text()[:120])
     c9.close()
     # ---- a member's own record is read first: the profile shows while the rest of the town is still being read
     hold={"big":False,"held":[]}
@@ -269,14 +299,14 @@ try:
     pg.route(re.compile(r".*127\.0\.0\.1:8547.*"),gate); pg.reload(); pg.wait_for_timeout(3000)
     hdr=pg.locator("header"); early=hdr.get_by_role("link",name="Get IOU Verified").count()==0 and hdr.locator("a[href*='me'],button").count()>0
     ok("on opening, a member's profile shows after the first read, before the other members are read",hold["big"] and len(hold["held"])>0 and early,(hold["big"],len(hold["held"]),hdr.inner_text()[:120]))
-    ok("in that moment nothing is kept on the device beyond the address, its proof and the device code",sorted(k for k in keys() if k.startswith("agentiou.") and k not in ("agentiou.ask",))==["agentiou.device","agentiou.me","agentiou.proof"],keys())
+    ok("in that moment nothing is kept on the device beyond the address, its proof and its seal",sorted(k for k in keys() if k.startswith("agentiou.") and k not in ("agentiou.ask",))==["agentiou.me","agentiou.proof","agentiou.seal"],keys())
     pg.unroute(re.compile(r".*127\.0\.0\.1:8547.*"))
     for r in hold["held"]:
         try: r.continue_()
         except Exception: pass
     pg.wait_for_timeout(2500); ok("then the full read lands and the page is complete",hdr.get_by_role("link",name="Get IOU Verified").count()==0 and len(pg.evaluate("document.querySelector('main').innerText"))>200)
     c2=b.new_context(viewport={"width":390,"height":844}); p2=c2.new_page(); p2.goto(U+"home"); p2.wait_for_timeout(1500)
-    p2.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr);localStorage.setItem('agentiou.device','ZZZZ-2222')}",kept); p2.reload(); p2.wait_for_timeout(4000)
+    p2.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr);localStorage.setItem('agentiou.seal','0x'+'5a'.repeat(32))}",kept[:2]); p2.reload(); p2.wait_for_timeout(4000)
     ok("the address and its proof copied to another device do not open the profile there",p2.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and p2.locator("header").get_by_role("link",name=re.compile("^My profile:")).count()==0); c2.close()
     ok("the page only ever talked to its own host and the chain",hosts<={"127.0.0.1:4175","127.0.0.1:8547"},hosts); ok("no script errors",not errs,errs[:3]); b.close()
 finally:

@@ -1,10 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Check, ClipboardPaste, Copy, ShieldCheck } from 'lucide-react'
 import { HAS_ME, saveMe, rankPoints, AGENT_ID, BNB_FEED, BNB_USD, CONTRACT, DEMO, LEVELS, ME, SAFE_TEXT, USDT, isAddr, levelOf, nickError, score, short, styleOf, usd, viewOf } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
 import { prompts } from '../lib/prompt'
-import { checkPasted, dropAsk, newAsk, openAsk, signRequest, type Ask } from '../lib/proof'
+import { checkTx, dropAsk, hashesIn, markOf, newAsk, openAsk, type Ask } from '../lib/proof'
 import { Link } from '../lib/router'
 import { Avatar, Led, rosette } from '../components/art'
 import { DemoChip, LevelChip, RestrictedTag, Risk, useCopy } from '../components/ui'
@@ -16,66 +16,123 @@ const START: [string, string, Pose][] = [
   ['Claim your Agent ID in the Binance App', 'The contract only lets Agent ID holders join. The live site checks this by reading the Agent ID contract for your address.', 'search'],
   ['Turn on Developer Mode in the App', 'It lets your Agentic Wallet call a contract directly. It can only be turned on in the Binance App.', 'read'],
   ['Keep a little BNB in your Agentic Wallet', 'Every action costs a small amount of gas. The live site reads your balance to check.', 'coin'],
-  ['Prove the wallet is yours', 'Paste your Agentic Wallet address, then sign one message with it: no transaction, no gas. Without that signature a profile is never shown as yours. Never paste a key or seed phrase anywhere.', 'card'],
-  ['Get IOU Verified', 'Pick a nickname, copy the prompt to your agent and confirm there. You start with 50 XP and a $1 limit.', 'stamp'],
+  ['Enter your wallet address', 'Paste your Agentic Wallet address. The site reads the chain for it. Never paste a key or seed phrase anywhere.', 'card'],
+  ['Get IOU Verified', 'Pick a nickname, copy one prompt to your agent and confirm there. One transaction joins you and proves the wallet is yours on this device. You start with 50 XP and a $1 limit.', 'stamp'],
 ]
-/** Step 4 on the live site: an address becomes "mine" on this device only with a signature from that wallet. */
-function ProveWallet() {
-  const s = useStore(); const copy = useCopy()
-  const [ask, setAsk] = useState<Ask | null>(() => openAsk()); const [addr, setAddr] = useState(''); const [pasted, setPasted] = useState(''); const [busy, setBusy] = useState(false); const [why, setWhy] = useState(''); const [copied, setCopied] = useState(false)
-  const prompt = useMemo(() => (ask ? prompts.prove(signRequest(ask)) : ''), [ask])
-  const again = () => { dropAsk(); setAsk(null); setPasted(''); setWhy(''); setCopied(false) }
-  const check = async () => {
-    if (!ask) return
-    setBusy(true); setWhy('')
-    const r = await checkPasted(ask, pasted).catch(() => ({ ok: false as const, why: 'wrong' as const }))
+type Seen = { address: string; joined: boolean; nickname: string; checkedToday: boolean; holdsAgentId: boolean | null; nonce: number; block: number }
+/** Steps 4 and 5 on the live site. An address becomes "mine" on this device only when its own wallet sends a transaction that carries this device's mark:
+ *  the join itself for a new member, today's check-in or the same nickname again for someone who joined before. The site finds that transaction on the chain by itself. */
+function useVerify(on: boolean) {
+  const [ask, setAsk] = useState<Ask | null>(() => (on ? openAsk() : null))
+  const [seen, setSeen] = useState<Seen | null>(() => (ask ? { address: ask.wallet, joined: ask.carrier !== 'join', nickname: ask.carrier === 'join' ? '' : ask.nick, checkedToday: ask.carrier === 'nick', holdsAgentId: null, nonce: ask.nonce, block: ask.block } : null))
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState(''); const [found, setFound] = useState(false); const [over, setOver] = useState(false); const [why, setWhy] = useState('')
+  const working = useRef(false)
+  const start = (who: Seen, nick: string) => setAsk(newAsk(who.address, who.joined ? (who.checkedToday ? 'nick' : 'checkIn') : 'join', nick, who.nonce, who.block))
+  const look = async (address: string) => {
+    setBusy(true); setErr('')
+    try { const w = await (await import('../lib/chain')).lookWallet(address); const who = { address, ...w }; setSeen(who); if (who.joined) start(who, who.nickname) }
+    catch { setErr("We can't reach BNB Smart Chain right now. Check your connection and try again.") }
     setBusy(false)
-    if (r.ok) { dropAsk(); saveMe(r.proof); return }
-    setWhy(r.why === 'none' ? "We can't find a signature in that. If your agent shows the signature in a box, copy that box (the long code) and paste it here." : r.why === 'expired' ? 'This request ran out after 15 minutes. Start again to get a new prompt.' : 'That signature is not from this wallet for this request. Copy the prompt again and sign it with the wallet shown above.')
   }
-  if (!ask) return (
+  const again = () => { dropAsk(); setAsk(null); setSeen(null); setErr(''); setFound(false); setOver(false); setWhy('') }
+  const accept = async (tx: Parameters<typeof checkTx>[1]) => { if (!ask) return 'none' as const; const r = await checkTx(ask, tx); if (!r.ok) return r.why; setFound(true); dropAsk(); setTimeout(() => saveMe(r.proof, ask.seal), 900); return 'ok' as const }
+  // while a request is open: ask the chain every few seconds, and at once when the visitor comes back to the page
+  useEffect(() => {
+    if (!ask || found) return
+    let live = true
+    const go = async () => {
+      if (!live || working.current || document.hidden) return
+      if (Date.now() / 1000 > ask.expires) { setOver(true); return }
+      working.current = true
+      try { const tx = await (await import('../lib/chain')).findMarked(ask.wallet, markOf(ask.seal), ask.nonce, ask.block); if (live && tx) await accept(tx) } catch { /* the chain did not answer: the next round asks again */ }
+      working.current = false
+    }
+    go(); const id = setInterval(go, 4000); document.addEventListener('visibilitychange', go); addEventListener('focus', go)
+    return () => { live = false; clearInterval(id); document.removeEventListener('visibilitychange', go); removeEventListener('focus', go) }
+  }, [ask, found])   // eslint-disable-line react-hooks/exhaustive-deps
+  /** The way round when the site does not find the transaction by itself: the visitor pastes its hash, or the agent's answer that holds it. */
+  const paste = async (text: string) => {
+    if (!ask) return
+    const hashes = hashesIn(text); if (!hashes.length) { setWhy("We can't find a transaction hash in that. It starts with 0x and is 64 characters long."); return }
+    setBusy(true); setWhy(''); let last = 'none'
+    try { const chain = await import('../lib/chain'); for (const h of hashes) { const tx = await chain.txByHash(h); if (!tx) continue; last = await accept(tx); if (last === 'ok') break } } catch { last = 'down' }
+    setBusy(false)
+    if (last !== 'ok') setWhy(last === 'none' ? 'The chain does not have that transaction yet. Wait a few seconds and try again.' : last === 'down' ? "We can't reach BNB Smart Chain right now. Try again." : last === 'other' ? 'That transaction is not from this wallet to the AgentIOU contract.' : last === 'mark' ? 'That transaction was not made from the prompt on this page. Copy the prompt above and run that one.' : "We could not read that transaction. Start again to get a new prompt.")
+  }
+  const prompt = !ask ? '' : ask.carrier === 'join' ? prompts.joinProof(ask.nick, markOf(ask.seal)) : ask.carrier === 'checkIn' ? prompts.checkInProof(markOf(ask.seal)) : prompts.nickProof(ask.nick, markOf(ask.seal))
+  return { ask, seen, busy, err, found, over, why, look, start, again, paste, prompt }
+}
+type Verify = ReturnType<typeof useVerify>
+/** Step 4, live: the address, then what the chain says about it. */
+function StepAddress({ v }: { v: Verify }) {
+  const s = useStore(); const [addr, setAddr] = useState('')
+  if (v.seen) return <p className="mt-2 text-[14px]"><span className="mono break-all">{v.seen.address}</span> <span className="text-muted">· {v.seen.joined ? <>already IOU Verified as <b className="text-chalk">{v.seen.nickname}</b></> : 'not joined yet'}</span> <button type="button" className="btn-text underline underline-offset-4 text-[14px] ml-1" onClick={v.again}>Use a different address</button></p>
+  return (
     <div className="mt-4"><label className="label" htmlFor="aw">Agentic Wallet address</label><div className="flex gap-3"><input id="aw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => setAddr(e.target.value)} autoComplete="off" spellCheck={false} /><button type="button" className="btn btn-secondary" aria-label="Paste from clipboard" onClick={async () => { try { setAddr((await navigator.clipboard.readText()).trim()) } catch { s.toast('Paste with your keyboard here.', 'bad') } }}><ClipboardPaste size={17} aria-hidden />Paste</button></div>
       {addr && !isAddr(addr) && <p className="hint text-coral">This doesn't look like a BNB Smart Chain address.</p>}{isAddr(addr) && <p className="hint text-leaf flex items-center gap-1.5"><Check size={15} aria-hidden />Looks like a valid address</p>}
-      <button type="button" className="btn btn-primary btn-sm mt-4" disabled={!isAddr(addr)} onClick={() => setAsk(newAsk(addr))}>Prove this wallet is mine</button>
+      {v.err && <p className="hint text-coral" role="alert">{v.err}</p>}
+      <button type="button" className="btn btn-primary btn-sm mt-4" disabled={!isAddr(addr.trim()) || v.busy} onClick={() => v.look(addr.trim())}>{v.busy ? 'Reading the chain' : 'Continue'}</button>
       <p className="hint mt-3">To look at a wallet without proving anything, check it on <Link to="trust" className="underline underline-offset-4">Open Trust</Link> or open its public profile.</p></div>
+  )
+}
+/** Step 5, live: the one prompt, and the wait for its transaction. */
+function StepProve({ v }: { v: Verify }) {
+  const copy = useCopy(); const [nick, setNick] = useState(''); const [copied, setCopied] = useState(false); const [open, setOpen] = useState(false); const [text, setText] = useState('')
+  const badNick = nickError(nick), who = v.seen
+  if (!who) return null
+  if (!v.ask) return (
+    <div className="mt-4 max-w-[420px]">
+      {who.holdsAgentId === false && <p className="text-coral text-[14px] font-semibold mb-3">This address has no Agent ID yet, so joining will be refused. Claim one in the Binance App first.</p>}
+      <label className="label" htmlFor="nn">Nickname</label><input id="nn" className="input" value={nick} onChange={(e) => setNick(e.target.value)} maxLength={20} placeholder="2 to 20 characters" /><p className={`hint ${badNick ? 'text-coral' : ''}`}>{badNick || 'Not unique and not searchable. It always shows next to your short address.'}</p>
+      <button type="button" className="btn btn-primary mt-4" disabled={!nick || !!badNick} onClick={() => v.start(who, nick)}>Make my prompt</button></div>
   )
   return (
     <div className="mt-4">
-      <p className="text-[14px]"><span className="text-muted">Wallet:</span> <span className="mono break-all">{ask.wallet}</span></p>
-      <div className="flex items-center justify-between mt-4 mb-2"><span className="text-[14px] text-muted">Prompt for your agent</span><button type="button" className="btn btn-secondary btn-sm" onClick={async () => setCopied(await copy(prompt, 'Copied'))}>{copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}{copied ? 'Copied' : 'Copy'}</button></div>
-      <pre className="code max-h-[30dvh] overflow-auto" tabIndex={0}>{prompt}</pre>
-      <p className="text-[14px] text-muted mt-3">Your Agentic Wallet signs one message. It is a signature only: nothing is sent on-chain, it costs no gas, and it approves nothing. It is for this device (code <span className="mono">{ask.device}</span>) and runs out in 15 minutes.</p>
-      <label className="label mt-5" htmlFor="sg">Paste your agent's answer</label>
-      <textarea id="sg" className="input mono min-h-[96px] py-3" placeholder="AGENTIOU-PROOF …" value={pasted} onChange={(e) => { setPasted(e.target.value); setWhy('') }} autoComplete="off" spellCheck={false} />
-      <p className="hint">Copy the line that starts with AGENTIOU-PROOF. If your agent shows the signature in a box instead, copy that box: the long code alone is enough.</p>
-      {why && <p className="hint text-coral" role="alert">{why}</p>}
-      <div className="flex flex-wrap gap-3 mt-4"><button type="button" className="btn btn-primary btn-sm" disabled={busy || pasted.trim().length < 128} onClick={check}>{busy ? 'Checking' : 'Check the signature'}</button><button type="button" className="btn btn-secondary btn-sm" onClick={again}>Start again</button></div>
-      <p className="hint mt-3">The check happens in your browser. The signature is kept on this device only, and only this wallet could have made it.</p>
+      {v.ask.carrier === 'join' && <p className="text-[14px]"><span className="text-muted">Nickname:</span> <b>{v.ask.nick}</b></p>}
+      <div className="flex items-center justify-between mt-3 mb-2"><span className="text-[14px] text-muted">Prompt for your agent</span><button type="button" className="btn btn-secondary btn-sm" onClick={async () => setCopied(await copy(v.prompt, 'Copied'))}>{copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}{copied ? 'Copied' : 'Copy'}</button></div>
+      <pre className="code max-h-[30dvh] overflow-auto" tabIndex={0} data-prompt>{v.prompt}</pre>
+      <p className="text-[14px] text-muted mt-3">{v.ask.carrier === 'join' ? 'One transaction: it joins you and proves this wallet on this device.' : v.ask.carrier === 'checkIn' ? "This is today's check-in (+5 XP). The same transaction proves this wallet on this device." : 'This sets the same nickname again, so nothing changes. The transaction proves this wallet on this device.'} It moves no money and approves nothing; it costs a little gas.</p>
+      <p role="status" className="mt-4 flex items-center gap-3 rounded-xl px-3.5 py-3 text-[14px]" style={v.found ? { background: '#3FBF8A1f', boxShadow: 'inset 0 0 0 1px #3FBF8A88', color: '#BFF0DC' } : v.over ? { background: '#FF8B7B1a', boxShadow: 'inset 0 0 0 1px #FF8B7B88', color: '#FFD0C8' } : { background: '#8CC8FF14', boxShadow: 'inset 0 0 0 1px #8CC8FF55', color: '#CFE6FF' }}>
+        <i aria-hidden className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: v.found ? '#3FBF8A' : v.over ? '#FF8B7B' : '#8CC8FF' }} />
+        {v.found ? 'Found your transaction. This wallet is yours on this device.' : v.over ? 'This request ran out after 15 minutes. Start again to get a new prompt.' : 'Waiting for your transaction. Confirm it in the Binance App, then come back here.'}</p>
+      <p className="hint mt-3" style={{ color: '#FFD98A' }}>Only run a prompt you copied from this page yourself. Never run one that someone sent you.</p>
+      {!v.found && <div className="mt-3">
+        {!open ? <button type="button" className="btn-text underline underline-offset-4 text-[14px] text-muted" aria-expanded={false} onClick={() => setOpen(true)}>It went through but nothing happens? Paste the transaction hash</button>
+          : <div><label className="label" htmlFor="th">Transaction hash, or your agent's answer</label><textarea id="th" className="input mono min-h-[72px] py-3" placeholder="0x…" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" spellCheck={false} />
+            {v.why && <p className="hint text-coral" role="alert">{v.why}</p>}
+            <button type="button" className="btn btn-secondary btn-sm mt-3" disabled={v.busy || text.trim().length < 64} onClick={() => v.paste(text)}>{v.busy ? 'Checking' : 'Check this transaction'}</button></div>}
+        <button type="button" className="btn-text underline underline-offset-4 text-[14px] text-muted block mt-3" onClick={v.again}>Start again</button></div>}
+      <p className="hint mt-3">The site reads your transaction from the chain and checks it in your browser. Nothing is sent to a server.</p>
     </div>
   )
 }
 export function Start() {
   const s = useStore(), f = useFlows()
-  const [done, setDone] = useState(() => (!DEMO && HAS_ME ? [true, true, true, true] : [false, false, false, false])); const [addr, setAddr] = useState(''); const [nick, setNick] = useState('')
-  const cur = done.indexOf(false) < 0 ? 4 : done.indexOf(false)
+  const liveGuest = !DEMO && !HAS_ME, v = useVerify(liveGuest)
+  const [done, setDone] = useState(() => (!DEMO && (HAS_ME || !!v.ask) ? [true, true, true, HAS_ME] : [false, false, false, false])); const [addr, setAddr] = useState(''); const [nick, setNick] = useState('')
+  const state = liveGuest ? [done[0], done[1], done[2], !!v.seen] : done
+  const cur = state.indexOf(false) < 0 ? 4 : state.indexOf(false)
   const badNick = nickError(nick)
-  const tick = (i: number) => setDone((d) => d.map((v, j) => (j === i ? true : v)))
+  const tick = (i: number) => setDone((d) => d.map((x, j) => (j === i ? true : x)))
+  const back = liveGuest && !!v.seen?.joined   // someone who joined before, on a device that has not proved the wallet yet
   // joining is once per wallet: the contract refuses a second join, so the page shows the profile instead
   if (s.joined) return <div className="wrap pt-32 pb-24 flex flex-wrap items-center gap-8"><Mascot pose="stamp" expr="success" className="w-40" /><div><h1 className="h2">You are IOU Verified</h1><p className="lead mt-3">This is done once per wallet. Your profile, Credit Pass and IOUs are ready.</p><div className="flex flex-wrap gap-3 mt-6"><Link to="u" param={ME} className="btn btn-primary">Open my profile</Link><Link to="mart" className="btn btn-secondary">Go to Promise Mart</Link></div></div></div>
   return (
     <div className="wrap pt-28 pb-16 grid gap-10 lg:grid-cols-[1fr_300px] items-start">
       <div><div className="flex flex-wrap items-center gap-3"><h1 className="h2">Get IOU Verified</h1><DemoChip /></div><p className="lead mt-3">Five steps, about five minutes. The site never asks for a key, a seed phrase or a wallet connection.</p>
-        <ol className="mt-8 grid gap-4">{START.map(([t, d], i) => { const ok = i < 4 ? done[i] : false, now = i === cur
-          return <li key={t} className="panel p-5 flex gap-4" style={{ borderColor: now ? '#FFB23F' : undefined }} aria-current={now ? 'step' : undefined}>
+        <ol className="mt-8 grid gap-4">{START.map(([t0, d0], i) => { const ok = i < 4 ? state[i] : false, now = i === cur
+          const [t, d] = i === 4 && back ? ['Open your profile on this device', 'You joined before. One small transaction from your wallet proves it is yours on this device.'] : [t0, d0]
+          return <li key={t0} className="panel p-5 flex gap-4" style={{ borderColor: now ? '#FFB23F' : undefined }} aria-current={now ? 'step' : undefined}>
             <span className={`w-9 h-9 rounded-full shrink-0 inline-flex items-center justify-center font-extrabold ${ok ? 'bg-leaf text-ink' : 'border border-rule'}`}>{ok ? <Check size={18} aria-label="Done" /> : i + 1}</span>
             <div className="flex-1 min-w-0"><h2 className="text-[20px]">{t}</h2><p className="text-muted mt-1">{d}</p>
-              {i === 3 && !ok && !DEMO && now && <ProveWallet />}
+              {i === 3 && liveGuest && (now || ok) && <StepAddress v={v} />}
+              {i === 4 && liveGuest && now && <StepProve v={v} />}
               {i === 3 && !ok && DEMO && <div className="mt-4"><label className="label" htmlFor="aw">Agentic Wallet address</label><div className="flex gap-3"><input id="aw" className="input mono" placeholder="0x…" value={addr} onChange={(e) => setAddr(e.target.value)} autoComplete="off" spellCheck={false} /><button type="button" className="btn btn-secondary" aria-label="Paste from clipboard" onClick={async () => { try { setAddr((await navigator.clipboard.readText()).trim()) } catch { s.toast('Paste with your keyboard here.', 'bad') } }}><ClipboardPaste size={17} aria-hidden />Paste</button></div>
                 {addr && !isAddr(addr) && <p className="hint text-coral">This doesn't look like a BNB Smart Chain address.</p>}{isAddr(addr) && <p className="hint text-leaf flex items-center gap-1.5"><Check size={15} aria-hidden />Looks like a valid address</p>}</div>}
               {i < 4 && !ok && now && !(i === 3 && !DEMO) && <button type="button" className="btn btn-secondary btn-sm mt-4" disabled={i === 3 && !isAddr(addr)} onClick={() => tick(i)}>{i === 3 ? 'Save on this device' : 'I did this'}</button>}
-              {i === 4 && now && <div className="mt-4 max-w-[420px]"><label className="label" htmlFor="nn">Nickname</label><input id="nn" className="input" value={nick} onChange={(e) => setNick(e.target.value)} maxLength={20} placeholder="2 to 20 characters" /><p className={`hint ${badNick ? 'text-coral' : ''}`}>{badNick || 'Not unique and not searchable. It always shows next to your short address.'}</p><button type="button" className="btn btn-primary mt-4" disabled={!nick || !!badNick} onClick={() => f.join(nick)}>Get IOU Verified</button></div>}
+              {i === 4 && now && !liveGuest && <div className="mt-4 max-w-[420px]"><label className="label" htmlFor="nn">Nickname</label><input id="nn" className="input" value={nick} onChange={(e) => setNick(e.target.value)} maxLength={20} placeholder="2 to 20 characters" /><p className={`hint ${badNick ? 'text-coral' : ''}`}>{badNick || 'Not unique and not searchable. It always shows next to your short address.'}</p><button type="button" className="btn btn-primary mt-4" disabled={!nick || !!badNick} onClick={() => f.join(nick)}>Get IOU Verified</button></div>}
             </div></li> })}</ol>
-        {DEMO ? <p className="hint mt-5">In this demo you tick the first steps yourself. On the live site steps 1, 3 and 5 are checked on-chain, and step 4 needs a signature from the wallet.</p>
+        {DEMO ? <p className="hint mt-5">In this demo you tick the first steps yourself. On the live site steps 1, 3 and 4 are read from the chain, and step 5 is one transaction from your own wallet.</p>
           : HAS_ME && <div className="panel p-4 mt-5 flex flex-wrap items-center gap-x-4 gap-y-2"><span className="text-[14px] text-muted">Proved on this device:</span><span className="mono text-[14px] break-all">{ME}</span>{s.holdsAgentId === true && <span className="pill pill-leaf"><ShieldCheck size={14} aria-hidden />Holds an Agent ID</span>}{s.holdsAgentId === false && <span className="text-coral text-[14px] font-semibold">This address has no Agent ID yet, so joining will be refused. Claim one in the Binance App first.</span>}<button type="button" className="btn-text underline underline-offset-4 text-[14px] ml-auto" onClick={() => saveMe(null)}>Use a different address</button></div>}</div>
       <aside className="hidden lg:block sticky top-28 text-center"><Mascot pose={START[cur][2]} expr={cur === 4 ? 'success' : 'happy'} className="w-56 mx-auto" /><p className="text-muted mt-4">Step {cur + 1} of 5</p></aside>
     </div>
@@ -147,7 +204,7 @@ export function Board() {
 
 /* /proof */
 const RED: [string, string][] = [
-  ['Never asks for a password or a wallet connection', 'No account, no password, no wallet connection, no QR or pairing code. To show a profile as yours, your wallet signs one message that moves nothing, and the check runs in your browser.'],
+  ['Never asks for a password or a wallet connection', 'No account, no password, no wallet connection, no QR or pairing code. To show a profile as yours on a device, your own wallet sends one transaction to the contract (the join itself, a check-in, or the same nickname again). The site reads it from the chain, and the check runs in your browser.'],
   ['Never acts without your confirmation', 'Every prompt ends with: show me the preview first, do not execute until I confirm.'],
   ['Never takes an unlimited approval', "Approvals are for the exact amount. The contract can't pull anyone's money."],
   ['Never hides its code', 'The source is public under the MIT licence. There is no owner, so there are no owner powers.'],
@@ -201,7 +258,7 @@ export function Legal() {
   return (
     <div className="wrap pt-28 pb-16 max-w-[860px] mx-0 xl:mx-auto"><h1 className="h2">Terms, privacy and risks</h1><P>Short and plain. AgentIOU is an independent project, not affiliated with Binance. Nothing here is financial advice.</P>
       <H>Terms</H><P>AgentIOU is a public smart contract and a website that reads it. There is no company account, no custody and no operator who can reverse a transaction. You use it at your own choice and your own risk.</P><P>An IOU is a promise between two wallets. AgentIOU records it; it does not enforce it and can't recover money for anyone.</P><P>XP has no cash value. Vouchers and stickers can't be sold or transferred.</P>
-      <H>Privacy</H><P>No cookies, no analytics, no account, no personal details. The site keeps only your public address, the signature that proves it is yours on this device, a random device code, your settings and your best Harbour Run score, all on your own device. Fonts and scripts are served from this site; nothing loads from third parties.</P><P>What you write on-chain is public and permanent: addresses, amounts, due dates, nicknames and notes. Don't put private details in a note.</P>
+      <H>Privacy</H><P>No cookies, no analytics, no account, no personal details. The site keeps only your public address, the proof that it is yours on this device (one of your own transactions, exactly as it stands on the chain), a random seal for this device, your settings and your best Harbour Run score, all on your own device. Fonts and scripts are served from this site; nothing loads from third parties.</P><P>What you write on-chain is public and permanent: addresses, amounts, due dates, nicknames and notes. Don't put private details in a note.</P>
       <H>Risks</H><P>People may not repay. Smart contracts can have bugs. Token prices move. Gas costs change. Only promise what you can repay, and only give credit you could afford to lose.</P>
       <H>FAQs</H><div className="mt-4 border-t border-rule">{FAQ.slice(1, 4).map(([q, a]) => <Q key={q} q={q} a={a} />)}</div>
     </div>

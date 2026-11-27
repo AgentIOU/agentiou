@@ -26,7 +26,8 @@ if (cmd === 'setup') {
   const out = { contract: iou, mart, ana, ben, cat }; fs.writeFileSync(state, JSON.stringify(out)); console.log(JSON.stringify(out))
 } else {
   const { contract } = JSON.parse(fs.readFileSync(state, 'utf8'))
-  if (cmd === 'send') { const r = await c.waitForTransactionReceipt({ hash: await c.sendTransaction({ account: a[0], to: a[1], data: a[2], value: parseEther(a[3] || '0'), gas: 3_000_000n }) }); console.log(r.status) }
+  if (cmd === 'sendh') { const hash = await c.sendTransaction({ account: a[0], to: a[1], data: a[2], value: 0n, gas: 3_000_000n, ...(a[3] === 'legacy' ? { type: 'legacy' } : {}) }); const r = await c.waitForTransactionReceipt({ hash }); console.log(r.status + ' ' + hash) }   // the same, answering with the hash too; 'legacy' sends the kind of transaction the Agentic Wallet sends
+  else if (cmd === 'send') { const r = await c.waitForTransactionReceipt({ hash: await c.sendTransaction({ account: a[0], to: a[1], data: a[2], value: parseEther(a[3] || '0'), gas: 3_000_000n }) }); console.log(r.status) }
   else if (cmd === 'join') { await w(a[0], contract, A, 'join', [a[1]]); console.log('success') }
   else if (cmd === 'call') { await w(a[0], contract, A, a[1], JSON.parse(a[2] || '[]').map((v) => (typeof v === 'string' && /^\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v))); console.log('success') }
   else if (cmd === 'pay') { await w(a[0], contract, A, a[1], JSON.parse(a[2]).map((v) => BigInt(v)), parseEther(a[3])); console.log('success') }

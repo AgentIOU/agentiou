@@ -68,9 +68,16 @@ const addr = (n: number) => '0x' + n.toString(16).padStart(40, '0').replace(/^0{
 // "Me" on the live site is a wallet the visitor has PROVED they control on this device: its own Agentic Wallet signed a message
 // naming this device (lib/proof.ts). Typing an address alone never makes a profile "mine". No key, no connection, no server.
 // It is read once when the page loads; proving or forgetting reloads the page.
-const ME_KEY = 'agentiou.me', PROOF_KEY = 'agentiou.proof', DEVICE_KEY = 'agentiou.device'
-/** The signed proof kept on the device. */
+const ME_KEY = 'agentiou.me', PROOF_KEY = 'agentiou.proof', DEVICE_KEY = 'agentiou.device', SEAL_KEY = 'agentiou.seal'
+/** The first kind of proof: a signed message naming this device's code. Kept working for devices that proved this way. */
 export interface Proof { wallet: string; device: string; issued: number; expires: number; sig: `0x${string}` }
+/** The proof used now: one of the wallet's own transactions to the AgentIOU contract, whole and signed, whose data ends with the mark of this device's seal.
+ *  The seal itself is a long random secret that never leaves the device (it is kept beside the proof, not inside it), so the transaction, which anyone can read on-chain, is no use on another device. */
+export interface TxProof { v: 2; wallet: string; raw: `0x${string}` }
+export type AnyProof = Proof | TxProof
+export const isTxProof = (p: AnyProof): p is TxProof => (p as TxProof).v === 2
+/** This device's seal for the new proof, if it has one. */
+export const sealOf = (): `0x${string}` | null => { const v = read(SEAL_KEY); return v && /^0x[0-9a-f]{64}$/.test(v) ? (v as `0x${string}`) : null }
 const read = (k: string) => { try { return localStorage.getItem(k) } catch { return null } }
 /** This device's own random code. A proof is signed for one device and is no use on another. */
 export function deviceId(): string {
@@ -81,17 +88,19 @@ export function deviceId(): string {
   return d
 }
 const savedMe = (() => { const v = read(ME_KEY); return v && isAddress(v) ? getAddress(v) : null })()
-export const storedProof: Proof | null = (() => { try { const x = JSON.parse(read(PROOF_KEY) ?? 'null'); return x && typeof x.wallet === 'string' && isAddress(x.wallet) && typeof x.device === 'string' && Number.isInteger(x.issued) && Number.isInteger(x.expires) && /^0x[0-9a-fA-F]{130}$/.test(x.sig) ? x as Proof : null } catch { return null } })()
+export const storedProof: AnyProof | null = (() => { try { const x = JSON.parse(read(PROOF_KEY) ?? 'null'); if (!x || typeof x.wallet !== 'string' || !isAddress(x.wallet)) return null
+  if (x.v === 2) return typeof x.raw === 'string' && /^0x[0-9a-f]{100,4000}$/.test(x.raw) ? { v: 2, wallet: x.wallet, raw: x.raw } as TxProof : null
+  return typeof x.device === 'string' && Number.isInteger(x.issued) && Number.isInteger(x.expires) && /^0x[0-9a-fA-F]{130}$/.test(x.sig) ? x as Proof : null } catch { return null } })()
 // shape check here; the signature itself is re-checked right after load (store.tsx), and a proof that fails is forgotten
-const proven = !DEMO && !!savedMe && !!storedProof && getAddress(storedProof.wallet) === savedMe && storedProof.device === read(DEVICE_KEY)
+const proven = !DEMO && !!savedMe && !!storedProof && getAddress(storedProof.wallet) === savedMe && (isTxProof(storedProof) ? !!sealOf() : storedProof.device === read(DEVICE_KEY))
 // an address left on the device without a proof that holds for it (from before proofs existed, or a proof made for another device) is no use: forget it, so the device keeps nothing it does not use
-if (!DEMO && !proven && (savedMe || read(PROOF_KEY) || read(ME_KEY))) { try { localStorage.removeItem(ME_KEY); localStorage.removeItem(PROOF_KEY) } catch { /* storage may be unavailable */ } }
+if (!DEMO && !proven && (savedMe || read(PROOF_KEY) || read(ME_KEY))) { try { localStorage.removeItem(ME_KEY); localStorage.removeItem(PROOF_KEY); localStorage.removeItem(SEAL_KEY) } catch { /* storage may be unavailable */ } }
 export const HAS_ME = DEMO || proven
 /** Make a wallet "mine" on this device with its proof, or forget it (no argument). */
-export const saveMe = (proof?: Proof | null) => {
+export const saveMe = (proof?: AnyProof | null, seal?: string) => {
   try {
-    if (proof) { localStorage.setItem(ME_KEY, getAddress(proof.wallet)); localStorage.setItem(PROOF_KEY, JSON.stringify(proof)) }
-    else { localStorage.removeItem(ME_KEY); localStorage.removeItem(PROOF_KEY); localStorage.removeItem('agentiou.ask') }
+    if (proof) { localStorage.setItem(ME_KEY, getAddress(proof.wallet)); localStorage.setItem(PROOF_KEY, JSON.stringify(proof)); if (seal) localStorage.setItem(SEAL_KEY, seal) }
+    else { localStorage.removeItem(ME_KEY); localStorage.removeItem(PROOF_KEY); localStorage.removeItem(SEAL_KEY); localStorage.removeItem('agentiou.ask') }
   } catch { /* storage may be unavailable */ }
   location.reload()
 }

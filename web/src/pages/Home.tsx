@@ -17,7 +17,7 @@ gsap.registerPlugin(ScrollTrigger)
 
 export const FAQ: [string, string][] = [
   ['What is AgentIOU?', 'A pay-later ledger on BNB Smart Chain for Agent ID holders. You take a small promise from Promise Mart or from a friend, repay it on time, and that record raises your Trust Score and your Credit Pass limit.'],
-  ['Do you need my keys or seed phrase?', 'Never. The site has no wallet connection, no password and no account. To show a profile as yours it asks your wallet for one signature, which moves nothing. It writes out the exact contract call; your own Binance Agentic Wallet shows you a preview and nothing is sent until you confirm there.'],
+  ['Do you need my keys or seed phrase?', 'Never. The site has no wallet connection, no password and no account. To show a profile as yours on a device, your own wallet sends one small transaction that the site then reads from the chain. For everything, the site writes out the exact contract call; your own Binance Agentic Wallet shows you a preview and nothing is sent until you confirm there.'],
   ['Is this a loan with interest?', 'It is a loan without interest or fees. Promise Mart lends you a few cents of its own USDT; you repay exactly that amount, straight to the shop. The contract never holds money, and the shop keeps nothing for itself.'],
   ["What if someone doesn't repay?", 'One IOU past due: their level drops by one and their Trust Score falls right away. Two past due, or one more than 7 days late: the account is Restricted. It shows a red card and a Restricted label, and it can\'t borrow, send IOUs, play Harbour Run or open Build your town until it repays. It can still look at Promise Town. Limits are small on purpose ($1, $5, $10) so nobody can be asked for much. The record stays on their Agent ID history. AgentIOU cannot force anyone to pay, so the person who gives credit carries that risk. Keep amounts small.'],
   ['Why do I need an Agent ID?', "A new wallet costs nothing, so a wallet alone can't be trusted with credit. An Agent ID can't be transferred, so your repayment history stays with you."],
@@ -199,7 +199,7 @@ function StartButtons() {
         <ChevronDown size={22} aria-hidden style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 200ms' }} />
       </button>
       {open && <div className="panel p-5 mt-3" style={{ animation: 'trayup 220ms var(--ease-out)' }}>
-        <ol className="grid gap-2.5">{['Paste your Agentic Wallet address and sign one message to prove it is yours.', 'Copy the prompt the site writes and give it to your agent.', 'Confirm in your agent. The site never connects to your wallet.'].map((t, i) => <li key={t} className="flex gap-3"><span className="led text-amber text-[20px] leading-6 w-4 shrink-0">{i + 1}</span><span>{t}</span></li>)}</ol>
+        <ol className="grid gap-2.5">{['Paste your Agentic Wallet address. The site reads the chain for it.', 'Copy the prompt the site writes and give it to your agent.', 'Confirm in your agent. The site never connects to your wallet.'].map((t, i) => <li key={t} className="flex gap-3"><span className="led text-amber text-[20px] leading-6 w-4 shrink-0">{i + 1}</span><span>{t}</span></li>)}</ol>
         <Link to="start" className="btn btn-primary mt-4">Start the 5 steps</Link>
       </div>}</>}
       {/* two buttons at most (join, or look around as a guest), then one quiet line of help, so the block stays calm */}

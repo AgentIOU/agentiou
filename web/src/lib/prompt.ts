@@ -32,6 +32,8 @@ ${extra}Show me the preview and risks first. Do not execute until I confirm.`
 }
 const mine = (sig: string, args: string, data: string, value = '0', extra = '') => text(target, 'AgentIOU, verified on BscScan', sig, args, value, data, extra)
 
+const MARKED = 'Send the calldata exactly as written, including the extra bytes at the end. They only mark this as my own device; the contract ignores them.\n'
+const marked = (p: string) => p + '\nAfter it executes, tell me the transaction hash.'
 export const prompts = {
   join: (nick: string) => mine('join(string)', `nickname = "${nick}"`, encodeFunctionData({ abi: ABI, functionName: 'join', args: [nick] })),
   takeOffer: (id: number, price?: number, shop?: string, days?: number) => mine('takeOffer(uint256)', `offerId = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'takeOffer', args: [BigInt(id)] }), '0',
@@ -47,8 +49,10 @@ export const prompts = {
     encodeFunctionData({ abi: ERC20, functionName: 'approve', args: [SPENDER, raw ? BigInt(raw) : wei(amount)] }), 'Approve this exact amount only. Never an unlimited approval.\n'),
   repayUsdt: (id: number, amount: number, to: string, name: string) => mine('repay(uint256)', `id = ${id}`, encodeFunctionData({ abi: ABI, functionName: 'repay', args: [BigInt(id)] }), '0', `This moves exactly ${amount} USDT from my wallet to ${to} (${name}). Nothing else is sent.\n`),
   claim: (tier: number) => mine('claimVoucher(uint8)', `tier = ${tier}`, encodeFunctionData({ abi: ABI, functionName: 'claimVoucher', args: [tier] })),
-  /** A signature only: the wallet proves it is the visitor's. Nothing is sent on-chain. */
-  prove: (request: string) => `Use my Binance Agentic Wallet (Developer Mode) to sign a message. This is a signature only: no transaction, no transfer, no approval.\nRun sign-message preview with binanceChainId 56, signType EIP712, and exactly this message:\n${request}\nThe message says I own this wallet and want AgentIOU to show its profile as mine on one device, until the time in "expires". It has no token, no amount and no spender.\nShow me the parsed message and the risks first. Do not sign until I confirm.\nAfter signing, end your reply with one line of plain text that I can copy: no code block, no table, no bold. Write it exactly like this, with the full signature (all 128 characters) and the signatureRecovery value:\nAGENTIOU-PROOF <signature> <signatureRecovery>`,
+  // The three calls that can also prove the wallet on this device: the same call as usual, with the device's mark added to the end of its data.
+  joinProof: (nick: string, mark: string) => marked(mine('join(string)', `nickname = "${nick}"`, encodeFunctionData({ abi: ABI, functionName: 'join', args: [nick] }) + mark, '0', MARKED)),
+  checkInProof: (mark: string) => marked(mine('checkIn()', '', encodeFunctionData({ abi: ABI, functionName: 'checkIn' }) + mark, '0', MARKED)),
+  nickProof: (nick: string, mark: string) => marked(mine('setNickname(string)', `nickname = "${nick}" (my nickname stays the same)`, encodeFunctionData({ abi: ABI, functionName: 'setNickname', args: [nick] }) + mark, '0', MARKED)),
   checkIn: () => mine('checkIn()', '', encodeFunctionData({ abi: ABI, functionName: 'checkIn' })),
   setNickname: (nick: string) => mine('setNickname(string)', `nickname = "${nick}"`, encodeFunctionData({ abi: ABI, functionName: 'setNickname', args: [nick] })),
   withdraw: () => mine('withdraw()', '', encodeFunctionData({ abi: ABI, functionName: 'withdraw' }), '0', 'This only collects BNB that is already kept under my own address. Nothing leaves my wallet.\n'),

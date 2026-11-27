@@ -73,6 +73,38 @@ export async function loadAll(): Promise<Snapshot> {
   const print = JSON.stringify([me && [me.nickname, me.xp, me.onTime, me.late, me.defaults, me.claimed, me.pocket, me.lastCheck, Object.keys(me.stickers)], credit.toString(), ious.filter((x) => x.creditor === ME || x.debtor === ME).map((x) => [x.id, x.status])])
   return { users, ious, offers, chain, bnbUsd: feed && feed[1] > 0n ? Number(feed[1]) / 1e8 : 0, holdsAgentId: holds, credit: num(credit), shopFunds: num(shopBal < shopOk ? shopBal : shopOk), print }
 }
+// ---- proving a wallet on this device (lib/proof.ts): what the site needs to read for it
+/** What the chain says about an address before it is proved: has it joined, under which nickname, has it checked in today, and where its transaction count stands. */
+export interface WalletLook { joined: boolean; nickname: string; checkedToday: boolean; holdsAgentId: boolean | null; nonce: number; block: number }
+export async function lookWallet(address: string): Promise<WalletLook> {
+  const a = getAddress(address)
+  const [got, head, holds, nonce] = await Promise.all([read<GotUser>('getUser', [a]), client.getBlock(),
+    client.readContract({ address: AGENT_ID as `0x${string}`, abi: EXTRA, functionName: 'balanceOf', args: [a] }).then((n) => n > 0n).catch(() => null), client.getTransactionCount({ address: a })])
+  const u = got[0]
+  return { joined: u.joinedAt > 0, nickname: u.nickname, checkedToday: u.checkDay > 0 && u.checkDay === Math.floor((Number(head.timestamp) * 1000) / DAY), holdsAgentId: holds, nonce, block: Number(head.number) }
+}
+// Looking back needs a node that still keeps a few thousand blocks of state. Of the public ones the last in the list does, so it is asked first here.
+const past = RPCS.length > 1 ? createPublicClient({ chain: bsc, transport: fallback([...RPCS].reverse().map((u) => http(u, { timeout: 12_000 }))) }) : client
+/** The wallet's own transaction whose data ends with this mark, sent since the request was made. Null while there is none.
+ *  One cheap question while nothing has happened (the wallet's transaction count). Once the count has moved, the block of each new transaction
+ *  is found by halving the range, and that one block is read. */
+export async function findMarked(wallet: string, mark: string, nonce: number, block: number) {
+  const w = getAddress(wallet), now = await client.getTransactionCount({ address: w })
+  if (now <= nonce) return null
+  const head = await past.getBlockNumber()
+  for (let n = nonce; n < Math.min(now, nonce + 5); n++) {
+    let lo = BigInt(Math.max(0, block - 1)), hi = head
+    if ((await past.getTransactionCount({ address: w, blockNumber: hi })) <= n) return null   // this node has not seen it yet: ask again shortly
+    while (lo + 1n < hi) { const mid = (lo + hi) / 2n; if ((await past.getTransactionCount({ address: w, blockNumber: mid })) > n) hi = mid; else lo = mid }
+    const b = await past.getBlock({ blockNumber: hi, includeTransactions: true })
+    const tx = b.transactions.find((t) => t.from.toLowerCase() === w.toLowerCase() && t.nonce === n)
+    if (tx && tx.input.toLowerCase().endsWith(mark)) return tx
+  }
+  return null
+}
+/** A transaction by its hash, or null if the chain does not have it (yet). */
+export const txByHash = (hash: `0x${string}`) => client.getTransaction({ hash }).catch(() => null)
+
 /** Has my wallet approved the contract to move at least this much USDT? (The first of the two repay steps.) */
 export const usdtAllowanceAtLeast = async (raw: string) => (await client.readContract({ address: USDT as `0x${string}`, abi: EXTRA, functionName: 'allowance', args: [ME as `0x${string}`, C] })) >= BigInt(raw)
 /** Open Trust: one wallet's record, read straight from getUser at this moment. Works for any address; a non-member reads as not verified. */

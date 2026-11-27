@@ -35,7 +35,7 @@ Built for the Binance Wallet × BNB Chain **Agent ID Hackathon** (Nov 18 to Dec 
 
 | Step | What happens |
 |---|---|
-| **1. Get IOU Verified** | An Agent ID holder calls `join` from their own Agentic Wallet. The contract checks that the wallet holds an Agent ID. |
+| **1. Get IOU Verified** | An Agent ID holder calls `join` from their own Agentic Wallet. The contract checks that the wallet holds an Agent ID. That same transaction carries a mark of the device it was made on, which is how the site knows the profile is theirs there (no signature step, no login). |
 | **2. Take a promise** | Borrow a few cents of USDT from Promise Mart (a sticker comes with the first loan), or accept an IOU from another member, with the amount and due date (1 to 30 days) written on-chain. |
 | **3. Repay on time** | The repayment goes straight from the borrower's wallet to the lender. The contract never holds it. |
 | **4. Build a record** | On-time repays raise the Trust Score and the level (limits: L1 $1, L2 $5, L3 $10). One IOU past due lowers the level and the score; two past due, or one more than 7 days late, makes the wallet Restricted until it repays. |
@@ -76,7 +76,7 @@ A Restricted account can still look at Promise Town, but cannot play Harbour Run
 | Repayment (straight to the lender) | [`repay`, L204](contracts/src/AgentIOU.sol#L204) |
 | Trust Score, level and limit | [`trustScore` L277](contracts/src/AgentIOU.sol#L277), [`levelOf` L269](contracts/src/AgentIOU.sol#L269), [`_limit` L340](contracts/src/AgentIOU.sol#L340) |
 | Open Trust API | [`web/functions/api/trust/[address].ts`](web/functions/api/trust/%5Baddress%5D.ts) |
-| Proof of wallet ownership (EIP-712, checked in the browser) | [`web/src/lib/proof.ts`](web/src/lib/proof.ts) |
+| Proof of wallet ownership (one of the wallet's own transactions, carrying this device's mark; checked in the browser) | [`web/src/lib/proof.ts`](web/src/lib/proof.ts) |
 | The prompts the site writes for the agent | [`web/src/lib/prompt.ts`](web/src/lib/prompt.ts) |
 | Everything the site reads from the chain | [`web/src/lib/chain.ts`](web/src/lib/chain.ts) |
 | Promise Town, its pages, the zoomable town page and Harbour Run | [`web/src/pages/Town.tsx`](web/src/pages/Town.tsx) |
@@ -87,7 +87,7 @@ A Restricted account can still look at Promise Town, but cannot play Harbour Run
 | Hackathon rule | AgentIOU |
 |---|---|
 | No QR or pairing-code login on a website | The site has no login at all. A visitor only pastes a public address. |
-| No login sessions stored on a server | No server stores anything: the only server code, the Open Trust API, reads the contract and keeps nothing. The browser keeps only the visitor's public address, the proof that it is theirs, sound and motion settings and the best Harbour Run score. |
+| No login sessions stored on a server | No server stores anything: the only server code, the Open Trust API, reads the contract and keeps nothing. The browser keeps only the visitor's public address, the proof that it is theirs (one of their own transactions, as it stands on the chain) with a random seal for the device, sound and motion settings and the best Harbour Run score. |
 | No prompt that skips the user's confirmation | Every prompt asks the agent for a preview first; nothing is sent until the user confirms in Binance AI Pro. |
 | No unauthorized transfers or unlimited approvals | Repaying USDT asks for an approval of the exact amount only. Money only moves when the user confirms. |
 | Owner permissions documented | There are none: no owner, no upgrade, no pause, no fee, and no way for anyone to take another person's funds. |
