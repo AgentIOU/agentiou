@@ -155,7 +155,7 @@ try:
     go("tasks"); ok("check-in is off for the rest of the day",pg.get_by_role("button",name="Come back tomorrow").is_disabled())
     pg.get_by_role("button",name=re.compile("^Claim")).first.click(); pg.wait_for_timeout(400); ok("claim a Common voucher",act(ANA)); done(); ok("voucher is in the pocket on-chain",chain(ANA)["pocket"][0]==1)
     go("tasks"); mint=[x for x in pg.get_by_role("button",name=re.compile("^Mint")).all() if x.is_enabled()]
-    ok("a Common stamp can now be minted",len(mint)>=1)
+    ok("a Common sticker can now be minted",len(mint)>=1)
     if mint: mint[0].click(); pg.wait_for_timeout(400); ok("mint with the voucher",act(ANA)); done(); ok("voucher used on-chain",chain(ANA)["pocket"][0]==0)
     # ---- G. the visitor says "confirmed" but never sent it
     go("mart"); pg.get_by_role("button",name="Borrow again").first.click(); pg.wait_for_timeout(400)

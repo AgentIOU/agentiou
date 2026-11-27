@@ -183,7 +183,7 @@ export function StickerCard({ k, name, tier, mint, owner, onFlip, dim, className
       {tier === 'Legendary' && !dim && <span className="stamp-sheen absolute inset-0" />}
     </span>
   )
-  const label = `${name}, ${tier} stamp, ${stars[tier]} star${stars[tier] > 1 ? 's' : ''}${mint ? `, edition ${mint.edition}` : dim ? ', not minted yet' : ''}`
+  const label = `${name}, ${tier} sticker, ${stars[tier]} star${stars[tier] > 1 ? 's' : ''}${mint ? `, edition ${mint.edition}` : dim ? ', not minted yet' : ''}`
   const box = { containerType: 'inline-size', aspectRatio: '3 / 4', animation: fresh ? 'pop 700ms var(--ease-out) both' : undefined } as CSSProperties
   if (!onFlip || !mint) return <div role="img" aria-label={label} className={`pstamp ${className}`} style={box}>{front}</div>
   return (

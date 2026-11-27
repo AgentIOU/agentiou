@@ -24,10 +24,10 @@ try:
     chip.click(); pg.wait_for_timeout(150); ok("a press opens it to show the name",chip.get_attribute("data-open") is not None and "tuku" in chip.inner_text(),chip.inner_text())
     pg.wait_for_timeout(1100); ok("then it goes to My IOUs and stays open there","Open IOUs" in pg.inner_text("main") and chip.get_attribute("data-open") is not None and chip.get_attribute("aria-current")=="page")
     dock.get_by_role("link",name="Town").tap(); pg.wait_for_timeout(900); ok("Town tab opens Task Hub, and the corner button closes again","Task Hub" in pg.inner_text("main") and chip.get_attribute("data-open") is None)
-    # ---- card metal and avatar from the stamps (the demo member holds Hello and Stamped: Common and Rare)
+    # ---- card metal and avatar from the stickers (the demo member holds Hello and Stamped: Common and Rare)
     pg.goto(U+"me"); pg.wait_for_timeout(1300); card=pg.locator("button[aria-label^='IOU Card for']")
-    ok("the card takes the metal of the highest stamp held: Gold",card.get_attribute("data-look")=="gold" and "Gold card" in card.get_attribute("aria-label"),card.get_attribute("aria-label"))
-    av=pg.locator("main [role=img][data-look]").first; ok("the avatar is the mascot in that metal and in the pose of the last stamp of that tier",av.get_attribute("data-look")=="gold" and av.get_attribute("data-pose")=="stamp",(av.get_attribute("data-look"),av.get_attribute("data-pose")))
+    ok("the card takes the metal of the highest sticker held: Gold",card.get_attribute("data-look")=="gold" and "Gold card" in card.get_attribute("aria-label"),card.get_attribute("aria-label"))
+    av=pg.locator("main [role=img][data-look]").first; ok("the avatar is the mascot in that metal and in the pose of the last sticker of that tier",av.get_attribute("data-look")=="gold" and av.get_attribute("data-pose")=="stamp",(av.get_attribute("data-look"),av.get_attribute("data-pose")))
     ok("the avatar still tells the Trust Score and level in words","Trust Score 74 of 100, level 2" in av.get_attribute("aria-label"),av.get_attribute("aria-label"))
     ok("My IOUs links to the public view","See how others see you" in pg.inner_text("main"))
     pg.get_by_role("button",name="Show me Restricted").click(); pg.wait_for_timeout(900); card=pg.locator("button[aria-label^='IOU Card for']")
@@ -37,12 +37,12 @@ try:
     pg.close()
     # ---- Task Hub: what changed and what stayed
     pg=phone(); pg.goto(U+"tasks"); pg.wait_for_timeout(1500); t=pg.inner_text("main")
-    ok("Task Hub keeps its title and sections",all(k in t for k in ("Task Hub","Your XP","Daily check-in","One-time","Every time","Vouchers","Season 1 stamps")))
+    ok("Task Hub keeps its title and sections",all(k in t for k in ("Task Hub","Your XP","Daily check-in","One-time","Every time","Vouchers","Season 1 stickers")))
     ok("the wallet lookup box is gone; one line points to Open Trust",pg.locator("#see").count()==0 and pg.locator("main").get_by_role("link",name="Check their record on Open Trust.").count()==1)
     ok("Your XP shows three rings with the XP left",pg.locator("section:has(#t-xp) svg[role=img]").count()==3 and "50 XP to the next voucher" in pg.locator("section:has(#t-xp) svg[role=img]").first.get_attribute("aria-label"))
     ok("check-in card marks today with the boat",pg.locator("#t-daily ~ div ol li >> text=today").count()==1 and "Day 3 of 7" in t)
     op=pg.locator("[aria-labelledby=t-opens]"); steps=[x.replace("\n"," ") for x in op.locator("ol > li").all_inner_texts()]
-    ok("What your stamps open: three steps, Silver, Gold, Aurora, with Gold marked as yours",len(steps)==3 and steps[0].startswith("Silver Common stamp") and steps[1].startswith("Gold Rare stamp") and "yours now" in steps[1] and steps[2].startswith("Aurora Legendary stamp") and op.locator("li[aria-current]").count()==1,steps)
+    ok("What your stickers open: three steps, Silver, Gold, Aurora, with Gold marked as yours",len(steps)==3 and steps[0].startswith("Silver Common sticker") and steps[1].startswith("Gold Rare sticker") and "yours now" in steps[1] and steps[2].startswith("Aurora Legendary sticker") and op.locator("li[aria-current]").count()==1,steps)
     ok("it is short: one line under the steps, the rule behind the i","Your card and mascot are Gold. The shade changes every 100 XP." in op.inner_text() and op.get_by_role("button",name="How the metal is chosen").count()==1 and op.bounding_box()["height"]<250,op.bounding_box())
     ok("each step shows a mascot, and the picture loaded",op.locator("ol li img").count()>=3 and pg.evaluate("[...document.querySelectorAll('[aria-labelledby=t-opens] ol img')].every(i=>i.complete&&i.naturalWidth>0)"))
     ok("no sideways scrolling on Task Hub",pg.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")<=0)
@@ -206,7 +206,7 @@ try:
     for name in ("tasks","me","board","home"):
       pg.goto(U+name); pg.wait_for_timeout(1000); ok(f"320px {name}: nothing sticks out sideways",pg.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")<=0)
     pg.goto(U+"tasks"); pg.wait_for_timeout(900); ok("with motion reduced the town stands still",pg.evaluate("getComputedStyle(document.querySelector('.town-hop')).animationName")=="none")
-    # ---- the four IOU Cards under "What your stamps open": small, in one row, pictures only
+    # ---- the four IOU Cards under "What your stickers open": small, in one row, pictures only
     CARDS="""()=>{const e=document.querySelector('div[aria-labelledby=t-cards]'),r=e.getBoundingClientRect(),li=[...e.querySelectorAll('li')].map(x=>x.getBoundingClientRect());let out=0,fit=0,wrap=0;
       li.forEach(b=>{if(b.left<r.left-1||b.right>r.right+1)out++});e.querySelectorAll('[data-card]').forEach(c=>{const a=c.getBoundingClientRect(),k=c.querySelector('button').getBoundingClientRect();if(Math.abs(k.width-a.width)>1.5||Math.abs(k.height-a.height)>2.5)fit++});
       e.querySelectorAll('li > b, li > span.rounded-full').forEach(x=>{if(x.getBoundingClientRect().height>24)wrap++});

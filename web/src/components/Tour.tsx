@@ -15,7 +15,7 @@ const SLIDES: { t: string; d: string }[] = [
   { t: 'Take a small promise', d: 'Promise Mart lends you a few cents with a sticker, or you accept an IOU a friend sends you. Nothing to pay up front.' },
   { t: 'Repay on time', d: 'Pay the exact amount before the due date. It goes straight to the person you owe.' },
   { t: 'Your limit grows', d: 'Each on-time repay adds to your Trust Score. Three of them open L2 and a $5 limit.' },
-  { t: 'Collect stamps', d: 'Keeping your word gives XP. XP becomes vouchers, and vouchers mint Season 1 stamps for free.' },
+  { t: 'Collect stickers', d: 'Keeping your word gives XP. XP becomes vouchers, and vouchers mint Season 1 stickers for free.' },
   { t: 'Watch your town grow', d: 'Promise Town draws the record: members are mascots, open IOUs are boats. The vouchers you claim also open the parts of a town of your own.' },
 ]
 function Scene({ i, on }: { i: number; on: boolean }) {

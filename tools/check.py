@@ -94,8 +94,8 @@ try:
     ok("check-in is once a day",pg.get_by_role("button",name="Come back tomorrow").is_disabled())
     ok("Rare mint is off without a voucher",pg.locator("section",has=pg.locator("#t-shelf")).get_by_role("button",name="Mint",exact=True).nth(3).is_disabled())
     pg.get_by_role("button",name="Claim Rare").click(); pg.wait_for_timeout(300); conf(); ok("claim a voucher",'Claimed' in dlg()); pg.get_by_role("button",name="Done").click()
-    pg.locator("section",has=pg.locator("#t-shelf")).get_by_role("button",name="Mint",exact=True).nth(2).click(); pg.wait_for_timeout(300); conf(); ok("mint a stamp",'Minted' in dlg()); pg.get_by_role("button",name="Done").click()
-    st=pg.get_by_role("button",name=re.compile("Checked, Rare stamp")); st.click(); pg.wait_for_timeout(700); ok("mint proof shows edition and block","Mint proof" in pg.inner_text("body") and "Block" in pg.inner_text("body"))
+    pg.locator("section",has=pg.locator("#t-shelf")).get_by_role("button",name="Mint",exact=True).nth(2).click(); pg.wait_for_timeout(300); conf(); ok("mint a sticker",'Minted' in dlg()); pg.get_by_role("button",name="Done").click()
+    st=pg.get_by_role("button",name=re.compile("Checked, Rare sticker")); st.click(); pg.wait_for_timeout(700); ok("mint proof shows edition and block","Mint proof" in pg.inner_text("body") and "Block" in pg.inner_text("body"))
     # over-limit refusal: L2 limit $25
     pg.goto(G+"start"); pg.wait_for_timeout(700)   # the join page is for guests; members see "You are IOU Verified"
     for _ in range(3): pg.get_by_role("button",name="I did this").click(); pg.wait_for_timeout(120)
