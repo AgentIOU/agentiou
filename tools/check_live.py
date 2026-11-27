@@ -248,6 +248,15 @@ try:
     ok("Open Trust check shows the contract's score, level and flags",str(c["score"]) in t and f"Level {c['level']}, ${c['limitCents']//100} limit" in t and ("Not restricted" in t)==(not c["restricted"]) and ("No overdue IOUs" in t)==(not c["overdue"]) and f"/api/trust/{ANA}" in t and f"Record for {ANA}" in t,t[t.find("Agentic Wallet address"):][:400])
     pg.fill("#tw",CAT); pg.get_by_role("button",name="Check").click(); pg.wait_for_timeout(2500); ok("Open Trust check: a wallet that never joined says so","Not IOU Verified" in main())
     ok("footer links to Open Trust",pg.locator("footer").get_by_role("link",name=re.compile("Open Trust")).count()==1)
+    # ---- an address left on a device without its proof (from before proofs existed) is forgotten, and the device is a guest
+    c9=b.new_context(viewport={"width":390,"height":844}); p9=c9.new_page(); p9.goto(U+"home"); p9.wait_for_timeout(1200)
+    p9.evaluate("m=>localStorage.setItem('agentiou.me',m)",kept[0]); p9.reload(); p9.wait_for_timeout(2500)
+    k9=p9.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('agentiou.')).sort()")
+    ok("an address kept without a proof is forgotten on the next visit, and the device is a guest","agentiou.me" not in k9 and "agentiou.proof" not in k9 and p9.locator("header").get_by_role("link",name="Get IOU Verified").count()==1,k9)
+    p9.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr)}",kept); p9.reload(); p9.wait_for_timeout(2500)
+    k9=p9.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('agentiou.')).sort()")
+    ok("a proof copied to a device it was not made for is forgotten too","agentiou.me" not in k9 and "agentiou.proof" not in k9 and p9.locator("header").get_by_role("link",name="Get IOU Verified").count()==1,k9)
+    c9.close()
     # ---- a member's own record is read first: the profile shows while the rest of the town is still being read
     hold={"big":False,"held":[]}
     def gate(r):

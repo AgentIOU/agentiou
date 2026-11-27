@@ -84,6 +84,8 @@ const savedMe = (() => { const v = read(ME_KEY); return v && isAddress(v) ? getA
 export const storedProof: Proof | null = (() => { try { const x = JSON.parse(read(PROOF_KEY) ?? 'null'); return x && typeof x.wallet === 'string' && isAddress(x.wallet) && typeof x.device === 'string' && Number.isInteger(x.issued) && Number.isInteger(x.expires) && /^0x[0-9a-fA-F]{130}$/.test(x.sig) ? x as Proof : null } catch { return null } })()
 // shape check here; the signature itself is re-checked right after load (store.tsx), and a proof that fails is forgotten
 const proven = !DEMO && !!savedMe && !!storedProof && getAddress(storedProof.wallet) === savedMe && storedProof.device === read(DEVICE_KEY)
+// an address left on the device without a proof that holds for it (from before proofs existed, or a proof made for another device) is no use: forget it, so the device keeps nothing it does not use
+if (!DEMO && !proven && (savedMe || read(PROOF_KEY) || read(ME_KEY))) { try { localStorage.removeItem(ME_KEY); localStorage.removeItem(PROOF_KEY) } catch { /* storage may be unavailable */ } }
 export const HAS_ME = DEMO || proven
 /** Make a wallet "mine" on this device with its proof, or forget it (no argument). */
 export const saveMe = (proof?: Proof | null) => {
