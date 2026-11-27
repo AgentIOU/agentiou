@@ -22,6 +22,25 @@ const num = (v: bigint) => Number(formatEther(v))
 const iou = (id: bigint, x: RawIou): Iou => ({ id: Number(id), creditor: getAddress(x.creditor), debtor: getAddress(x.debtor), asset: x.asset === 0 ? 'BNB' : 'USDT', amount: num(x.amount), raw: x.amount.toString(), usd: x.usdCents / 100,
   createdAt: x.createdAt * 1000, dueAt: x.dueAt * 1000, repaidAt: x.repaidAt ? x.repaidAt * 1000 : undefined, status: STATUS[x.status], memo: x.memo, offerId: x.offerId || undefined })
 
+type GotUser = [RawUser, number, number, number, boolean, boolean]
+type Mint = [number, bigint, number]
+/** One member as the site shows them, from the contract's own answer. Nothing for an address that has not joined. */
+function toUser(a: string, [u, level, score, , overdue, restricted]: GotUser, mints: Mint[], chainDay: number): { user: User; view: ChainView } | null {
+  if (!u.joinedAt) return null
+  const t = u.joinedAt * 1000, stickers: User['stickers'] = {}
+  mints.forEach((m, d) => { if (m[0]) stickers[d + 1] = { edition: m[0], block: Number(m[1]), time: m[2] * 1000 } })
+  const badges: User['badges'] = {}; BADGES.forEach((b, n) => { if (u.badges & (1 << n)) badges[b.key] = t })
+  return { user: { address: a, nickname: u.nickname, no: u.no, joinedAt: t, onTime: u.onTime, late: u.late, defaults: u.defaults, people: u.people, xp: u.xp, good: u.good,
+    claimed: [u.claimed[0], u.claimed[1], u.claimed[2]], pocket: [u.pocket[0], u.pocket[1], u.pocket[2]], stickers, badges, checkDays: u.checkDays, lastCheck: u.checkDay ? u.checkDay * DAY + DAY / 2 : 0, takesToday: u.xpDay === chainDay ? u.takesToday : 0 },
+    view: { level, score, restricted, overdue, owed: u.owedCents / 100 } }
+}
+/** Only my own record, asked for in one go while the whole town is still being read, so a member sees their profile first. Null for a guest or an address that has not joined. */
+export async function loadMe(): Promise<{ user: User; view: ChainView } | null> {
+  if (!HAS_ME) return null
+  const [got, head, ...mints] = await Promise.all([read<GotUser>('getUser', [ME]), client.getBlock().catch(() => null), ...Array.from({ length: 12 }, (_, d) => read<Mint>('mintInfo', [ME, BigInt(d + 1)]))])
+  return toUser(ME, got, mints, Math.floor((head ? Number(head.timestamp) * 1000 : Date.now()) / DAY))
+}
+
 export async function loadAll(): Promise<Snapshot> {
   const usdt = (functionName: 'balanceOf' | 'allowance', args: `0x${string}`[]) => client.readContract({ address: USDT as `0x${string}`, abi: EXTRA, functionName, args } as never) as Promise<bigint>
   const [members, offersRaw, recent, mine, feed, holds, credit, shopBal, shopOk, head] = await Promise.all([
@@ -35,20 +54,14 @@ export async function loadAll(): Promise<Snapshot> {
   ])
   const chainDay = Math.floor((head ? Number(head.timestamp) * 1000 : Date.now()) / DAY)   // the contract's own calendar day
   const addrs = [...new Set([...members.map((a) => getAddress(a)), ...(HAS_ME ? [ME] : [])])]
-  const got = await Promise.all(addrs.map((a) => read<[RawUser, number, number, number, boolean, boolean]>('getUser', [a])))
+  const got = await Promise.all(addrs.map((a) => read<GotUser>('getUser', [a])))
   // sticker shelves: every design for me, and for the rest while the member list is small enough to ask in one go
   const shelfFor = addrs.filter((a, i) => got[i][0].joinedAt && (a === ME || addrs.length <= 60))
-  const mints = await Promise.all(shelfFor.flatMap((a) => Array.from({ length: 12 }, (_, d) => read<[number, bigint, number]>('mintInfo', [a, BigInt(d + 1)]))))
+  const mints = await Promise.all(shelfFor.flatMap((a) => Array.from({ length: 12 }, (_, d) => read<Mint>('mintInfo', [a, BigInt(d + 1)]))))
   const chain = new Map<string, ChainView>(), users: User[] = []
   addrs.forEach((a, i) => {
-    const [u, level, score, , overdue, restricted] = got[i]
-    if (!u.joinedAt) return
-    const t = u.joinedAt * 1000, stickers: User['stickers'] = {}, k = shelfFor.indexOf(a)
-    if (k >= 0) for (let d = 0; d < 12; d++) { const m = mints[k * 12 + d]; if (m[0]) stickers[d + 1] = { edition: m[0], block: Number(m[1]), time: m[2] * 1000 } }
-    const badges: User['badges'] = {}; BADGES.forEach((b, n) => { if (u.badges & (1 << n)) badges[b.key] = t })
-    users.push({ address: a, nickname: u.nickname, no: u.no, joinedAt: t, onTime: u.onTime, late: u.late, defaults: u.defaults, people: u.people, xp: u.xp, good: u.good,
-      claimed: [u.claimed[0], u.claimed[1], u.claimed[2]], pocket: [u.pocket[0], u.pocket[1], u.pocket[2]], stickers, badges, checkDays: u.checkDays, lastCheck: u.checkDay ? u.checkDay * DAY + DAY / 2 : 0, takesToday: u.xpDay === chainDay ? u.takesToday : 0 })
-    chain.set(a, { level, score, restricted, overdue, owed: u.owedCents / 100 })
+    const k = shelfFor.indexOf(a), made = toUser(a, got[i], k >= 0 ? mints.slice(k * 12, k * 12 + 12) : [], chainDay)
+    if (made) { users.push(made.user); chain.set(a, made.view) }
   })
   const byId = new Map<number, Iou>()
   for (const [ids, list] of [recent, mine]) ids.forEach((id, i) => byId.set(Number(id), iou(id, list[i])))

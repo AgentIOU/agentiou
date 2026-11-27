@@ -140,10 +140,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // live: the contract is the only thing that changes state. The site re-reads it now and then, and right after each confirmed step.
   const act = DEMO ? demoAct : Object.fromEntries(Object.keys(demoAct).map((k) => [k, () => undefined])) as unknown as Store['act']
   const seen = useRef<{ level: number; badges: number } | null>(null)
+  // a member's own record is asked for on its own, alongside the full read, and shown the moment it arrives: the profile does not wait for the whole town.
+  // Nothing is kept between visits; it is a fresh answer from the contract each time, and the full read replaces it.
+  const full = useRef(false)
+  useEffect(() => { if (DEMO || !HAS_ME) return; let on = true
+    import('./chain').then((m) => m.loadMe()).then((mine) => { if (!on || !mine || full.current) return; live.chain.set(ME, mine.view); setUsers((u) => (full.current || u.some((x) => x.address === ME) ? u : [...u, mine.user])) }).catch(() => undefined)
+    return () => { on = false } }, [])
   const refresh = useCallback(async () => {
     try {
       const d = await (await import('./chain')).loadAll()   // loaded only on the live site, so the demo and the first paint stay light
-      live.chain = d.chain; setBnbUsd(d.bnbUsd)
+      full.current = true; live.chain = d.chain; setBnbUsd(d.bnbUsd)
       const mine = d.users.find((x) => x.address === ME)
       if (mine) { const now = { level: d.chain.get(ME)?.level ?? 1, badges: Object.keys(mine.badges).length }
         if (seen.current && now.level > seen.current.level) setLast((l) => ({ ...l, levelUp: now.level }))

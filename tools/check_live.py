@@ -248,6 +248,24 @@ try:
     ok("Open Trust check shows the contract's score, level and flags",str(c["score"]) in t and f"Level {c['level']}, ${c['limitCents']//100} limit" in t and ("Not restricted" in t)==(not c["restricted"]) and ("No overdue IOUs" in t)==(not c["overdue"]) and f"/api/trust/{ANA}" in t and f"Record for {ANA}" in t,t[t.find("Agentic Wallet address"):][:400])
     pg.fill("#tw",CAT); pg.get_by_role("button",name="Check").click(); pg.wait_for_timeout(2500); ok("Open Trust check: a wallet that never joined says so","Not IOU Verified" in main())
     ok("footer links to Open Trust",pg.locator("footer").get_by_role("link",name=re.compile("Open Trust")).count()==1)
+    # ---- a member's own record is read first: the profile shows while the rest of the town is still being read
+    hold={"big":False,"held":[]}
+    def gate(r):
+        try: n=len(json.loads(r.request.post_data or "[]")) if (r.request.post_data or "").lstrip().startswith("[") else 1
+        except Exception: n=1
+        if hold["big"]: hold["held"].append(r)          # everything after the first round waits
+        else:
+            if n>=5: hold["big"]=True                    # the first round: the lists, and my own record with them
+            r.continue_()
+    pg.route(re.compile(r".*127\.0\.0\.1:8547.*"),gate); pg.reload(); pg.wait_for_timeout(3000)
+    hdr=pg.locator("header"); early=hdr.get_by_role("link",name="Get IOU Verified").count()==0 and hdr.locator("a[href*='me'],button").count()>0
+    ok("on opening, a member's profile shows after the first read, before the other members are read",hold["big"] and len(hold["held"])>0 and early,(hold["big"],len(hold["held"]),hdr.inner_text()[:120]))
+    ok("in that moment nothing is kept on the device beyond the address, its proof and the device code",sorted(k for k in keys() if k.startswith("agentiou.") and k not in ("agentiou.ask",))==["agentiou.device","agentiou.me","agentiou.proof"],keys())
+    pg.unroute(re.compile(r".*127\.0\.0\.1:8547.*"))
+    for r in hold["held"]:
+        try: r.continue_()
+        except Exception: pass
+    pg.wait_for_timeout(2500); ok("then the full read lands and the page is complete",hdr.get_by_role("link",name="Get IOU Verified").count()==0 and len(pg.evaluate("document.querySelector('main').innerText"))>200)
     c2=b.new_context(viewport={"width":390,"height":844}); p2=c2.new_page(); p2.goto(U+"home"); p2.wait_for_timeout(1500)
     p2.evaluate("([m,pr])=>{localStorage.setItem('agentiou.me',m);localStorage.setItem('agentiou.proof',pr);localStorage.setItem('agentiou.device','ZZZZ-2222')}",kept); p2.reload(); p2.wait_for_timeout(4000)
     ok("the address and its proof copied to another device do not open the profile there",p2.locator("header").get_by_role("link",name="Get IOU Verified").count()==1 and p2.locator("header").get_by_role("link",name=re.compile("^My profile:")).count()==0); c2.close()
