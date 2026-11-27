@@ -131,6 +131,8 @@ export const seedIous = (): Iou[] => [
   i(9, MIRA, OMAR, 'USDT', 0.5, -9, -2, 'Active', 'Groceries'),
   i(10, RAFI, OMAR, 'USDT', 0.3, -6, -1, 'Active', 'Data pack'),
   // ?demo=restricted: a member with two IOUs past due, so the account is Restricted (tests use it; nothing links to it)
+  // ?demo=crowd: five open IOUs between the extra members and one Promise Mart loan, so the town's pages have different boats (tests use it)
+  ...(MODE === 'crowd' ? [[1, 10, 2], [8, 3, 4], [13, 20, 6], [18, 7, 9], [23, 15, 12]].map(([d, c, due], k) => i(31 + k, addr(0x9000 + c), addr(0x9000 + d), 'USDT', 0.2, -1, due, 'Active', 'Lunch')).concat([i(36, MART, addr(0x9000 + 5), 'USDT', 0.05, -1, 2, 'Active', 'Good for one sticker', undefined, 2)]) : []),
   ...(MODE === 'restricted' ? [i(21, addr(0x6f2), ME, 'USDT', 0.2, -6, -2, 'Active', 'Snacks'), i(22, addr(0x7a8), ME, 'USDT', 0.3, -5, -1, 'Active', 'Bus card')] : []),
   // ?demo=busy: a member with many open IOUs, to see the harbour at its biggest (tests use it; nothing links to it)
   ...(BUSY ? [i(11, addr(0x6f2), ME, 'USDT', 0.2, -1, 1, 'Active', 'Snacks'), i(12, ME, addr(0x7a8), 'USDT', 0.4, -1, 2, 'Active', 'Stickers'), i(13, addr(0x7a8), ME, 'USDT', 0.3, -2, 3, 'Active', 'Bus card'), i(14, ME, SAM, 'USDT', 0.6, -1, 6, 'Active', 'Coffee'),

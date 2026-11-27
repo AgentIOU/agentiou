@@ -109,11 +109,12 @@ export default function Tasks() {
           {/* the same card in its four metals, small, in one row: pictures only, so they cannot be pressed or turned over */}
           <div className="panel p-4 mt-4 max-w-[620px]" aria-labelledby="t-cards">
             <h3 id="t-cards" className="text-[16px] font-semibold">The four IOU Cards</h3><p className="text-muted text-[13px] mt-0.5">Your highest sticker sets the metal of your card.</p>
-            <ul ref={fan} className="grid grid-cols-4 gap-2 sm:gap-3 mt-3.5 text-center">{LOOKS.map((lk, i) => { const on = mine.look === lk, ink = ['#8CC8FF', '#D8DAE8', '#F2C14E', '#C9A6FF'][i]
+            <ul ref={fan} className="grid grid-cols-4 gap-2 sm:gap-3 mt-3.5 text-center">{LOOKS.map((lk, i) => { const on = s.joined && mine.look === lk, ink = ['#8CC8FF', '#D8DAE8', '#F2C14E', '#C9A6FF'][i]
               return <li key={lk} aria-current={on || undefined} className="min-w-0">
                 <span aria-hidden data-card className="relative block pointer-events-none select-none mb-1.5" style={{ aspectRatio: '85.6 / 54', filter: 'drop-shadow(0 4px 6px #0008)' }}><span className="absolute left-0 top-0 block" style={{ width: 440, transformOrigin: '0 0', scale: String(fanK) }}>
                   <IouCard nick={s.joined ? me.nickname : 'you'} address={me.address} no={me.no} level={cardLv} available={LEVELS[cardLv - 1].limit} limit={LEVELS[cardLv - 1].limit} look={lk} back={[]} /></span></span>
                 <b className="block text-[13px] sm:text-[14px]" style={{ color: ink }}>{LOOK_NAME[lk]}</b><span className="block text-[10.5px] sm:text-[11.5px] leading-[1.3] text-muted">{i ? `Any ${TIERS[i - 1]} sticker` : 'Where everyone starts'}</span>{on && <span className="inline-block whitespace-nowrap text-[10px] font-extrabold rounded-full px-1.5 mt-1" style={{ background: ink, color: '#14163A' }}>yours now</span>}</li> })}</ul>
+            {!s.joined && <p className="text-muted text-[13px] mt-2.5 text-center"><Link to="start" className="underline underline-offset-4 text-chalk">Get IOU Verified</Link> first to get a card of your own.</p>}
           </div>
           {TIERS.map((t, ti) => <div key={t} className="mt-7"><h3 className="text-[16px] font-semibold flex items-center gap-3">{t}<span className="text-muted font-normal text-[14px]">{me.pocket[ti]} voucher{me.pocket[ti] === 1 ? '' : 's'} in pocket</span></h3>
             <ul className="grid grid-cols-3 gap-4 mt-3 max-w-[620px]">{SEASON.filter((d) => d.tier === t).map((d) => { const have = me.stickers[d.id]; return <li key={d.id} className="text-center"><StickerCard k={d.key} name={d.name} tier={t} mint={have} owner={ME} dim={!have} onFlip />

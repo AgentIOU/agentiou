@@ -39,12 +39,17 @@ function useTown(pick: Pick, want = 0) {
   const placed: { u: User; at: [number, number] }[] = []; const used: Record<number, number> = { 1: 0, 2: 0, 3: 0 }
   for (const u of shown) { const lv = levelOf(u), n = used[lv]; placed.push({ u, at: SLOTS[lv][n] }); used[lv] = n + 1 }
   const crowded = Math.max(used[1], used[2], used[3]) > 5
-  // boats: in My circle my own open IOUs; in Whole town every open IOU on the contract, the same ones the home page counts as open promises
+  // boats: in My circle my own open IOUs. In Whole town every open IOU on the contract is a boat, and it rides on the page where its borrower stands:
+  // each page shows the boats of its own ten members, soonest due first. I stand on every page, so what I owe rides on every page.
   const active = s.ious.filter((x) => x.status === 'Active').sort((a, b) => a.dueAt - b.dueAt), mine = s.joined ? active.filter((x) => x.debtor === ME || x.creditor === ME) : []
-  const open = view === 'town' ? active : mine
-  // the harbour grows with the boats: the first picture holds 3, the second 8, the third 14
-  const stage = TOWN_STAGES[open.length <= TOWN_STAGES[0].boats.length ? 0 : open.length <= TOWN_STAGES[1].boats.length ? 1 : 2]
-  return { view, circle, canCircle, people, placed, crowded, count, open, mine, stage, page, pages }
+  const at = new Map(rest.map((u, k) => [u.address, Math.floor(k / each)] as const))
+  const onPage = (x: Iou, n: number) => (me && x.debtor === ME) || (at.get(x.debtor) ?? 0) === n   // a borrower the site has not read rides on the first page
+  const total = view === 'town' ? active : mine, CAP = TOWN_STAGES[2].boats.length
+  const open = view === 'town' ? active.filter((x) => onPage(x, page)) : mine
+  // the harbour grows with the boats: the first picture holds 3, the second 8, the third 14. It is sized for the fullest page, so turning the page never changes the picture.
+  const most = view === 'town' ? Math.max(0, ...Array.from({ length: pages }, (_, n) => Math.min(CAP, active.filter((x) => onPage(x, n)).length))) : mine.length
+  const stage = TOWN_STAGES[most <= TOWN_STAGES[0].boats.length ? 0 : most <= TOWN_STAGES[1].boats.length ? 1 : 2]
+  return { view, circle, canCircle, people, placed, crowded, count, open, total, mine, stage, page, pages }
 }
 type Town = ReturnType<typeof useTown>
 
@@ -105,7 +110,7 @@ function TownPage({ t, set, go, close, visit }: { t: Town; set: (p: Pick) => voi
   const pay = t.mine.filter((x) => x.debtor === ME), get = t.mine.filter((x) => x.creditor === ME), soon = pay[0], who: [string | number, string] = [t.people.length, t.people.length === 1 ? 'person' : 'people']
   // My circle: my own open IOUs. Whole town: the whole record so far, open and finished.
   const facts: [string | number, string, string?][] = t.view === 'circle' ? [who, [pay.length, 'to pay', '#FFD98A'], [get.length, 'to receive', '#9EE6C8'], [soon ? dueTag(soon) : 'none', 'next due']]
-    : [who, [t.open.length, 'open promises', '#8CC8FF'], [s.ious.filter((x) => viewOf(x) === 'Repaid').length, 'repaid on time', '#9EE6C8'], [t.open.filter((x) => viewOf(x) === 'Overdue').length, 'late now', '#FF8B7B']]
+    : [who, [t.total.length, 'open promises', '#8CC8FF'], [s.ious.filter((x) => viewOf(x) === 'Repaid').length, 'repaid on time', '#9EE6C8'], [t.open.filter((x) => viewOf(x) === 'Overdue').length, 'late now', '#FF8B7B']]
   const round = 'w-10 h-10 rounded-full inline-flex items-center justify-center text-chalk cursor-pointer'
   return (
     <Sheet title="Promise Town" close={close}>
