@@ -206,6 +206,19 @@ try:
     for name in ("tasks","me","board","home"):
       pg.goto(U+name); pg.wait_for_timeout(1000); ok(f"320px {name}: nothing sticks out sideways",pg.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")<=0)
     pg.goto(U+"tasks"); pg.wait_for_timeout(900); ok("with motion reduced the town stands still",pg.evaluate("getComputedStyle(document.querySelector('.town-hop')).animationName")=="none")
+    # ---- the four IOU Cards under "What your stamps open": small, in one row, pictures only
+    CARDS="""()=>{const e=document.querySelector('div[aria-labelledby=t-cards]'),r=e.getBoundingClientRect(),li=[...e.querySelectorAll('li')].map(x=>x.getBoundingClientRect());let out=0,fit=0,wrap=0;
+      li.forEach(b=>{if(b.left<r.left-1||b.right>r.right+1)out++});e.querySelectorAll('[data-card]').forEach(c=>{const a=c.getBoundingClientRect(),k=c.querySelector('button').getBoundingClientRect();if(Math.abs(k.width-a.width)>1.5||Math.abs(k.height-a.height)>2.5)fit++});
+      e.querySelectorAll('li > b, li > span.rounded-full').forEach(x=>{if(x.getBoundingClientRect().height>24)wrap++});
+      return {out,fit,wrap,cards:e.querySelectorAll('[data-card]').length,inert:e.querySelectorAll('[data-card][inert]').length,rows:new Set(li.map(b=>Math.round(b.top))).size,yours:[...e.querySelectorAll('[aria-current]')].map(x=>x.querySelector(':scope > b').textContent).join(),names:[...e.querySelectorAll('li > b')].map(x=>x.textContent).join(),scroll:document.documentElement.scrollWidth>document.documentElement.clientWidth}}"""
+    for w in (320,360,393,1280):
+        pg=b.new_page(viewport={"width":w,"height":844},device_scale_factor=2); pg.on("pageerror",lambda e: errs.append(str(e))); pg.goto(U+"tasks"); pg.wait_for_timeout(1700); d=pg.evaluate(CARDS)
+        ok(f"{w}px: the four IOU Cards sit in one row inside their box, each drawn to fit, nothing wraps or scrolls",d["cards"]==4 and d["rows"]==1 and not d["out"] and not d["fit"] and not d["wrap"] and not d["scroll"],d)
+        if w==393:
+            ok("the four cards are named Classic, Silver, Gold, Aurora",d["names"]=="Classic,Silver,Gold,Aurora",d["names"]); ok("the small cards are pictures only: none can be pressed",d["inert"]==4,d)
+            ok("the member's own metal is marked 'yours now', once",d["yours"]=="Gold" and pg.locator("div[aria-labelledby=t-cards]").get_by_text("yours now").count()==1,d["yours"])
+        pg.close()
+    pg=phone(); pg.goto(G+"tasks"); pg.wait_for_timeout(1700); d=pg.evaluate(CARDS); ok("a guest sees the four cards too, with Classic marked",d["cards"]==4 and d["yours"]=="Classic",d); pg.close()
     ok("no script errors anywhere in these checks",errs==[],errs[:3])
     b.close()
 finally: srv.terminate()

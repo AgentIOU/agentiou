@@ -52,7 +52,7 @@ The record, drawn. Nothing here adds state: the contract is unchanged and the si
 | **Promise Town** | Members are mascots on the terrace of their level; open IOUs are boats tagged with the days left. Two views, My circle and Whole town, ten members a page. Press the town to zoom and move; press a mascot to see that member's town and record. | Levels, Trust Scores and the IOU list, read from the contract |
 | **Harbour Run** | A 40-second game opened by today's check-in. One rock ends the run. The score stays on the device and gives no XP, no rank and no reward. | The check-in day and streak |
 | **Build your town** | 28 parts, each with its own place, opened in a fixed order by vouchers already claimed: 2 Common, 1 Rare or 1 Legendary a part. Parts cannot be bought, sold or moved. | The contract's `claimed` counters |
-| **Card and mascot looks** | The highest stamp tier held sets the metal (Silver, Gold, Aurora); the shade changes every 100 XP. A look only: it never changes the Trust Score or the limit. | Stamps and XP |
+| **Card and mascot looks** | The highest stamp tier held sets the metal (Silver, Gold, Aurora); the shade changes every 100 XP. The Task Hub shows the member's own card in all four looks (Classic, Silver, Gold, Aurora), small, as pictures. A look only: it never changes the Trust Score or the limit. | Stamps and XP |
 
 A Restricted account can still look at Promise Town, but cannot play Harbour Run or open Build your town until it repays.
 
@@ -130,7 +130,7 @@ docs/        Security notes, deployment steps and the Open Trust API guide
 | File in `tools/` | What it does |
 |---|---|
 | `check.py` | Full check of the built demo site: every page, every flow, the rules, layout, accessibility |
-| `check_town.py` | Promise Town, its pages and zoom, Harbour Run, Build your town, the looks; that every card and info note stays inside 320, 360 and 393px phones; and the desktop layout without the phone dock |
+| `check_town.py` | Promise Town, its pages and zoom, Harbour Run, Build your town, the looks and the four small IOU Cards; that every card and info note stays inside 320, 360 and 393px phones; and the desktop layout without the phone dock |
 | `check_devices.py` | More screen widths, Android emulation, keyboard-only use, speed |
 | `check_live.py` | The live site and the Open Trust API against a local chain that stands in for BNB Smart Chain, sending each prompt's exact call |
 | `check_numbers.py` | Balance, Trust Score, level and XP move by exactly the contract's amounts |

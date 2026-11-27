@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Sailboat, Sparkles, Ticket as TicketIcon } from 'lucide-react'
-import { LOOK_NAME, LOOKS, ME, SEASON, SHADES, SHADE_XP, TIERS, TIER_XP, claimable, dayOf, levelOf, styleOf } from '../lib/data'
+import { LEVELS, LOOK_NAME, LOOKS, ME, SEASON, SHADES, SHADE_XP, TIERS, TIER_XP, claimable, dayOf, levelOf, styleOf } from '../lib/data'
 import { Link } from '../lib/router'
 import { useStore } from '../lib/store'
 import { useFlows } from '../lib/flows'
-import { StickerCard, Ticket } from '../components/art'
+import { IouCard, StickerCard, Ticket } from '../components/art'
 import { DemoChip, InfoTip } from '../components/ui'
 import { Floaters, Mascot, type Pose } from '../components/fx'
 import { TownBox } from './Town'
@@ -44,7 +44,10 @@ function Quests({ done }: { done: Record<string, boolean | undefined> }) {
 }
 export default function Tasks() {
   const s = useStore(), f = useFlows(), me = s.me, can = claimable(me), od = s.hasOverdue(ME)
-  const mine = styleOf(me)
+  const mine = styleOf(me), cardLv = levelOf(me)
+  // the four small cards are the real card, drawn at full size and shrunk as one picture, so the seal and the type keep their proportions; they are pictures only
+  const fan = useRef<HTMLUListElement>(null), [fanK, setFanK] = useState(0.18)
+  useEffect(() => { const e = fan.current; if (!e) return; e.querySelectorAll<HTMLElement>('[data-card]').forEach((c) => { c.inert = true }); const fit = () => setFanK((e.querySelector('[data-card]') as HTMLElement).clientWidth / 440); fit(); const ro = new ResizeObserver(fit); ro.observe(e); return () => ro.disconnect() }, [])
   const next = TIER_XP.map((step) => step - (me.xp % step))
   const done: Record<string, boolean> = { join: s.joined, repay: me.onTime > 0, early: me.onTime > 1, paidback: false, newperson: me.people > 0, badge: Object.keys(me.badges).length > 0, level: levelOf(me) > 1 }
   const checked = dayOf(me.lastCheck) === dayOf(Date.now())
@@ -103,6 +106,15 @@ export default function Tasks() {
                   <b className="block text-[14px] mt-1.5" style={{ color: got ? ink : '#8A8FB5' }}>{LOOK_NAME[lk]}</b><span className="block text-[11.5px] text-muted">{t} stamp</span>{on && <span className="inline-block text-[10.5px] font-extrabold rounded-full px-2 mt-1" style={{ background: ink, color: '#14163A' }}>yours now</span>}</li> })}</ol>
             </div>
             <p className="text-muted text-[13px] mt-2.5 text-center">{mine.tier ? <>Your card and mascot are <b className="text-chalk">{SHADES[mine.look][mine.shade]}</b>. The shade changes every {SHADE_XP} XP.</> : 'Mint a stamp and your card and mascot turn Silver.'}</p></div>
+          {/* the same card in its four metals, small, in one row: pictures only, so they cannot be pressed or turned over */}
+          <div className="panel p-4 mt-4 max-w-[620px]" aria-labelledby="t-cards">
+            <h3 id="t-cards" className="text-[16px] font-semibold">The four IOU Cards</h3><p className="text-muted text-[13px] mt-0.5">Your highest stamp sets the metal of your card.</p>
+            <ul ref={fan} className="grid grid-cols-4 gap-2 sm:gap-3 mt-3.5 text-center">{LOOKS.map((lk, i) => { const on = mine.look === lk, ink = ['#8CC8FF', '#D8DAE8', '#F2C14E', '#C9A6FF'][i]
+              return <li key={lk} aria-current={on || undefined} className="min-w-0">
+                <span aria-hidden data-card className="relative block pointer-events-none select-none mb-1.5" style={{ aspectRatio: '85.6 / 54', filter: 'drop-shadow(0 4px 6px #0008)' }}><span className="absolute left-0 top-0 block" style={{ width: 440, transformOrigin: '0 0', scale: String(fanK) }}>
+                  <IouCard nick={s.joined ? me.nickname : 'you'} address={me.address} no={me.no} level={cardLv} available={LEVELS[cardLv - 1].limit} limit={LEVELS[cardLv - 1].limit} look={lk} back={[]} /></span></span>
+                <b className="block text-[13px] sm:text-[14px]" style={{ color: ink }}>{LOOK_NAME[lk]}</b><span className="block text-[10.5px] sm:text-[11.5px] leading-[1.3] text-muted">{i ? `Any ${TIERS[i - 1]} stamp` : 'Where everyone starts'}</span>{on && <span className="inline-block whitespace-nowrap text-[10px] font-extrabold rounded-full px-1.5 mt-1" style={{ background: ink, color: '#14163A' }}>yours now</span>}</li> })}</ul>
+          </div>
           {TIERS.map((t, ti) => <div key={t} className="mt-7"><h3 className="text-[16px] font-semibold flex items-center gap-3">{t}<span className="text-muted font-normal text-[14px]">{me.pocket[ti]} voucher{me.pocket[ti] === 1 ? '' : 's'} in pocket</span></h3>
             <ul className="grid grid-cols-3 gap-4 mt-3 max-w-[620px]">{SEASON.filter((d) => d.tier === t).map((d) => { const have = me.stickers[d.id]; return <li key={d.id} className="text-center"><StickerCard k={d.key} name={d.name} tier={t} mint={have} owner={ME} dim={!have} onFlip />
               {have ? <span className="pill pill-leaf mt-3">Minted</span> : <button type="button" className="btn btn-secondary btn-sm mt-3 w-full" disabled={me.pocket[ti] < 1 || od || !s.joined} onClick={() => f.mint(d.id)}><Sparkles size={15} aria-hidden />Mint</button>}</li> })}</ul></div>)}
